@@ -1,0 +1,68 @@
+
+const express = require('express');
+const router = express.Router();
+
+// Import route modules
+const s3Routes = require('./s3');
+const userRoutes = require('./user');
+const taskRoutes = require('./task');
+const authRoutes = require('./auth');
+const clientRoutes = require('./client');
+const sprintRoutes = require('./sprint');
+const projectRoutes = require('./project');
+const milestoneRoutes = require('./milestone');
+const technologyRoutes = require('./technology');
+const systemLogsRoutes = require('./systemLogs');
+const dashboardRoutes = require('./dashboard');
+const uploadRoutes = require('./upload');
+const searchRoutes = require('./search');
+const taskStatusRoutes = require('./taskStatus');
+const timeTrackingRoutes = require('./timeTracking');
+const attendanceRoutes = require('./attendance');
+const supportRoutes = require('./support');
+const timeTrackingReports = require('./timeTrackingReports');
+const teamProjectTrackerRoutes = require('./teamProjectTracker');
+const projectCommentRoutes = require('./projectComment');
+const designationRoutes = require('./designation');
+const timeTrackingLogsRoutes = require('./timeTrackingLogs');
+const amcReportsRoutes = require('./amcReports');
+const meetingRoutes = require('./meeting');
+const qamanagement = require('./qamanagement');
+const userOverviewRoutes = require('./userOverview');
+const clientProjectRoutes = require('./clientProject');
+const clientMilestoneRoutes = require('./clientMilestone');
+const clientTaskRoutes = require('./clientTask');
+const clientDocumentsRoutes = require('./clientDocuments');
+
+// Mount routes
+router.use('/s3', s3Routes);
+router.use('/upload', uploadRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/search', searchRoutes);
+router.use('/task-status', taskStatusRoutes);
+router.use('/auth', authRoutes);
+router.use('/user', userRoutes);
+router.use('/task', taskRoutes);
+router.use('/client', clientRoutes);
+router.use('/sprint', sprintRoutes);
+router.use('/project', projectRoutes);
+router.use('/milestone', milestoneRoutes);
+router.use('/technology', technologyRoutes);
+router.use('/system', systemLogsRoutes);
+router.use('/attendance', attendanceRoutes);
+router.use('/support', supportRoutes);
+router.use('/reports', timeTrackingReports);
+router.use('/team-project-tracker', teamProjectTrackerRoutes);
+router.use('/project-comment', projectCommentRoutes);
+router.use('/designation', designationRoutes);
+router.use('/time-tracking-logs', timeTrackingLogsRoutes);
+router.use('/time-tracking', timeTrackingRoutes);
+router.use('/amc-project', amcReportsRoutes);
+router.use('/meeting', meetingRoutes);
+router.use('/qa/tasks', qamanagement);
+router.use('/user-overview', userOverviewRoutes);
+router.use('/client-project', clientProjectRoutes);
+router.use('/client-milestone', clientMilestoneRoutes);
+router.use('/client-task', clientTaskRoutes);
+router.use('/documents', clientDocumentsRoutes);
+module.exports = router;

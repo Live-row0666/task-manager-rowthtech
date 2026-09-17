@@ -1,0 +1,10 @@
+/* Fixed header with scrollable body styles */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-fixed-header table {
+  table-layout: fixed;
+  width: 100%;
+}

@@ -1,0 +1,41 @@
+version: "3"
+services:
+  taskmanagerserver:
+    image: taskmanagerserver
+    build: ../../server
+    ports:
+      - 9012:9012
+    container_name: taskmanagerserver
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  taskmanagerdmin:
+    image: taskmanagerdmin
+    build: ../../admin
+    ports:
+      - 9013:9013
+    container_name: taskmanagerdmin
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  taskmanageruser:
+    image: taskmanageruser
+    build: ../../user
+    ports:
+      - 9014:9014
+    container_name: taskmanageruser
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  taskmanagerclient:
+    image: taskmanagerclient
+    build: ../../client
+    ports:
+      - 9015:9015
+    container_name: taskmanagerclient
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro

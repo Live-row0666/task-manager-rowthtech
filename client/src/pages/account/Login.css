@@ -1,0 +1,250 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.login-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #ebf1fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Concentric Background Rings */
+.circle-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(193, 209, 235, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.password-eye {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 16px;
+}
+.ring-1 { width: 450px; height: 450px; border-color: rgba(193, 209, 235, 0.5); }
+.ring-2 { width: 750px; height: 750px; border-color: rgba(193, 209, 235, 0.45); }
+.ring-3 { width: 1050px; height: 1050px; border-color: rgba(193, 209, 235, 0.35); }
+.ring-4 { width: 1350px; height: 1350px; border-color: rgba(193, 209, 235, 0.25); }
+.ring-5 { width: 1650px; height: 1650px; border-color: rgba(193, 209, 235, 0.15); }
+
+/* Login Card */
+.login-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Black Logo Header Banner */
+.login-logo-header {
+  background-color: #0b0b0b;
+  height: 90px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: 1px;
+}
+
+.logo-text-white {
+  color: #ffffff;
+  margin-right: 6px;
+}
+
+.logo-text-tech {
+  border: 1.5px solid #ffa500;
+  color: #ffa500;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 16px;
+}
+
+/* Form Body styling */
+.login-form-body {
+  padding: 35px 40px 45px 40px;
+  text-align: center;
+}
+
+.login-title {
+  color: #2b3a4a;
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.login-subtitle {
+  color: #707c8a;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 25px 0;
+}
+
+/* Alert messages */
+.alert-message {
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.error-message {
+  background-color: #ffeef0;
+  color: #d9383a;
+  border: 1px solid #ffd0d6;
+}
+
+.success-message {
+  background-color: #e6f6ee;
+  color: #2a8b57;
+  border: 1px solid #c2ebd5;
+}
+
+/* Form inputs styling */
+.input-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.input-group label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #556272;
+  margin-bottom: 6px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: #2c3e50;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-group input::placeholder {
+  color: #94a3b8;
+}
+
+.input-group input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Password Input Wrapper */
+.password-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.password-label-row label {
+  margin-bottom: 0;
+}
+
+.forgot-link {
+  font-size: 12.5px;
+  color: #3b82f6;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.forgot-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  padding-right: 44px; /* Give room for toggle button */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 44px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  transition: color 0.15s;
+}
+
+.password-toggle-btn:hover {
+  color: #64748b;
+}
+
+/* Submit Button */
+.login-submit-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background-color: #1a2238;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.login-submit-btn:hover {
+  background-color: #0f172a;
+}
+
+.login-submit-btn:active {
+  transform: scale(0.99);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .login-card {
+    max-width: 90%;
+  }
+  .login-form-body {
+    padding: 25px 25px 35px 25px;
+  }
+}

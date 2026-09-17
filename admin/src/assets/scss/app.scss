@@ -1,0 +1,31 @@
+/*
+Template Name: Hyper - Responsive Bootstrap 5 Admin Dashboard
+Version: 3.4.0
+Author: CoderThemes
+Email: support@coderthemes.com
+File: Main Css File
+*/
+
+//Core files
+
+@import "./node_modules/bootstrap/scss/functions";
+@import "./node_modules/bootstrap/scss/variables";
+@import "config/saas/variables";
+
+@import "./config/saas/light-mode";
+@import "./config/saas/dark-mode";
+@import "config/saas/custom-variables";
+
+@import "./node_modules/bootstrap/scss/bootstrap";
+
+// Structure
+@import "custom/structure/general";
+@import "custom/structure/left-menu";
+@import "custom/structure/topbar";
+@import "custom/structure/right-sidebar";
+@import "custom/structure/page-head";
+// horizontal nav
+@import "custom/structure/horizontal-nav";
+
+//Fonts
+@import "custom/fonts/nunito";

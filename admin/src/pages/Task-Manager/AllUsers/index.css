@@ -1,0 +1,24 @@
+/* Fixed header with scrollable body styles */
+.table-container {
+    height: 74vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+/* Ensure the header stays in place */
+.table-container thead.table-dark {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Add a subtle shadow to the header for visual separation */
+.table-container thead.table-dark::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.1);
+}

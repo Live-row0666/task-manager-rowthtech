@@ -1,0 +1,28 @@
+.overdue-banner {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: #fff3cd;
+    border: 1px solid #ffe69c;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.overdue-scroll {
+    white-space: nowrap;
+    display: inline-block;
+    padding: 10px 0;
+    animation: marquee 20s linear infinite;
+    font-weight: 600;
+    color: #856404;
+}
+
+@keyframes marquee {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}

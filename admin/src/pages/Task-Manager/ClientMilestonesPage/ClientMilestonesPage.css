@@ -1,0 +1,101 @@
+/* ── Page ─────────────────────────────────────────────────────────────────── */
+.cmp-page         { padding: 16px; }
+.cmp-header       { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.cmp-title        { font-weight: 700; color: #212529; margin-bottom: 2px; }
+.cmp-subtitle     { font-size: 12px; color: #6c757d; margin: 0; }
+
+/* ── Filter ───────────────────────────────────────────────────────────────── */
+.cmp-filter-card  { }
+.cmp-filter-body  { padding: 8px 12px; }
+.cmp-filter-row   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cmp-select-wrap  { width: 220px; }
+.cmp-search-wrap  { position: relative; width: 200px; }
+.cmp-search-icon  { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 12px; }
+.cmp-search-input { padding-left: 30px; font-size: 12px; height: 32px; }
+.cmp-count        { font-size: 12px; }
+
+/* ── Empty / Loading ──────────────────────────────────────────────────────── */
+.cmp-empty        { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 50vh; color: #6c757d; }
+.cmp-empty-icon   { font-size: 48px; margin-bottom: 12px; }
+.cmp-empty-text   { font-size: 15px; font-weight: 500; }
+.cmp-loading      { display: flex; justify-content: center; align-items: center; height: 50vh; }
+
+/* ── Milestone Card ───────────────────────────────────────────────────────── */
+.cmp-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid #e9ecef;
+    border-left: 4px solid #dee2e6;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    height: 100%;
+}
+.cmp-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+.cmp-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.cmp-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.cmp-priority-badge {
+    font-size: 10px;
+    color: #6c757d;
+    background: #f1f3f5;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.cmp-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.cmp-dates {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+.cmp-date-item  { font-size: 11px; color: #6c757d; }
+.cmp-date-sep   { font-size: 11px; color: #adb5bd; }
+
+.cmp-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f3f5;
+}
+
+.cmp-days {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.cmp-goto {
+    font-size: 11px;
+    color: #0d6efd;
+    font-weight: 600;
+}

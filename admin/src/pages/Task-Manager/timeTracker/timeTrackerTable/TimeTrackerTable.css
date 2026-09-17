@@ -1,0 +1,115 @@
+/* TimeTrackerTable.css */
+.time-tracker-card {
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 90vh !important;
+}
+
+.filter-section {
+  background-color: #f8f9fa;
+}
+
+.date-picker-wrapper {
+  width: 100%;
+}
+
+.date-picker-wrapper .react-datepicker-wrapper {
+  width: 100%;
+}
+
+.date-picker-wrapper .react-datepicker__input-container input {
+  height: 32px;
+  font-size: 0.8rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.record-card {
+  transition: all 0.2s ease;
+}
+
+.record-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important;
+}
+
+.project-section {
+  transition: all 0.2s ease;
+}
+
+.project-section .tasks-container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.project-section .cursor-pointer:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+
+.task-item {
+  transition: all 0.2s ease;
+}
+
+.task-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Custom scrollbar */
+.records-container {
+  scrollbar-width: thin;
+  scrollbar-color: #dee2e6 #f8f9fa;
+}
+
+.records-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.records-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.records-container::-webkit-scrollbar-thumb {
+  background-color: #dee2e6;
+  border-radius: 6px;
+}
+
+/* DatePicker customization */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Badge styling */
+.badge.rounded-pill {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* Empty state styling */
+.empty-state-icon {
+  opacity: 0.7;
+}
+
+/* React Select customization */
+.react-select__control--is-focused {
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.react-select__option--is-selected {
+  background-color: #007bff !important;
+}
+
+.react-select__option:hover {
+  background-color: #e9ecef !important;
+}

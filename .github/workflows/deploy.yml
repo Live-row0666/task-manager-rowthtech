@@ -1,0 +1,42 @@
+name: taskmanager CI
+
+on:
+  push:
+    branches: ["@test"]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy server .env file from backup
+        run: |
+          cp /var/www/env-backups/.env.tmserver /var/www/task-manager-runner/_work/TASK_MANAGER/TASK_MANAGER/server/.env
+          echo ".env file copied from backup."
+
+      - name: Copy user .env file from backup
+        run: |
+          cp /var/www/env-backups/.env.tmsuser /var/www/task-manager-runner/_work/TASK_MANAGER/TASK_MANAGER/user/.env
+          echo ".env file copied from backup."
+
+      - name: Copy admin .env file from backup
+        run: |
+          cp /var/www/env-backups/.env.tmsadmin /var/www/task-manager-runner/_work/TASK_MANAGER/TASK_MANAGER/admin/.env
+          echo ".env file copied from backup."
+
+      - name: Copy client .env file from backup
+        run: |
+          cp /var/www/env-backups/.env.tmsclient /var/www/task-manager-runner/_work/TASK_MANAGER/TASK_MANAGER/client/.env
+          echo ".env file copied from backup."
+
+      - name: Set execute permissions for deploy.sh
+        run: chmod +x docker/app/deploy.sh
+      - name: Build the Docker image
+        run: |
+          cd docker/app
+          ./deploy.sh
+
+      - name: Remove build cache
+        run: docker system prune -a -f

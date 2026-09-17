@@ -1,0 +1,53 @@
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.ctd-page            { height: 92vh; }
+.ctd-body            { padding: 8px 8px 8px 8px; padding-top: 8px; }
+.ctd-topbar          { margin-bottom: 8px; padding: 0; background: #fff; border-radius: 4px; }
+.ctd-topbar-left     { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.ctd-topbar-right    { display: flex; flex-wrap: wrap; gap: 8px; }
+.ctd-select-wrap     { width: 160px; }
+.ctd-search-wrap     { position: relative; width: 160px; }
+.ctd-search-wrap input { height: 30px; font-size: 12px; padding-right: 24px; }
+.ctd-search-clear    { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); cursor: pointer; }
+.ctd-btn-add         { padding: 0 12px; font-size: 12px; height: 30px; }
+.ctd-btn-toggle      { height: 30px; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.ctd-empty           { height: 60vh; display: flex; justify-content: center; align-items: center; }
+.ctd-empty-inner     { text-align: center; color: #6c757d; }
+.ctd-loading         { height: 60vh; display: flex; justify-content: center; align-items: center; }
+
+/* ── Kanban ──────────────────────────────────────────────────────────────── */
+.ctd-col-wrap        { flex: 1; min-width: 18vw; padding: 0 4px; }
+.ctd-col-body        { min-height: 300px; border-radius: 8px; padding: 4px; }
+.ctd-col-no-tasks    { display: flex; justify-content: center; align-items: flex-start; padding-top: 40px; color: #6c757d; text-align: center; }
+
+/* ── Task Card ───────────────────────────────────────────────────────────── */
+.ctd-card-row1       { display: flex; justify-content: space-between; align-items: center; padding-right: 0; }
+.ctd-card-badges     { display: flex; gap: 4px; align-items: center; }
+.ctd-card-right      { display: flex; align-items: center; gap: 4px; }
+.ctd-card-due        { font-size: 0.65rem; color: #adb5bd; }
+.ctd-card-menu-wrap  { position: relative; }
+.ctd-card-menu-icon  { font-size: 12px; color: #adb5bd; cursor: pointer; }
+.ctd-card-menu       { position: absolute; right: 0; top: 18px; z-index: 9999; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; min-width: 120px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.ctd-card-menu-title { padding: 6px 10px; font-size: 10px; color: #6c757d; border-bottom: 1px solid #f0f0f0; }
+.ctd-card-menu-item  { padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.ctd-card-menu-item:hover { background: #f8f9fa; }
+.ctd-card-summary    { font-size: 0.85rem; font-weight: 600; color: rgba(0,0,0,0.77); padding-top: 4px; }
+.ctd-card-timeline   { font-size: 0.72rem; font-weight: 800; color: #6c757d; padding-top: 4px; }
+.ctd-card-footer     { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.ctd-card-avatar     { border-radius: 100%; width: 23px; height: 23px; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: 700; background: #0d6efd; color: #fff; }
+.ctd-card-milestone  { font-size: 9px; background: #e7f3ff; color: #0d6efd; padding: 1px 6px; border-radius: 10px; }
+.ctd-ontime          { display: inline-flex; align-items: center; height: 20px; padding: 0.25rem 0.5rem; border-radius: 20px; font-size: 0.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0,255,38,0.1); color: #2ed573; }
+.ctd-overdue         { display: inline-flex; align-items: center; height: 20px; padding: 0.25rem 0.5rem; border-radius: 20px; font-size: 0.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(255,165,0,0.22); color: orange; }
+
+/* ── List View ───────────────────────────────────────────────────────────── */
+.ctd-list-wrap       { height: 80vh; display: flex; flex-direction: column; }
+.ctd-list-scroll     { overflow-y: auto; height: 74vh; scrollbar-width: thin; scrollbar-color: #c1dfe9 #e6f2f9; }
+.ctd-list-fs         { font-size: 11px; table-layout: fixed; width: 100%; }
+.ctd-badge-full      { font-size: 10px; width: 100%; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.ctd-modal-body-inner { max-height: calc(100vh - 180px); overflow-y: auto; overflow-x: hidden; }
+.ctd-quill-wrap      { height: 150px; margin-bottom: 50px; }
+.ctd-file-list       { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+.ctd-file-item       { display: flex; justify-content: space-between; padding: 4px 8px; align-items: center; margin-bottom: 8px; border-radius: 4px; font-size: 12px; }

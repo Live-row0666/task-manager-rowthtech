@@ -1,0 +1,193 @@
+/* ===============================
+   Main Background
+================================= */
+
+.user-stats-body {
+    background: #F5F7FA;
+}
+
+/* ===============================
+   Cards
+================================= */
+
+.analytics-card {
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+}
+
+/* ===============================
+   User Avatar
+================================= */
+
+.user-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #2F3747;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ===============================
+   Month Buttons
+================================= */
+
+.month-btn {
+    border: 1px solid #2F3747;
+    background: #fff;
+    color: #2F3747;
+    border-radius: 6px;
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.month-btn:hover {
+    background: #F4B400;
+    color: #2F3747;
+    border-color: #F4B400;
+}
+
+.month-btn.active {
+    background: #F4B400 !important;
+    color: #2F3747 !important;
+    border-color: #F4B400 !important;
+}
+
+/* ===============================
+   Table
+================================= */
+
+.analytics-table thead {
+    background: #2F3747;
+    color: #fff;
+}
+
+.analytics-table thead th {
+    border: none;
+    font-weight: 600;
+}
+
+.analytics-table tbody tr:hover {
+    background: #FFF8E6;
+}
+
+/* ===============================
+   Badges
+================================= */
+
+.badge-working {
+    background: #198754;
+    color: white;
+    padding: 7px 12px;
+    border-radius: 20px;
+}
+
+.badge-productive {
+    background: #2F3747;
+    color: white;
+    padding: 7px 12px;
+    border-radius: 20px;
+}
+
+.badge-idle {
+    background: #F4B400;
+    color: #2F3747;
+    padding: 7px 12px;
+    border-radius: 20px;
+}
+
+/* ===============================
+   Expanded Attendance Card
+================================= */
+
+.attendance-card {
+    background: #F8F9FA;
+    border-radius: 10px;
+    border: 1px solid #ECECEC;
+}
+
+/* ===============================
+   Task Card
+================================= */
+
+.task-card {
+    border: 1px solid #ECECEC;
+    border-radius: 8px;
+    background: white;
+}
+
+.task-status {
+    background: #2F3747;
+    color: white;
+}
+
+.task-priority {
+    background: #F4B400;
+    color: #2F3747;
+}
+
+/* ===============================
+   Days Badge
+================================= */
+
+.days-badge {
+    background: #F4B400 !important;
+    color: #2F3747 !important;
+}
+
+/* ===============================
+   Offcanvas Header
+================================= */
+
+.offcanvas-header {
+    background: white;
+    border-bottom: 1px solid #ECECEC;
+}
+
+.offcanvas-title {
+    color: #2F3747;
+    font-weight: 700;
+}
+.user-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--bs-dark);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.days-badge {
+    background-color: var(--bs-dark) !important;
+    color: #fff !important;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.productive-badge {
+    background-color: var(--bs-dark) !important;
+    color: #fff !important;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 12px;
+  
+}
+
+.task-count-badge {
+    background-color: var(--bs-dark) !important;
+    color: #fff !important;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
