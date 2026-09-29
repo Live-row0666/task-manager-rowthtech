@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  taskmanagerserver:
+    image: taskmanagerserver-dev
+    build:
+      context: ../../server
+      dockerfile: Dockerfile.dev
+    container_name: taskmanagerserver-dev
+    ports:
+      - "9100:9100"
+    volumes:
+      - ../../server:/app
+      - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NODE_ENV=development
+      - PORT=9100
+    restart: unless-stopped
+
+  taskmanageradmin:
+    image: taskmanageradmin-dev
+    build:
+      context: ../../admin
+      dockerfile: Dockerfile.dev
+    container_name: taskmanageradmin-dev
+    ports:
+      - "9101:9101"
+    volumes:
+      - ../../admin:/app
+      - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PORT=9101
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  taskmanageruser:
+    image: taskmanageruser-dev
+    build:
+      context: ../../user
+      dockerfile: Dockerfile.dev
+    container_name: taskmanageruser-dev
+    ports:
+      - "9102:9102"
+    volumes:
+      - ../../user:/app
+      - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PORT=9102
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  taskmanagerclient:
+    image: taskmanagerclient-dev
+    build:
+      context: ../../client
+      dockerfile: Dockerfile.dev
+    container_name: taskmanagerclient-dev
+    ports:
+      - "9103:9103"
+    volumes:
+      - ../../client:/app
+      - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PORT=9103
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped

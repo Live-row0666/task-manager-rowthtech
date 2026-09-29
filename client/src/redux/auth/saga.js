@@ -202,7 +202,7 @@ function* getClientMilestonesSaga({ payload }) {
 
 function* getClientTasksSaga({ payload }) {
     try {
-        const response = yield call(getClientTasksApi, payload?.milestoneId || '');
+        const response = yield call(getClientTasksApi, payload);
         yield put(authApiResponseSuccess(AuthActionTypes.GET_CLIENT_TASKS, response.data));
     } catch (error) {
         yield put(authApiResponseError(AuthActionTypes.GET_CLIENT_TASKS, error?.response?.data?.message || error?.message || 'Something went wrong'));

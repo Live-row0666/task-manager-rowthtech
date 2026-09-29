@@ -56,7 +56,7 @@ export const getClientMilestonesAction = (projectId = "", isActive = true): any 
     payload: { projectId, isActive },
 });
 
-export const getClientTasksAction = (milestoneId = ""): any => ({
+export const getClientTasksAction = (params: any = ""): any => ({
     type: AuthActionTypes.GET_CLIENT_TASKS,
-    payload: { milestoneId },
+    payload: typeof params === 'string' ? { milestoneId: params } : (params || {}),
 });

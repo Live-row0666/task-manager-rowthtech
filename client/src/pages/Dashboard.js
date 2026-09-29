@@ -256,34 +256,38 @@ const Dashboard = () => {
                         <div className="project-date-grid">
                             <div>
                                 <div className="project-date-label">Start Date</div>
-                                <div className="project-date-val"> {dashboard?.project?.start
-                                    ? new Date(dashboard.project.start).toLocaleDateString(
-                                        "en-GB",
-                                        {
-                                            day: "2-digit",
-                                            month: "short",
-                                            year: "numeric",
-                                        }
-                                    )
-                                    : "-"}</div>
+                                <div className="project-date-val">
+                                    {dashboard?.project?.startDate || dashboard?.project?.start
+                                        ? new Date(dashboard.project.startDate || dashboard.project.start).toLocaleDateString(
+                                            "en-GB",
+                                            {
+                                                day: "2-digit",
+                                                month: "short",
+                                                year: "numeric",
+                                            }
+                                        )
+                                        : "-"}
+                                </div>
                             </div>
                             <div>
                                 <div className="project-date-label">End Date</div>
-                                <div className="project-date-val">  {dashboard?.project?.end
-                                    ? new Date(dashboard.project.end).toLocaleDateString(
-                                        "en-GB",
-                                        {
-                                            day: "2-digit",
-                                            month: "short",
-                                            year: "numeric",
-                                        }
-                                    )
-                                    : "-"}</div>
+                                <div className="project-date-val">
+                                    {dashboard?.project?.estimatedCompletion || dashboard?.project?.end
+                                        ? new Date(dashboard.project.estimatedCompletion || dashboard.project.end).toLocaleDateString(
+                                            "en-GB",
+                                            {
+                                                day: "2-digit",
+                                                month: "short",
+                                                year: "numeric",
+                                            }
+                                        )
+                                        : "-"}
+                                </div>
                             </div>
                             <div>
                                 <div className="project-date-label">Project Status</div>
                                 <div className="project-date-val">
-                                    <span className="project-status-dot"></span> {dashboard?.project?.projectStatus || "-"}
+                                    <span className="project-status-dot"></span> {dashboard?.project?.projectStatus || "Ongoing"}
                                 </div>
                             </div>
                         </div>
@@ -456,7 +460,6 @@ const Dashboard = () => {
                                         : "-"}
                                 </span>
                             </div>
-
                         </div>
 
                         <div className="milestone-progress-section">
@@ -515,9 +518,9 @@ const Dashboard = () => {
                     <div className="bottom-widget-card">
                         <div className="bottom-widget-header">
                             <h4 className="bottom-widget-title">Milestones</h4>
-                            <a href="#viewall" className="view-all-link">
+                            <Link to="/dashboard/milestones" className="view-all-link">
                                 View all →
-                            </a>
+                            </Link>
                         </div>
 
                         <table className="milestones-table">
@@ -529,6 +532,7 @@ const Dashboard = () => {
                                     <th>End Date</th>
                                     <th>Progress</th>
                                     <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
 
@@ -546,29 +550,25 @@ const Dashboard = () => {
                                                     <td>{index + 1}</td>
 
                                                     <td className="td-milestone-name">
-                                                        {item.title || item.name}
+                                                        <Link to={`/dashboard/milestone-tasks/${item._id}`} style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}>
+                                                            {item.title || item.name}
+                                                        </Link>
                                                     </td>
 
                                                     <td>
-                                                        {new Date(item.startDate).toLocaleDateString("en-GB", {
+                                                        {item.startDate ? new Date(item.startDate).toLocaleDateString("en-GB", {
                                                             day: "2-digit",
                                                             month: "short",
                                                             year: "numeric",
-                                                        })}
+                                                        }) : "-"}
                                                     </td>
 
                                                     <td>
-                                                        {new Date(item.completionDate).toLocaleDateString("en-GB", {
+                                                        {item.completionDate ? new Date(item.completionDate).toLocaleDateString("en-GB", {
                                                             day: "2-digit",
                                                             month: "short",
                                                             year: "numeric",
-                                                        })}
-                                                    </td>
-
-                                                    <td>
-                                                        <strong>
-                                                            {item.completedTasks}/{item.totalTasks}
-                                                        </strong>
+                                                        }) : "-"}
                                                     </td>
 
                                                     <td>
@@ -580,9 +580,9 @@ const Dashboard = () => {
                                                                         width: `${progress}%`,
                                                                         backgroundColor:
                                                                             item.status === "Completed"
-                                                                                ? "var(--dash-success)"
+                                                                                ? "var(--dash-success, #2ec4b6)"
                                                                                 : item.status === "In Progress"
-                                                                                    ? "var(--dash-warning)"
+                                                                                    ? "var(--dash-warning, #ff9f1c)"
                                                                                     : "#6c757d",
                                                                     }}
                                                                 />
@@ -606,6 +606,16 @@ const Dashboard = () => {
                                                             {item.status}
                                                         </span>
                                                     </td>
+
+                                                    <td>
+                                                        <Link
+                                                            to={`/dashboard/milestone-tasks/${item._id}`}
+                                                            className="btn btn-sm btn-outline-primary py-0 px-2"
+                                                            style={{ fontSize: '12px', borderRadius: '6px' }}
+                                                        >
+                                                            Tasks ({item.completedTasks || 0}/{item.totalTasks || 0})
+                                                        </Link>
+                                                    </td>
                                                 </tr>
                                             );
                                         })
@@ -627,9 +637,9 @@ const Dashboard = () => {
                                 Upcoming Deliverables
                             </h4>
 
-                            <a href="#viewall" className="view-all-link">
+                            <Link to="/dashboard/milestones" className="view-all-link">
                                 View all →
-                            </a>
+                            </Link>
                         </div>
 
                         <div className="deliverables-list">
@@ -637,7 +647,7 @@ const Dashboard = () => {
                             {dashboard?.upcomingDeliverables?.length > 0 ? (
                                 dashboard.upcomingDeliverables.map((item) => {
 
-                                    const date = new Date(item.completionDate);
+                                    const date = new Date(item.completionDate || item.startDate || Date.now());
 
                                     return (
                                         <div
@@ -664,14 +674,16 @@ const Dashboard = () => {
                                                 </span>
 
                                                 <span className="deliverable-phase">
-                                                    {item.status}
+                                                    <span className={`badge ${item.status === 'In Progress' ? 'bg-warning text-dark' : 'bg-secondary'}`}>
+                                                        {item.status}
+                                                    </span>
                                                 </span>
                                             </div>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <div className="text-center py-3">
+                                <div className="text-center py-3 text-muted">
                                     No upcoming deliverables
                                 </div>
                             )}
@@ -685,37 +697,49 @@ const Dashboard = () => {
                             <h4 className="bottom-widget-title">
                                 Recent Activity
                             </h4>
-
-                            <a href="#viewall" className="view-all-link">
-                                View all →
-                            </a>
                         </div>
 
                         <div className="activity-timeline">
 
                             {dashboard?.recentActivities?.length > 0 ? (
-                                dashboard.recentActivities.map((item, index) => (
-                                    <div
-                                        className="activity-item"
-                                        key={index}
-                                    >
-                                        <div className="activity-marker">
-                                            <i className="bi bi-check-circle-fill"></i>
-                                        </div>
+                                dashboard.recentActivities.map((item, index) => {
+                                    const actDate = item.updatedAt ? new Date(item.updatedAt) : new Date();
+                                    const formattedTime = actDate.toLocaleDateString("en-GB", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                    });
 
-                                        <div className="activity-content">
-                                            <span className="activity-title">
-                                                {item.title}
-                                            </span>
+                                    return (
+                                        <div
+                                            className="activity-item d-flex align-items-start mb-3"
+                                            key={item.id || index}
+                                        >
+                                            <div className="activity-marker me-2 mt-1">
+                                                <i className={`bi ${item.status === 'Completed' || item.status === 'Done'
+                                                        ? 'bi-check-circle-fill text-success'
+                                                        : item.status === 'In Progress'
+                                                            ? 'bi-arrow-repeat text-warning'
+                                                            : 'bi-clock-history text-primary'
+                                                    }`}></i>
+                                            </div>
 
-                                            <span className="activity-time">
-                                                {item.time}
-                                            </span>
+                                            <div className="activity-content">
+                                                <div className="activity-title fw-bold" style={{ fontSize: '13px' }}>
+                                                    {item.title}
+                                                </div>
+
+                                                <div className="activity-time text-muted" style={{ fontSize: '11px' }}>
+                                                    <span className="badge bg-light text-dark me-1">{item.status}</span>
+                                                    <span>by {item.assigneeName}</span> • <span>{formattedTime}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
-                                <div className="text-center py-3">
+                                <div className="text-center py-3 text-muted">
                                     No recent activity
                                 </div>
                             )}

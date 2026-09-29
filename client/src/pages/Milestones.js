@@ -24,48 +24,48 @@ const filterSelectStyles = {
 
         boxShadow: "none",
 
-        "&:hover":{
+        "&:hover": {
 
-            borderColor:"#D1D5DB"
+            borderColor: "#D1D5DB"
         }
 
     }),
 
-    valueContainer:(base)=>({
+    valueContainer: (base) => ({
 
         ...base,
 
-        height:"34px",
+        height: "34px",
 
-        padding:"0 10px",
+        padding: "0 10px",
 
-        fontSize:"12px"
+        fontSize: "12px"
 
     }),
 
-    indicatorsContainer:(base)=>({
+    indicatorsContainer: (base) => ({
 
         ...base,
 
-        height:"34px"
+        height: "34px"
 
     }),
 
-    placeholder:(base)=>({
+    placeholder: (base) => ({
 
         ...base,
 
-        fontSize:"12px",
+        fontSize: "12px",
 
-        color:"#9CA3AF"
+        color: "#9CA3AF"
 
     }),
 
-    singleValue:(base)=>({
+    singleValue: (base) => ({
 
         ...base,
 
-        fontSize:"12px"
+        fontSize: "12px"
 
     })
 
@@ -75,34 +75,34 @@ const Milestones = () => {
     const navigate = useNavigate();
 
     const { user, dashboard, clientMilestones, clientMilestonesLoading } = useSelector(s => ({
-        user:                   s.Auth.user,
-        dashboard:              s.Auth.dashboard,
-        clientMilestones:       s.Auth.clientMilestones || [],
+        user: s.Auth.user,
+        dashboard: s.Auth.dashboard,
+        clientMilestones: s.Auth.clientMilestones || [],
         clientMilestonesLoading: s.Auth.clientMilestonesLoading,
     }));
 
-    const name     = user?.username || 'Client';
+    const name = user?.username || 'Client';
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     const [selProject, setSelProject] = useState('');
-    const [search,     setSearch]     = useState('');
+    const [search, setSearch] = useState('');
 
     useEffect(() => { dispatch(getDashboard()); }, [dispatch]);
 
     // Auto-select first project when projects load
-  
+
 
     useEffect(() => {
         if (selProject) dispatch(getClientMilestonesAction(selProject, true));
     }, [selProject, dispatch]);
 
     const projects = useMemo(() => dashboard?.projects || [], [dashboard]);
-const projectOptions = projects.map((p) => ({
-    value: p._id,
-    label: p.name,
-}));
+    const projectOptions = projects.map((p) => ({
+        value: p._id,
+        label: p.name,
+    }));
 
-      useEffect(() => {
+    useEffect(() => {
         if (projects.length > 0 && !selProject) {
             setSelProject(projects[0]._id);
         }
@@ -116,50 +116,50 @@ const projectOptions = projects.map((p) => ({
 
     const statusConfig = {
         'Not Started': { bg: '#f1f3f5', color: '#6c757d', border: '#dee2e6' },
-        'In Progress':  { bg: '#e7f3ff', color: '#0d6efd', border: '#b6d4fe' },
-        'Completed':    { bg: '#e8f5e9', color: '#198754', border: '#a5d6a7' },
-        'Delayed':      { bg: '#fff3cd', color: '#856404', border: '#ffe083' },
+        'In Progress': { bg: '#e7f3ff', color: '#0d6efd', border: '#b6d4fe' },
+        'Completed': { bg: '#e8f5e9', color: '#198754', border: '#a5d6a7' },
+        'Delayed': { bg: '#fff3cd', color: '#856404', border: '#ffe083' },
     };
 
     const priorityConfig = {
-        High:     { bg: 'rgba(220,53,69,0.1)',  color: '#dc3545' },
-        Medium:   { bg: 'rgba(255,193,7,0.15)', color: '#856404' },
-        Low:      { bg: 'rgba(25,135,84,0.1)',  color: '#198754' },
+        High: { bg: 'rgba(220,53,69,0.1)', color: '#dc3545' },
+        Medium: { bg: 'rgba(255,193,7,0.15)', color: '#856404' },
+        Low: { bg: 'rgba(25,135,84,0.1)', color: '#198754' },
     };
 
     return (
         <div className="dashboard-wrapper">
-             <CommonSidebar active="milestones" />
+            <CommonSidebar active="milestones" />
             <main className="dash-main">
-                 <CommonHeader title="Milestones" />
+                <CommonHeader title="Milestones" />
 
-             <div className="ms-content">
+                <div className="ms-content">
 
-    <div className="card shadow-sm border-0">
+                    <div className="card shadow-sm border-0">
 
-        {/* Card Header */}
-   <div className="card-header bg-white border-0 py-2 mb-3">
-    <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        {/* Card Header */}
+                        <div className="card-header bg-white border-0 py-2 mb-3">
+                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
 
-     <div className="task-filter-bar">
+                                <div className="task-filter-bar">
 
-    <div className="filter-item">
-        <Select
-            value={
-                projectOptions.find(
-                    option => option.value === selProject
-                ) || null
-            }
-            onChange={(selected) =>
-                setSelProject(selected ? selected.value : "")
-            }
-            options={projectOptions}
-            placeholder="Select Project"
-            isClearable
-            styles={filterSelectStyles}
-        />
-    </div>
-{/* 
+                                    <div className="filter-item">
+                                        <Select
+                                            value={
+                                                projectOptions.find(
+                                                    option => option.value === selProject
+                                                ) || null
+                                            }
+                                            onChange={(selected) =>
+                                                setSelProject(selected ? selected.value : "")
+                                            }
+                                            options={projectOptions}
+                                            placeholder="Select Project"
+                                            isClearable
+                                            styles={filterSelectStyles}
+                                        />
+                                    </div>
+                                    {/* 
     <div className="filter-item">
         <Select
             options={milestoneOptions}
@@ -169,183 +169,182 @@ const projectOptions = projects.map((p) => ({
         />
     </div> */}
 
-    <div className="search-box">
+                                    <div className="search-box">
 
-        <i className="bi bi-search"></i>
+                                        <i className="bi bi-search"></i>
 
-        <input
-            type="text"
-            placeholder="Search milestones..."
-            value={search}
-            onChange={(e)=>setSearch(e.target.value)}
-        />
+                                        <input
+                                            type="text"
+                                            placeholder="Search milestones..."
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                        />
 
-    </div>
-
-</div>
-
-    </div>
-</div>
-        {/* Card Body */}
-
-        <div className="card-body p-0">
-
-            {!selProject ? (
-                <div className="ms-empty">
-                    <i className="bi bi-flag ms-empty-icon d-block"></i>
-                    <p>Select a project to view its milestones</p>
-                </div>
-            ) : clientMilestonesLoading ? (
-                <div className="ms-loading">
-                    <div className="spinner-border text-primary"></div>
-                </div>
-            ) : filtered.length === 0 ? (
-                <div className="ms-empty">
-                    <i className="bi bi-inbox ms-empty-icon d-block"></i>
-                    <p>No milestones found</p>
-                </div>
-            ) : (
-               <div className="project-table-card">
-
-    <div className="table-responsive project-table-wrapper">
-
-        <table className="project-table">
-
-            <thead>
-                <tr>
-                    <th style={{width:"60px"}}>#</th>
-                    <th>Milestone Name</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th className="text-center">Days Left</th>
-                    <th className="text-center">Priority</th>
-                    <th className="text-center">Status</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {filtered.map((m, idx) => {
-
-                    const days = daysLeft(m.completionDate);
-
-                    const taskUrl =
-                        `/dashboard/milestone-tasks/${m._id}?projectId=${selProject}&mName=${encodeURIComponent(
-                            m.title
-                        )}&pName=${encodeURIComponent(
-                            projects.find(p => p._id === selProject)?.name || ""
-                        )}`;
-
-                    return (
-
-                        <tr
-                            key={m._id}
-                            className="project-row"
-                            onClick={() => navigate(taskUrl)}
-                        >
-
-                            <td className="project-index">
-
-                                {idx + 1}
-
-                            </td>
-
-                            <td>
-
-                                <div className="project-name">
-
-                                    {m.title}
+                                    </div>
 
                                 </div>
 
-                            </td>
+                            </div>
+                        </div>
+                        {/* Card Body */}
 
-                            <td>
+                        <div className="card-body p-0">
 
-                                {m.startDate
-                                    ? moment.utc(m.startDate).format("DD MMM YYYY")
-                                    : "N/A"}
+                            {!selProject ? (
+                                <div className="ms-empty">
+                                    <i className="bi bi-flag ms-empty-icon d-block"></i>
+                                    <p>Select a project to view its milestones</p>
+                                </div>
+                            ) : clientMilestonesLoading ? (
+                                <div className="ms-loading">
+                                    <div className="spinner-border text-primary"></div>
+                                </div>
+                            ) : filtered.length === 0 ? (
+                                <div className="ms-empty">
+                                    <i className="bi bi-inbox ms-empty-icon d-block"></i>
+                                    <p>No milestones found</p>
+                                </div>
+                            ) : (
+                                <div className="project-table-card">
 
-                            </td>
+                                    <div className="table-responsive project-table-wrapper">
 
-                            <td>
+                                        <table className="project-table">
 
-                                {m.completionDate
-                                    ? moment.utc(m.completionDate).format("DD MMM YYYY")
-                                    : "N/A"}
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ width: "60px" }}>#</th>
+                                                    <th>Milestone Name</th>
+                                                    <th>Start Date</th>
+                                                    <th>End Date</th>
+                                                    <th className="text-center">Days Left</th>
+                                                    <th className="text-center">Priority</th>
+                                                    <th className="text-center">Status</th>
+                                                </tr>
+                                            </thead>
 
-                            </td>
+                                            <tbody>
 
-                            <td className="text-center">
+                                                {filtered.map((m, idx) => {
 
-                                {days !== null && (
+                                                    const days = daysLeft(m.completionDate);
 
-                                    <span
-                                        className={`days-pill ${
-                                            days < 0
-                                                ? "danger"
-                                                : days <= 3
-                                                ? "warning"
-                                                : "success"
-                                        }`}
-                                    >
+                                                    const taskUrl =
+                                                        `/dashboard/milestone-tasks/${m._id}?projectId=${selProject}&mName=${encodeURIComponent(
+                                                            m.title || 'Milestone'
+                                                        )}&pName=${encodeURIComponent(
+                                                            projects.find(p => p._id === selProject)?.name || ""
+                                                        )}`;
 
-                                        {days < 0
-                                            ? `${Math.abs(days)}d overdue`
-                                            : `${days}d left`}
+                                                    return (
 
-                                    </span>
+                                                        <tr
+                                                            key={m._id}
+                                                            className="project-row"
+                                                            onClick={() => navigate(taskUrl)}
+                                                        >
 
-                                )}
+                                                            <td className="project-index">
 
-                            </td>
+                                                                {idx + 1}
 
-                            <td className="text-center">
+                                                            </td>
 
-                                <span
-                                    className={`priority-pill ${m.priority.toLowerCase()}`}
-                                >
+                                                            <td>
 
-                                    {m.priority}
+                                                                <div className="project-name">
 
-                                </span>
+                                                                    {m.title}
 
-                            </td>
+                                                                </div>
 
-                            <td className="text-center">
+                                                            </td>
 
-                                <span
-                                    className={`status-pill ${m.status
-                                        .toLowerCase()
-                                        .replace(/\s+/g, "-")}`}
-                                >
+                                                            <td>
 
-                                    {m.status}
+                                                                {m.startDate
+                                                                    ? moment.utc(m.startDate).format("DD MMM YYYY")
+                                                                    : "N/A"}
 
-                                </span>
+                                                            </td>
 
-                            </td>
+                                                            <td>
 
-                        </tr>
+                                                                {m.completionDate
+                                                                    ? moment.utc(m.completionDate).format("DD MMM YYYY")
+                                                                    : "N/A"}
 
-                    );
+                                                            </td>
 
-                })}
+                                                            <td className="text-center">
 
-            </tbody>
+                                                                {days !== null && (
 
-        </table>
+                                                                    <span
+                                                                        className={`days-pill ${days < 0
+                                                                            ? "danger"
+                                                                            : days <= 3
+                                                                                ? "warning"
+                                                                                : "success"
+                                                                            }`}
+                                                                    >
 
-    </div>
+                                                                        {days < 0
+                                                                            ? `${Math.abs(days)}d overdue`
+                                                                            : `${days}d left`}
 
-</div>
-            )}
+                                                                    </span>
 
-        </div>
+                                                                )}
 
-    </div>
+                                                            </td>
 
-</div>
+                                                            <td className="text-center">
+
+                                                                <span
+                                                                    className={`priority-pill ${(m.priority || 'medium').toLowerCase()}`}
+                                                                >
+
+                                                                    {m.priority || 'Medium'}
+
+                                                                </span>
+
+                                                            </td>
+
+                                                            <td className="text-center">
+
+                                                                <span
+                                                                    className={`status-pill ${(m.status || 'in progress')
+                                                                        .toLowerCase()
+                                                                        .replace(/\s+/g, "-")}`}
+                                                                >
+
+                                                                    {m.status || 'In Progress'}
+
+                                                                </span>
+
+                                                            </td>
+
+                                                        </tr>
+
+                                                    );
+
+                                                })}
+
+                                            </tbody>
+
+                                        </table>
+
+                                    </div>
+
+                                </div>
+                            )}
+
+                        </div>
+
+                    </div>
+
+                </div>
             </main>
         </div>
     );

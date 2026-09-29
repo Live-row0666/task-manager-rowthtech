@@ -94,9 +94,9 @@ const CommonSidebar = ({ active }) => {
 
                 <p>Our support team is here to help you.</p>
 
-                <button className="btn-contact-support">
+                <Link to="/dashboard/support" className="btn-contact-support text-decoration-none d-block">
                     Contact Support
-                </button>
+                </Link>
             </div>
 
             <div className="sidebar-footer">

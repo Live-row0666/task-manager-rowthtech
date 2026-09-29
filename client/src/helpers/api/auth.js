@@ -37,8 +37,17 @@ function getClientMilestones(projectId = "", isActive = true): any {
     return api.get(`${dashboardBaseUrl}/client-milestone?projectId=${projectId}&isActive=${isActive}`);
 }
 
-function getClientTasks(milestoneId = ""): any {
-    return api.get(`${dashboardBaseUrl}/client-task?milestoneId=${milestoneId}&limit=200`);
+function getClientTasks(params: any = {}): any {
+    if (typeof params === 'string') {
+        const url = params ? `${dashboardBaseUrl}/client-task?milestoneId=${params}&limit=500` : `${dashboardBaseUrl}/client-task?limit=500`;
+        return api.get(url);
+    }
+    const query = new URLSearchParams();
+    if (params.projectId) query.append('projectId', params.projectId);
+    if (params.milestoneId) query.append('milestoneId', params.milestoneId);
+    query.append('limit', params.limit || '500');
+    return api.get(`${dashboardBaseUrl}/client-task?${query.toString()}`);
 }
 
 export { login, logout, signup, forgotPassword, forgotPasswordConfirm, getDashboard, getClientMilestones, getClientTasks };
+

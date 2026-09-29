@@ -1,531 +1,724 @@
-/* Styles matching Admin Task Dashboard
+/* Projects.css - Modern Kanban & Task Workspace Styling */
 
 :root {
-    --dash-primary: #6f42c1;
-    --dash-primary-light: #f3e8ff;
-    --dash-success: #2ec4b6;
-    --dash-success-light: #e6f9f7;
-    --dash-warning: #ff9f1c;
-    --dash-warning-light: #fff5e6;
-    --dash-info: #00b4d8;
-    --dash-info-light: #e6f7fa;
-    --dash-danger: #e71d36;
-    --dash-muted: #64748b;
-    --dash-border: #e2e8f0;
-    --dash-bg: #f8fafc;
+    --p-primary: #727cf5;
+    --p-primary-hover: #5b67e0;
+    --p-primary-light: #eff1fe;
+    --p-dark: #1e293b;
+    --p-text: #334155;
+    --p-muted: #64748b;
+    --p-border: #e2e8f0;
+    --p-bg: #f8fafc;
+    --p-card-bg: #ffffff;
+    --p-success: #10b981;
+    --p-warning: #f59e0b;
+    --p-danger: #ef4444;
+    --p-info: #06b6d4;
+    --p-purple: #8b5cf6;
 }
 
-body {
-    background-color: var(--dash-bg);
-}
-
-.filter-select {
-    height: 30px;
-    font-size: 12px;
-    padding: 0 8px;
-    border: 1px solid #cccccc;
-    border-radius: 4px;
-    background-color: #ffffff;
-    color: #333333;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.filter-select:focus {
-    border-color: #727CF5;
-    box-shadow: 0 0 0 1px #727CF5;
-    outline: none;
-}
-
-.projects-container {
-    display: flex;
-    flex: 1;
-    overflow-x: auto;
-}
-
-.task-page-columns-dash{
-    display:flex;
-    gap:18px;
-    padding:8px;
-}
-
-.task-list-col{
-    min-width:310px;
-}
-
-.task-page-columns-dash::-webkit-scrollbar {
-    display: none;
-}
-.projects-column-title{
-    background:#fff;
-    border:none;
-    border-bottom:1px solid #ececec;
-    border-radius:8px 8px 0 0;
-    font-size:15px;
-    font-weight:600;
-    padding:12px 15px;
-}
-
-.projects-column-title .badge{
-    width:22px;
-    height:22px;
-    border-radius:6px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:11px;
-}
-
-.projects-task-list {
-    height: 100%;
-    overflow: auto;
+.projects-main-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     display: flex;
     flex-direction: column;
-    background: #f8f9fa;
-    width: 100%;
-    border-radius: 8px;
-    padding: 8px;
-    margin-right: 8px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    min-height: 480px;
+    height: calc(100vh - 90px);
+    overflow: hidden;
 }
 
-.projects-task-list::-webkit-scrollbar {
+/* Toolbar & Filters */
+.projects-toolbar-wrapper {
+    background: #ffffff;
+    padding: 12px 18px;
+    border-bottom: 1px solid #edf2f7;
+    z-index: 10;
+}
+
+.view-mode-toggle .btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.view-mode-toggle .btn.active {
+    background-color: var(--p-primary);
+    border-color: var(--p-primary);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(114, 124, 245, 0.35);
+}
+
+.projects-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 200px;
+    max-width: 260px;
+}
+
+.projects-search-box .search-icon {
+    position: absolute;
+    left: 10px;
+    color: #94a3b8;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+.projects-search-input {
+    padding-left: 30px !important;
+    padding-right: 26px !important;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 12.5px;
+    background-color: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+.projects-search-input:focus {
+    background-color: #ffffff;
+    border-color: var(--p-primary);
+    box-shadow: 0 0 0 2px rgba(114, 124, 245, 0.18);
+}
+
+.btn-clear-search {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    padding: 0;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.btn-clear-search:hover {
+    color: #475569;
+}
+
+.project-info-quick-btn {
+    height: 34px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #0284c7;
+    border-color: #bae6fd;
+    background-color: #f0f9ff;
+    transition: all 0.2s ease;
+}
+
+.project-info-quick-btn:hover {
+    background-color: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.projects-date-input {
+    height: 34px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 0 10px !important;
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    font-weight: 500 !important;
+}
+
+.projects-date-input:focus {
+    border-color: var(--p-primary) !important;
+    box-shadow: 0 0 0 2px rgba(114, 124, 245, 0.18) !important;
+}
+
+.clear-filters-btn {
+    height: 34px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0 10px;
+    background: #fff5f5;
+    border-color: #fed7d7;
+    color: #e53e3e;
+    transition: all 0.2s ease;
+}
+
+.clear-filters-btn:hover {
+    background: #fee2e2;
+    color: #c53030;
+}
+
+/* Active Filter Chips */
+.active-filters-bar {
+    padding-top: 6px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11.5px;
+    background: #f1f5f9;
+    color: #334155;
+    padding: 2px 9px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.filter-chip i {
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 12px;
+    transition: color 0.15s;
+}
+
+.filter-chip i:hover {
+    color: #dc2626;
+}
+
+/* Content Viewport */
+.projects-content-viewport {
+    flex: 1;
+    overflow-y: hidden;
+    overflow-x: auto;
+    background-color: #f8fafc;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Kanban Board View */
+.kanban-board-scroll {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 14px 16px;
+    display: flex;
+}
+
+.kanban-columns-grid {
+    display: flex;
+    gap: 16px;
+    min-width: 100%;
+    align-items: flex-start;
+}
+
+.kanban-col-wrapper {
+    flex: 1;
+    min-width: 290px;
+    max-width: 340px;
+    height: 100%;
+}
+
+.kanban-column-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 180px);
+    overflow: hidden;
+}
+
+.kanban-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.column-title-text {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.2px;
+}
+
+.column-count-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.kanban-cards-container {
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    background: #fbfcfe;
+}
+
+.kanban-cards-container::-webkit-scrollbar {
     width: 4px;
 }
 
-.projects-task-list::-webkit-scrollbar-thumb {
-    background-color: #dee2e6;
+.kanban-cards-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
     border-radius: 4px;
 }
 
-.projects-task-list::-webkit-scrollbar-thumb:hover {
-    background-color: #adb5bd;
-}
-
-.projects-task-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-
-
-.projects-card-container {
-    perspective: 1000px;
-    margin-bottom: 0.7rem;
-}
-
-.projects-card-information{
-    background:#fff;
-    border-radius:14px;
-    padding:16px;
-    border:none;
-    box-shadow:
-        0 2px 10px rgba(0,0,0,.05);
-}
-
-.projects-card-information:hover{
-    transform:translateY(-2px);
-    box-shadow:
-        0 10px 30px rgba(0,0,0,.10);
-}
-
-.projects-priority-badge{
-    font-size:9px;
-    padding:3px 8px;
-    border-radius:30px;
-}
-
-.status-badge-pill{
-    font-size:9px;
-    padding:3px 8px;
-    border-radius:30px;
-}
-
-.projects-table-wrapper {
+/* Individual Kanban Task Card */
+.task-kanban-card {
     background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-    padding: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    user-select: none;
 }
-.view-toggle-btn {
-    width: 36px;
-    height: 30px;
-    padding: 0;
+
+.task-kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    border-color: #cbd5e1;
 }
-.time-remaining-badge {
+
+.task-badge-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
     display: inline-flex;
     align-items: center;
-    height: 24px;
-    padding: 0.25rem 0.5rem;
-    border-radius: 20px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+}
+
+.worktype-pill {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.task-deadline-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
     white-space: nowrap;
 }
-.projects-list-table {
-    margin-bottom: 0;
-}
-.project-description {
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
-    color: #6c757d;
-    line-height: 1.5;
+
+.task-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    margin-bottom: 4px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.team-members {
-    display: flex;
-    align-items: center;
+
+.task-card-desc {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.team-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6f42c1, #8e44ad);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #fff;
-    margin-left: -8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(0,0,0,.12);
-}
-
-.team-avatar:first-child {
-    margin-left: 0;
-}
-
-.team-avatar:hover {
-    transform: translateY(-2px);
-    z-index: 5;
-}
-.team-members {
-    display: flex;
-    align-items: center;
-}
-
-.team-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: #fff;
-    background: linear-gradient(135deg, #7C3AED, #A855F7);
-    border: 2px solid #fff;
-    margin-left: -8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.first-avatar {
-    margin-left: 0;
-}
-
-.team-avatar:hover {
-    transform: translateY(-2px);
-    z-index: 20;
-}
-
-
-.team-more {
-    background: #f3f4f6;
-    color: #555;
-    border: 2px solid #fff;
-}
-.projects-list-table th {
-    font-size: 12px;
+.task-milestone-tag {
+    font-size: 11px;
     font-weight: 600;
-    color: var(--dash-muted);
+    color: #6366f1;
+    background: #eef2ff;
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 4px;
+}
+
+.assignee-avatar-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(99, 102, 241, 0.25);
+    flex-shrink: 0;
+}
+
+.assignee-avatar-circle.mini {
+    width: 22px;
+    height: 22px;
+    font-size: 9px;
+}
+
+.assignee-avatar-circle.unassigned {
+    background: #e2e8f0;
+    color: #64748b;
+    box-shadow: none;
+}
+
+.assignee-name-text {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #334155;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-due-date {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.task-attachments-count {
+    font-size: 11px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.kanban-empty-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 10px;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* List Table View */
+.projects-table-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.projects-custom-table {
+    margin-bottom: 0;
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.projects-custom-table thead th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 11.5px;
+    font-weight: 700;
     text-transform: uppercase;
-    padding: 12px 16px;
-    border-bottom: 2px solid #e9ecef;
-    background-color: #f8f9fa;
+    letter-spacing: 0.5px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
-.projects-list-table td {
-    padding: 12px 16px;
-    font-size: 13px;
-    color: #495057;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.table-row-clickable {
-    cursor: pointer;
+.projects-custom-table tbody tr.task-table-row {
     transition: background-color 0.15s ease;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-.table-row-clickable:hover {
-    background-color: #f8f9fa;
+.projects-custom-table tbody tr.task-table-row:hover {
+    background-color: #f8fafc;
 }
 
-.table-project-name {
+.projects-custom-table tbody td {
+    padding: 12px 14px;
+    font-size: 12.5px;
+}
+
+.task-table-title {
+    font-size: 13px;
+    color: #1e293b;
+}
+
+/* Empty State */
+.empty-workspace-state {
+    text-align: center;
+}
+
+.empty-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Modals */
+.task-detail-modal .modal-content,
+.project-detail-modal .modal-content {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+}
+
+.task-modal-header-custom h4 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.modal-card-block {
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 14px 16px;
+}
+
+.block-subtitle {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.task-modal-desc {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.modal-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.meta-grid-card {
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 10px 14px;
     display: flex;
     flex-direction: column;
 }
 
-.table-project-desc-mini {
+.meta-label {
     font-size: 11px;
-    margin-top: 2px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
 }
 
-.table-duration {
-    font-size: 11.5px;
-    font-weight: 500;
+.meta-value {
+    font-size: 12.5px;
+    color: #1e293b;
 }
 
-.table-tech-badges {
+.attachments-list-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.attachment-item-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
     display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: #1e293b;
+    transition: all 0.2s ease;
+}
+
+.attachment-item-card:hover {
+    border-color: var(--p-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    color: var(--p-primary);
+}
+
+.att-name {
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+}
+
+/* Project Modal Layout */
+.modal-title-custom {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
 }
 
-.table-team-avatars {
-    display: flex;
-    align-items: center;
-}
-
-.status-badge-pill {
-    font-size: 10px;
-    font-weight: 800;
-    padding: 3px 8px;
+.modal-project-tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #2563eb;
+    background: #dbeafe;
+    padding: 2px 8px;
     border-radius: 12px;
-    text-transform: capitalize;
-    display: inline-block;
-}
-
-.status-badge-pill.ongoing {
-    background-color: rgba(255, 165, 2, 0.1);
-    color: #ffa502;
-}
-
-.status-badge-pill.support {
-    background-color: rgba(30, 144, 255, 0.1);
-    color: #1e90ff;
-}
-
-.status-badge-pill.delivered {
-    background-color: rgba(46, 213, 115, 0.1);
-    color: #2ed573;
-}
-
-.status-badge-pill.hold {
-    background-color: rgba(255, 71, 87, 0.1);
-    color: #ff4757;
-}
-
-.project-detail-modal .modal-content {
-    border-radius: 16px;
-    border: none;
-    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    font-family: 'Roboto', 'Inter', sans-serif;
+    width: fit-content;
 }
 
 .modal-title-custom h2 {
     font-size: 20px;
     font-weight: 800;
-    color: var(--dash-dark);
-    margin-top: 8px;
-}
-
-.modal-project-tag {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--dash-primary);
-    background-color: var(--dash-primary-light);
-    padding: 3px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
+    color: #1e293b;
+    margin: 0;
 }
 
 .modal-body-layout {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
 }
 
 .modal-section {
     background: #f8fafc;
-    border: 1px solid var(--dash-border);
-    border-radius: 12px;
-    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 14px;
 }
 
-.section-title {
-    font-size: 13.5px;
+.modal-section .section-title {
+    font-size: 13px;
     font-weight: 700;
-    color: var(--dash-dark);
+    color: #1e293b;
     margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid var(--dash-border);
-    padding-bottom: 6px;
 }
 
 .modal-desc-content {
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 12.5px;
     color: #475569;
-    margin: 0;
-    white-space: pre-line;
+    line-height: 1.5;
+    margin-bottom: 0;
 }
 
 .grid-section {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    background: #ffffff;
-    border: 1px solid var(--dash-border);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
 }
 
 .modal-grid-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
 }
 
 .grid-item-label {
-    font-size: 10px;
-    color: var(--dash-muted);
+    font-size: 11px;
     font-weight: 600;
+    color: #64748b;
     text-transform: uppercase;
 }
 
 .grid-item-val {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    color: var(--dash-dark);
+    color: #1e293b;
 }
 
-.link-sub-section {
-    margin-bottom: 12px;
-}
-
-.link-sub-section:last-child {
-    margin-bottom: 0;
-}
-
-.sub-section-title {
-    font-size: 12px;
+.status-badge-pill {
+    font-size: 11px;
     font-weight: 700;
-    color: var(--dash-dark);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    width: fit-content;
+    text-transform: capitalize;
+}
+
+.status-badge-pill.ongoing {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge-pill.completed, .status-badge-pill.delivered {
+    background: #d1fae5;
+    color: #047857;
 }
 
 .resource-links-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 8px;
+    margin-top: 6px;
 }
 
 .resource-link-card {
     background: #ffffff;
-    border: 1px solid var(--dash-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 8px 12px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     text-decoration: none;
-    color: var(--dash-dark);
-    font-weight: 600;
+    color: #1e293b;
     font-size: 12px;
+    font-weight: 600;
     transition: all 0.2s ease;
 }
 
 .resource-link-card:hover {
-    border-color: var(--dash-primary);
-    background-color: var(--dash-primary-light);
-    color: var(--dash-primary);
-}
-
-.link-go-icon {
-    font-size: 11px;
-    color: var(--dash-muted);
-}
-
-.resource-link-card:hover .link-go-icon {
-    color: var(--dash-primary);
-}
-
-.websites-credentials-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    border-color: var(--p-primary);
+    color: var(--p-primary);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .website-cred-card {
     background: #ffffff;
-    border: 1px solid var(--dash-border);
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
 }
 
 .web-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px dashed var(--dash-border);
-    padding-bottom: 6px;
-    margin-bottom: 6px;
-}
-
-.web-title {
+    justify-content: space-between;
+    font-size: 13px;
     font-weight: 700;
-    font-size: 12px;
-    color: var(--dash-dark);
 }
 
 .cred-row {
-    display: flex;
-    align-items: center;
-    font-size: 11.5px;
-}
-
-.cred-role {
-    font-weight: 600;
-    color: var(--dash-muted);
-    width: 60px;
-}
-
-.cred-details {
-    display: flex;
-    gap: 12px;
-    flex: 1;
-}
-
-.cred-field {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.field-label {
-    color: var(--dash-muted);
-}
-
-.field-val {
-    font-weight: 600;
-    color: var(--dash-dark);
+    font-size: 12px;
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #edf2f7;
 }
 
 .tech-badge-container {
@@ -534,10 +727,20 @@ body {
     gap: 6px;
 }
 
+.tech-badge.large {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+
 .modal-team-list-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
 }
 
 .team-member-item {
@@ -545,2055 +748,38 @@ body {
     align-items: center;
     gap: 8px;
     background: #ffffff;
-    border: 1px solid var(--dash-border);
-    padding: 6px 10px;
+    padding: 8px 10px;
     border-radius: 8px;
+    border: 1px solid #e2e8f0;
 }
 
 .team-member-avatar {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background-color: var(--dash-primary);
-    color: white;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.team-member-details {
-    display: flex;
-    flex-direction: column;
+    flex-shrink: 0;
 }
 
 .team-member-name {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--dash-dark);
-    line-height: 1.2;
-}
-
-.team-member-role {
-    font-size: 9.5px;
-    color: var(--dash-muted);
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    display: block;
 }
 
 .btn-modal-close {
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
-    padding: 6px 16px;
 }
-.react-datepicker-wrapper {
-    width: 190px;
-}
-
-.react-datepicker__input-container {
-    width: 100%;
-}
-
-.react-datepicker__input-container input {
-    width: 100%;
-    height: 30px;
-    min-height: 30px;
-    padding: 0 10px;
-    font-size: 12px;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    outline: none;
-}
-
-.react-datepicker-popper {
-    z-index: 99999 !important;
-} */
-
-
-/* =========================================================
-   ROWTHTECH TASK BOARD
-=========================================================*/
-
-:root{
-    --primary:#6c4cf1;
-    --primary-light:#f4f1ff;
-
-    --todo:#f59e0b;
-    --progress:#2563eb;
-    --testing:#8b5cf6;
-    --done:#10b981;
-    --hold:#f97316;
-
-    --border:#eceef4;
-    --card:#ffffff;
-    --background:#f5f6fb;
-
-    --text:#1e293b;
-    --text-light:#64748b;
-
-    --shadow:
-        0 2px 12px rgba(0,0,0,.05);
-
-    --shadow-hover:
-        0 8px 25px rgba(0,0,0,.10);
-}
-
-body{
-    background:var(--background);
-    font-family:Inter,sans-serif;
-}
-
-/* =========================================================
-   DASHBOARD
-=========================================================*/
-
-.dashboard-wrapper{
-    display:flex;
-    min-height:100vh;
-    background:#f8f9fd;
-}
-
-.dash-main{
-    flex:1;
-    padding:20px;
-    overflow:hidden;
-}
-
-/* =========================================================
-   TOOLBAR
-=========================================================*/
-
-.projects-toolbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:18px;
-    gap:15px;
-    flex-wrap:wrap;
-}
-
-.toolbar-left{
-    display:flex;
-    gap:10px;
-}
-
-.toolbar-right{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    flex-wrap:wrap;
-}
-
-.view-toggle-btn{
-
-    width:36px;
-    height:32px;
-
-    border:1px solid var(--border);
-    background:#fff;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    border-radius:8px;
-
-    transition:.2s;
-}
-
-.view-toggle-btn:hover{
-
-    background:var(--primary);
-
-    color:#fff;
-}
-
-/* =========================================================
-   REACT SELECT
-=========================================================*/
-
-.react-select__control{
-
-    min-height:32px !important;
-
-    height:32px !important;
-
-    border-radius:8px !important;
-
-    border:1px solid var(--border) !important;
-
-    box-shadow:none !important;
-}
-
-.react-select__control:hover{
-
-    border-color:var(--primary) !important;
-}
-
-.react-select__value-container{
-
-    height:32px;
-
-    padding:0 10px !important;
-
-    font-size:12px;
-}
-
-.react-select__indicator{
-
-    padding:5px !important;
-}
-
-/* =========================================================
-   DATE PICKER
-=========================================================*/
-
-.react-datepicker-wrapper{
-
-    width:180px;
-}
-
-.react-datepicker__input-container input{
-
-    width:100%;
-
-    height:32px;
-
-    border-radius:8px;
-
-    border:1px solid var(--border);
-
-    padding:0 12px;
-
-    font-size:12px;
-}
-
-.react-datepicker__input-container input:focus{
-
-    border-color:var(--primary);
-
-    outline:none;
-}
-
-/* =========================================================
-   BOARD
-=========================================================*/
-
-.projects-container{
-
-    overflow-x:auto;
-
-    overflow-y:hidden;
-
-    padding-bottom:8px;
-}
-
-.task-page-columns-dash{
-
-    display:flex;
-
-    gap:18px;
-
-    min-width:max-content;
-}
-
-/* =========================================================
-   COLUMN
-=========================================================*/
-
-.task-list-col{
-
-    width:320px;
-
-    min-width:320px;
-}
-
-.projects-task-list{
-
-    background:#f3f5fb;
-
-    border-radius:14px;
-
-    padding:10px;
-
-    min-height:82vh;
-
-    display:flex;
-
-    flex-direction:column;
-
-    overflow-y:auto;
-
-    border:1px solid #ececec;
-}
-
-.projects-task-list::-webkit-scrollbar{
-
-    width:6px;
-}
-
-.projects-task-list::-webkit-scrollbar-thumb{
-
-    background:#d7dae4;
-
-    border-radius:20px;
-}
-
-/* =========================================================
-   COLUMN HEADER
-=========================================================*/
-
-.projects-column-title{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    background:#fff;
-
-    border-radius:10px;
-
-    padding:12px 14px;
-
-    font-size:15px;
-
-    font-weight:600;
-
-    color:#222;
-
-    margin-bottom:12px;
-
-    position:sticky;
-
-    top:0;
-
-    z-index:20;
-
-    box-shadow:0 2px 6px rgba(0,0,0,.04);
-}
-
-.projects-column-title span:first-child{
-
-    font-weight:600;
-}
-
-.projects-column-title .badge{
-
-    background:var(--primary);
-
-    color:#fff;
-
-    border-radius:6px;
-
-    width:22px;
-
-    height:22px;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    font-size:11px;
-
-    font-weight:600;
-}
-
-/* =========================================================
-   COLUMN COLORS
-=========================================================*/
-
-.todo-column .projects-column-title{
-
-    color:var(--todo);
-}
-
-.progress-column .projects-column-title{
-
-    color:var(--progress);
-}
-
-.testing-column .projects-column-title{
-
-    color:var(--testing);
-}
-
-.done-column .projects-column-title{
-
-    color:var(--done);
-}
-
-.hold-column .projects-column-title{
-
-    color:var(--hold);
-}
-
-/* ==========================================================
-   TASK CARD
-========================================================== */
-
-.projects-card-container{
-    margin-bottom:14px;
-}
-
-.projects-card-information{
-
-    background:#fff;
-
-    border-radius:14px;
-
-    padding:14px;
-
-    border:1px solid #edf0f5;
-
-    box-shadow:0 3px 12px rgba(0,0,0,.05);
-
-    transition:.25s ease;
-
-    cursor:pointer;
-
-    position:relative;
-
-    overflow:hidden;
-}
-
-.projects-card-information:hover{
-
-    transform:translateY(-3px);
-
-    box-shadow:0 10px 24px rgba(0,0,0,.12);
-
-    border-color:#d8ddff;
-}
-
-/* ==========================================================
-   TOP BADGES
-========================================================== */
-
-.card-top{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:6px;
-
-    margin-bottom:10px;
-}
-
-.projects-priority-badge{
-
-    padding:3px 9px;
-
-    border-radius:30px;
-
-    font-size:9px;
-
-    font-weight:700;
-
-    text-transform:uppercase;
-
-    letter-spacing:.5px;
-}
-
-.priority-critical{
-
-    background:#ffe5e5;
-
-    color:#f23a3a;
-}
-
-.priority-high{
-
-    background:#ffeccf;
-
-    color:#f59e0b;
-}
-
-.priority-medium{
-
-    background:#e8f1ff;
-
-    color:#2563eb;
-}
-
-.priority-low{
-
-    background:#ebfff7;
-
-    color:#10b981;
-}
-
-/* ==========================================================
-   STATUS BADGES
-========================================================== */
-
-.status-pill{
-
-    padding:3px 9px;
-
-    border-radius:30px;
-
-    font-size:9px;
-
-    font-weight:700;
-
-    text-transform:uppercase;
-}
-
-.status-overdue{
-
-    background:#fff2db;
-
-    color:#ff9800;
-}
-
-.status-todo{
-
-    background:#fff5d8;
-
-    color:#f59e0b;
-}
-
-.status-progress{
-
-    background:#eef4ff;
-
-    color:#2563eb;
-}
-
-.status-testing{
-
-    background:#f4ecff;
-
-    color:#8b5cf6;
-}
-
-.status-done{
-
-    background:#ebfff5;
-
-    color:#10b981;
-}
-
-/* ==========================================================
-   DUE DATE
-========================================================== */
-
-.card-date{
-
-    margin-left:auto;
-
-    font-size:11px;
-
-    color:#555;
-
-    font-weight:600;
-}
-
-/* ==========================================================
-   PROJECT TITLE
-========================================================== */
-
-.project-title{
-
-    font-size:15px;
-
-    font-weight:600;
-
-    color:#1f2937;
-
-    line-height:1.45;
-
-    margin-bottom:8px;
-}
-
-/* ==========================================================
-   DESCRIPTION
-========================================================== */
-
-.project-description{
-
-    font-size:12px;
-
-    color:#7a7d86;
-
-    line-height:1.55;
-
-    display:-webkit-box;
-
-    -webkit-line-clamp:2;
-
-    -webkit-box-orient:vertical;
-
-    overflow:hidden;
-
-    margin-bottom:10px;
-}
-
-/* ==========================================================
-   TIMELINE
-========================================================== */
-
-.timeline-row{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    margin-bottom:10px;
-}
-
-.timeline-text{
-
-    font-size:11px;
-
-    color:#666;
-}
-
-.timeline-text b{
-
-    color:#444;
-}
-
-.time-spent{
-
-    font-size:12px;
-
-    font-weight:600;
-
-    color:#00b67a;
-}
-
-/* ==========================================================
-   DIVIDER
-========================================================== */
-
-.card-divider{
-
-    height:1px;
-
-    background:#edf1f6;
-
-    margin:10px 0;
-}
-
-/* ==========================================================
-   FOOTER
-========================================================== */
-
-.card-footer{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-}
-
-/* ==========================================================
-   USER AVATAR
-========================================================== */
-
-.task-avatar{
-
-    width:28px;
-
-    height:28px;
-
-    border-radius:50%;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    background:#7c3aed;
-
-    color:#fff;
-
-    font-size:10px;
-
-    font-weight:700;
-
-    box-shadow:0 3px 8px rgba(124,58,237,.25);
-}
-
-/* ==========================================================
-   ICON GROUP
-========================================================== */
-
-.card-icons{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:12px;
-}
-
-.card-icon{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:3px;
-
-    color:#8a8f98;
-
-    font-size:13px;
-
-    transition:.2s;
-}
-
-.card-icon i{
-
-    font-size:15px;
-}
-
-.card-icon span{
-
-    font-size:10px;
-
-    font-weight:600;
-}
-
-.card-icon:hover{
-
-    color:#6c4cf1;
-}
-
-/* ==========================================================
-   ACTION BUTTONS
-========================================================== */
-
-.card-action{
-
-    width:24px;
-
-    height:24px;
-
-    border-radius:6px;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    color:#7b7b7b;
-
-    transition:.2s;
-}
-
-.card-action:hover{
-
-    background:#f3f4ff;
-
-    color:#6c4cf1;
-}
-
-/* ==========================================================
-   EMPTY CARD
-========================================================== */
-
-.empty-column{
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    flex-direction:column;
-
-    height:200px;
-
-    color:#b5bcc7;
-
-    font-size:13px;
-}
-
-.empty-column i{
-
-    font-size:42px;
-
-    margin-bottom:10px;
-}
-
-/* ==========================================================
-   TEAM AVATARS
-========================================================== */
-
-.team-members{
-    display:flex;
-    align-items:center;
-}
-
-.team-avatar{
-
-    width:30px;
-    height:30px;
-
-    border-radius:50%;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
-    background:linear-gradient(135deg,#6C4CF1,#8B5CF6);
-
-    color:#fff;
-
-    font-size:10px;
-    font-weight:700;
-
-    border:2px solid #fff;
-
-    margin-left:-8px;
-
-    transition:.25s;
-
-    cursor:pointer;
-
-    box-shadow:0 3px 8px rgba(0,0,0,.15);
-}
-
-.team-avatar:first-child{
-
-    margin-left:0;
-}
-
-.team-avatar:hover{
-
-    transform:translateY(-3px) scale(1.05);
-
-    z-index:20;
-}
-
-.team-more{
-
-    background:#ECEFF5;
-
-    color:#666;
-}
-
-/* ==========================================================
-   TECHNOLOGY TAGS
-========================================================== */
-
-.tech-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:5px 10px;
-
-    border-radius:30px;
-
-    background:#EEF2FF;
-
-    color:#5B5BD6;
-
-    font-size:11px;
-
-    font-weight:600;
-
-    margin-right:6px;
-
-    margin-bottom:6px;
-}
-
-/* ==========================================================
-   TABLE VIEW
-========================================================== */
-
-.projects-table-wrapper{
-
-    background:#fff;
-
-    border-radius:14px;
-
-    border:1px solid #eceef4;
-
-    overflow:hidden;
-
-    box-shadow:0 3px 12px rgba(0,0,0,.05);
-}
-
-.projects-list-table{
-
-    margin:0;
-}
-
-.projects-list-table thead{
-
-    background:#F7F8FC;
-}
-
-.projects-list-table th{
-
-    padding:14px;
-
-    font-size:12px;
-
-    font-weight:700;
-
-    color:#64748B;
-
-    border:none;
-
-    text-transform:uppercase;
-}
-
-.projects-list-table td{
-
-    padding:14px;
-
-    font-size:13px;
-
-    border-top:1px solid #EEF1F6;
-
-    vertical-align:middle;
-}
-
-.table-row-clickable{
-
-    transition:.2s;
-}
-
-.table-row-clickable:hover{
-
-    background:#F8FAFF;
-}
-
-.table-project-name strong{
-
-    font-size:14px;
-
-    color:#1F2937;
-}
-
-.table-project-desc-mini{
-
-    margin-top:4px;
-
-    font-size:11px;
-
-    color:#94A3B8;
-}
-
-/* ==========================================================
-   BUTTONS
-========================================================== */
-
-.btn{
-
-    border-radius:8px !important;
-}
-
-.btn-outline-primary{
-
-    border:1px solid #6C4CF1;
-
-    color:#6C4CF1;
-}
-
-.btn-outline-primary:hover{
-
-    background:#6C4CF1;
-
-    color:#fff;
-}
-
-.btn-modal-close{
-
-    padding:8px 18px;
-
-    border-radius:8px;
-
-    font-size:13px;
-
-    font-weight:600;
-}
-
-/* ==========================================================
-   MODAL
-========================================================== */
-
-.project-detail-modal .modal-content{
-
-    border:none;
-
-    border-radius:20px;
-
-    overflow:hidden;
-
-    box-shadow:0 15px 45px rgba(0,0,0,.15);
-}
-
-.project-detail-modal .modal-header{
-    padding:16px 20px 8px;
-    border:none;
-}
-
-.project-detail-modal .modal-body{
-    padding:0 20px 16px;
-}
-
-.project-detail-modal .modal-footer{
-    padding:0 20px 16px;
-    border:none;
-}
-
-.modal-title-custom h2{
-
-    font-size:22px;
-
-    font-weight:700;
-
-    margin-top:10px;
-
-    color:#111827;
-}
-
-.modal-project-tag{
-
-    display:inline-flex;
-
-    padding:5px 10px;
-
-    border-radius:30px;
-
-    background:#EEF2FF;
-
-    color:#6C4CF1;
-
-    font-size:10px;
-
-    font-weight:700;
-
-    text-transform:uppercase;
-}
-
-.modal-section{
-
-    background:#F9FAFC;
-
-    border:1px solid #ECEEF4;
-
-    border-radius:14px;
-
-    padding:18px;
-
-    margin-bottom:16px;
-}
-
-.section-title{
-
-    font-size:14px;
-
-    font-weight:700;
-
-    margin-bottom:12px;
-
-    display:flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    color:#374151;
-}
-
-.modal-desc-content{
-
-    color:#6B7280;
-
-    line-height:1.7;
-
-    font-size:13px;
-}
-
-.modal-grid-item{
-
-    background:#fff;
-
-    border-radius:10px;
-
-    padding:12px;
-
-    border:1px solid #ECEEF4;
-}
-
-.grid-item-label{
-
-    font-size:10px;
-
-    color:#94A3B8;
-
-    text-transform:uppercase;
-
-    font-weight:600;
-}
-
-.grid-item-val{
-
-    margin-top:4px;
-
-    font-size:13px;
-
-    font-weight:700;
-
-    color:#1F2937;
-}
-
-/* ==========================================================
-   LINKS
-========================================================== */
-
-.resource-link-card{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    background:#fff;
-
-    border:1px solid #ECEEF4;
-
-    border-radius:10px;
-
-    padding:10px 14px;
-
-    transition:.25s;
-
-    color:#374151;
-
-    text-decoration:none;
-}
-
-.resource-link-card:hover{
-
-    border-color:#6C4CF1;
-
-    background:#F5F3FF;
-
-    color:#6C4CF1;
-}
-
-/* ==========================================================
-   TEAM MEMBERS
-========================================================== */
-
-.team-member-item{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    background:#fff;
-
-    border-radius:10px;
-
-    padding:10px;
-
-    border:1px solid #ECEEF4;
-}
-
-.team-member-avatar{
-
-    width:36px;
-
-    height:36px;
-
-    border-radius:50%;
-
-    background:#6C4CF1;
-
-    color:#fff;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    font-size:12px;
-
-    font-weight:700;
-}
-
-/* ==========================================================
-   EMPTY STATE
-========================================================== */
-
-.no-data{
-
-    display:flex;
-
-    flex-direction:column;
-
-    align-items:center;
-
-    justify-content:center;
-
-    padding:60px 0;
-
-    color:#94A3B8;
-}
-
-.no-data i{
-
-    font-size:52px;
-
-    margin-bottom:12px;
-}
-
-/* ==========================================================
-   LOADER
-========================================================== */
-
-.spinner-border{
-
-    width:3rem;
-
-    height:3rem;
-}
-
-/* ==========================================================
-   ANIMATIONS
-========================================================== */
-
-.projects-card-information{
-
-    animation:cardFade .35s ease;
-}
-
-@keyframes cardFade{
-
-    from{
-
-        opacity:0;
-
-        transform:translateY(15px);
-    }
-
-    to{
-
-        opacity:1;
-
-        transform:translateY(0);
-    }
-}
-
-/* ==========================================================
-   RESPONSIVE
-========================================================== */
-
-@media(max-width:1200px){
-
-    .task-list-col{
-
-        min-width:300px;
-    }
-}
-
-@media(max-width:991px){
-
-    .task-page-columns-dash{
-
-        flex-direction:column;
-    }
-
-    .task-list-col{
-
-        width:100%;
-
-        min-width:100%;
-    }
-
-    .projects-task-list{
-
-        min-height:auto;
-    }
-
-    .toolbar-right{
-
-        width:100%;
-    }
-
-    .toolbar-right>*{
-
-        width:100%;
-    }
-}
-
-@media(max-width:768px){
-
-    .projects-list-table{
-
-        font-size:12px;
-    }
-
-    .projects-column-title{
-
-        font-size:14px;
-    }
-
-    .project-title{
-
-        font-size:14px;
-    }
-
-    .project-detail-modal .modal-body{
-
-        padding:16px;
-    }
-
-    .modal-grid-item{
-
-        margin-bottom:10px;
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.task-list-wrapper{
-
-    background:#fff;
-
-    border-radius:12px;
-
-    overflow:auto;
-
-    border:1px solid #ececec;
-
-    height:76vh;
-}
-
-.task-dashboard-table{
-
-    width:100%;
-
-    border-collapse:collapse;
-}
-
-.task-dashboard-table thead{
-
-    background:#2F3645;
-}
-
-.task-dashboard-table th{
-
-    color:#fff;
-
-    font-size:12px;
-
-    font-weight:600;
-
-    padding:12px;
-
-    text-align:left;
-
-    white-space:nowrap;
-}
-
-.task-dashboard-table td{
-
-    padding:13px 12px;
-
-    font-size:12px;
-
-    border-bottom:1px solid #ECECEC;
-
-    vertical-align:middle;
-}
-
-.task-row{
-
-    transition:.2s;
-
-    cursor:pointer;
-}
-
-.task-row:hover{
-
-    background:#f9fbff;
-}
-
-.task-title{
-
-    font-size:13px;
-
-    font-weight:600;
-
-    color:#222;
-}
-
-.task-desc{
-
-    color:#888;
-
-    display:block;
-
-    margin-top:3px;
-}
-
-.status-pill{
-
-    display:inline-block;
-
-    min-width:80px;
-
-    text-align:center;
-
-    padding:5px 10px;
-
-    border-radius:4px;
-
-    font-size:11px;
-
-    font-weight:600;
-}
-
-.status-pill.ongoing{
-
-    background:#d8f7e6;
-
-    color:#00a86b;
-}
-
-.status-pill.hold{
-
-    background:#ffe5e5;
-
-    color:#ff4d4f;
-}
-
-.status-pill.testing{
-
-    background:#ece6ff;
-
-    color:#6f42c1;
-}
-
-.status-pill.done{
-
-    background:#d6fff4;
-
-    color:#14b87b;
-}
-
-.time-pill{
-
-    display:inline-block;
-
-    padding:5px 10px;
-
-    border-radius:4px;
-
-    font-size:11px;
-
-    font-weight:600;
-}
-
-.details-btn{
-
-    border:1px solid #8b3dff;
-
-    color:#8b3dff;
-
-    background:#fff;
-
-    border-radius:20px;
-
-    padding:5px 14px;
-
-    font-size:12px;
-
-    font-weight:600;
-
-    transition:.2s;
-}
-
-.details-btn:hover{
-
-    background:#8b3dff;
-
-    color:#fff;
-}
-
-
-
-
-
-
-
-
-
-
-/* =========================================================
-   PROJECT DETAIL MODAL
-========================================================= */
-
-.project-detail-modal .modal-dialog{
-    max-width:720px;
-}
-
-.project-detail-modal .modal-content{
-    border:none;
-    border-radius:22px;
-    overflow:hidden;
-    box-shadow:0 25px 60px rgba(0,0,0,.15);
-    background:#fff;
-}
-
-.project-detail-modal .modal-header{
-    padding:24px 28px 10px;
-    border:none;
-}
-
-.project-detail-modal .modal-body{
-    padding:0 28px 24px;
-}
-
-.project-detail-modal .modal-footer{
-    border:none;
-    padding:0 28px 24px;
-}
-
-/* ==========================================
-   CLOSE BUTTON
-========================================== */
-
-.project-detail-modal .btn-close{
-
-    background-size:14px;
-
-    opacity:.6;
-}
-
-.project-detail-modal .btn-close:hover{
-
-    opacity:1;
-}
-
-/* ==========================================
-   HEADER
-========================================== */
-
-.modal-title-custom{
-
-    width:100%;
-}
-
-.modal-project-tag{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:5px 12px;
-
-    border-radius:30px;
-
-    background:#F4EDFF;
-
-    color:#7C3AED;
-
-    font-size:11px;
-
-    font-weight:700;
-
-    text-transform:uppercase;
-
-    letter-spacing:.4px;
-}
-
-.modal-title-custom h2{
-
-    margin-top:12px;
-
-    font-size:22px;
-
-    font-weight:700;
-
-    color:#1F2937;
-}
-
-/* ==========================================
-   BODY
-========================================== */
-
-.modal-body-layout{
-
-    display:flex;
-
-    flex-direction:column;
-
-}
-
-/* ==========================================
-   CARD
-========================================== */
-
-.modal-section{
-
-    background:#F8FAFD;
-
-    border:1px solid #E8EDF5;
-
-    border-radius:16px;
-
-    padding:15px;
-
-    transition:.25s;
-}
-
-.modal-section:hover{
-
-    border-color:#D6DDF7;
-}
-
-/* ==========================================
-   TITLE
-========================================== */
-
-.section-title{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    font-size:15px;
-
-    font-weight:600;
-
-    color:#374151;
-
-    margin-bottom:14px;
-}
-
-.section-title i{
-
-    color:#6C4CF1;
-}
-
-/* ==========================================
-   DESCRIPTION
-========================================== */
-
-.modal-desc-content{
-
-    margin:0;
-
-    font-size:14px;
-
-    line-height:1.8;
-
-    color:#6B7280;
-}
-
-/* ==========================================
-   INFO GRID
-========================================== */
-
-.grid-section{
-
-    display:grid;
-
-    grid-template-columns:repeat(3,1fr);
-
-    gap:14px;
-}
-
-.modal-grid-item{
-
-    background:#fff;
-
-    border:1px solid #E8EDF5;
-
-    border-radius:12px;
-
-    padding:14px;
-
-    display:flex;
-
-    flex-direction:column;
-}
-
-.grid-item-label{
-
-    font-size:10px;
-
-    font-weight:700;
-
-    color:#94A3B8;
-
-    text-transform:uppercase;
-
-    margin-bottom:8px;
-}
-
-.grid-item-val{
-
-    font-size:14px;
-
-    font-weight:600;
-
-    color:#111827;
-}
-
-/* ==========================================
-   STATUS BADGE
-========================================== */
-
-.status-badge-pill{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    width:max-content;
-
-    padding:6px 14px;
-
-    border-radius:30px;
-
-    font-size:11px;
-
-    font-weight:600;
-}
-
-.status-badge-pill.ongoing{
-
-    background:#E8FFF4;
-
-    color:#10B981;
-}
-
-.status-badge-pill.done{
-
-    background:#E8FFF4;
-
-    color:#10B981;
-}
-
-.status-badge-pill.testing{
-
-    background:#F4EDFF;
-
-    color:#7C3AED;
-}
-
-.status-badge-pill.hold{
-
-    background:#FFE8E8;
-
-    color:#EF4444;
-}
-
-/* ==========================================
-   TECHNOLOGY
-========================================== */
-
-.tech-badge-container{
-
-    display:flex;
-
-    flex-wrap:wrap;
-
-    gap:8px;
-}
-
-.tech-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:6px 14px;
-
-    border-radius:30px;
-
-    background:#F4EDFF;
-
-    color:#7C3AED;
-
-    font-size:12px;
-
-    font-weight:600;
-}
-
-/* ==========================================
-   TEAM
-========================================== */
-
-.modal-team-list-grid{
-
-    display:grid;
-
-    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-
-    gap:12px;
-}
-
-.team-member-item{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:12px;
-
-    background:#fff;
-
-    border:1px solid #E8EDF5;
-
-    border-radius:12px;
-
-    padding:6px;
-}
-
-.team-member-avatar{
-
-    width:40px;
-
-    height:40px;
-
-    border-radius:50%;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    background:linear-gradient(135deg,#7C3AED,#9333EA);
-
-    color:#fff;
-
-    font-size:13px;
-
-    font-weight:700;
-}
-
-.team-member-name{
-
-    font-size:14px;
-
-    font-weight:600;
-
-    color:#1F2937;
-}
-
-/* ==========================================
-   LINKS
-========================================== */
-
-.resource-links-grid{
-
-    display:grid;
-
-    grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
-
-    gap:10px;
-}
-
-.resource-link-card{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    background:#fff;
-
-    border:1px solid #E8EDF5;
-
-    border-radius:12px;
-
-    padding:12px 15px;
-
-    text-decoration:none;
-
-    color:#374151;
-
-    transition:.2s;
-}
-
-.resource-link-card:hover{
-
-    background:#F4EDFF;
-
-    border-color:#7C3AED;
-
-    color:#7C3AED;
-}
-
-.link-title{
-
-    font-size:13px;
-
-    font-weight:600;
-}
-
-/* ==========================================
-   WEBSITE
-========================================== */
-
-.website-cred-card{
-
-    background:#fff;
-
-    border:1px solid #E8EDF5;
-
-    border-radius:12px;
-
-    padding:15px;
-
-    margin-top:12px;
-}
-
-.web-header{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    margin-bottom:12px;
-}
-
-.web-title{
-
-    font-weight:700;
-
-    color:#111827;
-}
-
-.cred-row{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    margin-top:10px;
-}
-
-.cred-role{
-
-    width:80px;
-
-    color:#6B7280;
-
-    font-size:12px;
-
-    font-weight:600;
-}
-
-.field-label{
-
-    font-size:12px;
-
-    color:#94A3B8;
-}
-
-.field-val{
-
-    font-size:13px;
-
-    font-weight:600;
-
-    color:#111827;
-}
-
-/* ==========================================
-   FOOTER
-========================================== */
-
-.btn-modal-close{
-
-    margin-left:auto;
-
-    background:#6B7280;
-
-    border:none;
-
-    padding:9px 22px;
-
-    border-radius:10px;
-
-    font-weight:600;
-
-    font-size:13px;
-}
-
-.btn-modal-close:hover{
-
-    background:#4B5563;
-}
-
-/* ==========================================
-   RESPONSIVE
-========================================== */
-
-@media(max-width:768px){
-
-    .grid-section{
-
-        grid-template-columns:1fr;
-    }
-
-    .modal-team-list-grid{
-
-        grid-template-columns:1fr;
-    }
-
-    .resource-links-grid{
-
-        grid-template-columns:1fr;
-    }
-
-    .project-detail-modal .modal-dialog{
-
-        margin:10px;
-    }
-
-    .project-detail-modal .modal-body{
 
-        padding:0 18px 20px;
-    }
+.cp {
+    cursor: pointer;
 }

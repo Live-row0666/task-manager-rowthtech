@@ -1,22 +1,22 @@
-const ClientProject   = require("../../models/clientProject");
+const ClientProject = require("../../models/clientProject");
 const ClientMilestone = require("../../models/clientMilestone");
-const ClientTask      = require("../../models/clientTask");
+const ClientTask = require("../../models/clientTask");
 
 class ClientDashboardController {
-
     async getDashboard(req, res) {
-        console.log("Dashboard Route Hit");
-
         try {
-            const clientId  = req.client._id;
+            const clientId = req.client._id;
             const { projectId } = req.query;
 
             const projects = await ClientProject.find({
-                client:   clientId,
+                client: clientId,
                 isActive: true,
             })
                 .populate("technology")
-                .populate("team");
+                .populate({
+                    path: "team",
+                    select: "name email designation role"
+                });
 
             if (!projects.length) {
                 return res.status(404).json({
@@ -30,12 +30,19 @@ class ClientDashboardController {
 
             if (projectId) {
                 project = await ClientProject.findOne({
-                    _id:      projectId,
-                    client:   clientId,
+                    _id: projectId,
+                    client: clientId,
                     isActive: true,
                 })
                     .populate("technology")
-                    .populate("team");
+                    .populate({
+                        path: "team",
+                        select: "name email designation role",
+                        populate: [
+                            { path: "designation", select: "name" },
+                            { path: "role", select: "name" }
+                        ]
+                    });
             } else {
                 project = projects[0];
             }
@@ -49,22 +56,22 @@ class ClientDashboardController {
 
             // ── Get Milestones ────────────────────────────────────────────────
             const milestones = await ClientMilestone.find({
-                project:  project._id,
+                project: project._id,
                 isActive: true,
             }).sort({ startDate: 1 });
 
-            const totalMilestones       = milestones.length;
-            const completedMilestones   = milestones.filter((m) => m.status === "Completed").length;
-            const inProgressMilestones  = milestones.filter((m) => m.status === "In Progress").length;
-            const pendingMilestones     = milestones.filter((m) => m.status === "Not Started").length;
+            const totalMilestones = milestones.length;
+            const completedMilestones = milestones.filter((m) => m.status === "Completed").length;
+            const inProgressMilestones = milestones.filter((m) => m.status === "In Progress").length;
+            const pendingMilestones = milestones.filter((m) => m.status === "Not Started").length;
 
             // ── Get Tasks ─────────────────────────────────────────────────────
             const tasks = await ClientTask.find({
-                project:  project._id,
+                project: project._id,
                 isActive: true,
             });
 
-            const totalTasks     = tasks.length;
+            const totalTasks = tasks.length;
             const completedTasks = tasks.filter(
                 (t) => t.status === "Completed" || t.status === "Done"
             ).length;
@@ -84,7 +91,7 @@ class ClientDashboardController {
                     (t) => t.milestone && t.milestone.toString() === milestone._id.toString()
                 );
 
-                const milestoneTotalTasks     = milestoneTasks.length;
+                const milestoneTotalTasks = milestoneTasks.length;
                 const milestoneCompletedTasks = milestoneTasks.filter(
                     (t) => t.status === "Completed" || t.status === "Done"
                 ).length;
@@ -95,7 +102,7 @@ class ClientDashboardController {
 
                 return {
                     ...milestone.toObject(),
-                    totalTasks:     milestoneTotalTasks,
+                    totalTasks: milestoneTotalTasks,
                     completedTasks: milestoneCompletedTasks,
                     remainingTasks: milestoneRemainingTasks,
                     progress,
@@ -112,13 +119,37 @@ class ClientDashboardController {
                 .sort((a, b) => new Date(a.completionDate) - new Date(b.completionDate))
                 .slice(0, 3);
 
+            // ── Recent Activities ─────────────────────────────────────────────
+            const recentTasks = await ClientTask.find({
+                project: project._id,
+                isActive: true,
+            })
+                .sort({ updatedAt: -1 })
+                .limit(6)
+                .populate("assignee", "name email");
+
+            const recentActivities = recentTasks.map((t) => ({
+                id: t._id,
+                title: t.title,
+                status: t.status,
+                assigneeName: t.assignee ? t.assignee.name : "Team Member",
+                updatedAt: t.updatedAt || t.createdAt,
+            }));
+
+            // Normalize project dates for backwards compatibility
+            const projectData = {
+                ...project.toObject(),
+                start: project.startDate || project.createdAt,
+                end: project.estimatedCompletion || project.startDate,
+            };
+
             // ── Response ──────────────────────────────────────────────────────
             return res.status(200).json({
                 success: true,
                 projects,
-                project,
+                project: projectData,
                 summary: {
-                    totalProjects:      projects.length,
+                    totalProjects: projects.length,
                     totalMilestones,
                     completedMilestones,
                     inProgressMilestones,
@@ -130,10 +161,10 @@ class ClientDashboardController {
                     progressText: `${completedTasks}/${totalTasks}`,
                 },
                 currentMilestone,
-                milestones:           milestonesWithProgress,
+                milestones: milestonesWithProgress,
                 upcomingDeliverables,
-                recentActivities:     [],
-                team:                 project.team || [],
+                recentActivities,
+                team: project.team || [],
             });
 
         } catch (err) {
