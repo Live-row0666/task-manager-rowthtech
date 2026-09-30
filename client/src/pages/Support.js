@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CommonHeader from '../components/commonHeader';
 import CommonSidebar from '../components/commonSidebar';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 import './Dashboard.css';
+import './Support.css';
 
 const Support = () => {
     const [tickets, setTickets] = useState([]);
@@ -38,6 +39,10 @@ const Support = () => {
         fetchTickets();
     }, []);
 
+    const totalTickets = tickets.length;
+    const activeTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress' || !t.status).length;
+    const resolvedTickets = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
+
     const handleSubmitTicket = async (e) => {
         e.preventDefault();
         if (!title.trim()) return;
@@ -69,141 +74,284 @@ const Support = () => {
             <main className="dash-main">
                 <CommonHeader title="Client Support" />
 
-                <div className="overview-heading-row mb-4">
-                    <div className="overview-title-section">
-                        <h3>Support & Help Center</h3>
-                        <p>Need assistance or have a technical query? Create a support request below.</p>
+                {/* Dashboard Hero Bar */}
+                <div className="dashboard-hero-bar">
+                    <div className="hero-welcome-info">
+                        <div className="hero-title-row">
+                            <h2 className="hero-title">Support & Help Center</h2>
+                            <div className="hero-badge">
+                                <span className="pulse-dot"></span>
+                                Dedicated 24/7 Support
+                            </div>
+                        </div>
+                        <p className="hero-subtitle">
+                            Need technical assistance, have questions, or want to submit changes? Create and track requests below.
+                        </p>
                     </div>
 
-                    <button className="btn btn-primary px-3 py-2 fw-semibold" onClick={() => setShowModal(true)}>
-                        <i className="bi bi-plus-lg me-1"></i> Create Support Ticket
-                    </button>
+                    <div className="hero-controls">
+                        <button 
+                            type="button" 
+                            className="btn-create-ticket-primary" 
+                            onClick={() => setShowModal(true)}
+                        >
+                            <i className="bi bi-plus-circle-fill"></i>
+                            <span>Create Support Ticket</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Tickets Table */}
-                <div className="card border-0 shadow-sm p-4 rounded-4">
-                    <h5 className="fw-bold mb-3">Your Support Requests</h5>
+                {/* Support KPI Metrics Cards */}
+                <div className="support-kpi-grid">
+                    <div className="support-kpi-card">
+                        <div className="support-kpi-icon icon-purple-soft">
+                            <i className="bi bi-ticket-detailed-fill"></i>
+                        </div>
+                        <div className="support-kpi-content">
+                            <span className="support-kpi-label">Total Requests</span>
+                            <span className="support-kpi-val">{totalTickets}</span>
+                            <span className="support-kpi-sub">Lifetime tickets submitted</span>
+                        </div>
+                    </div>
 
-                    <div className="table-responsive">
-                        <table className="table align-middle">
-                            <thead className="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Subject / Title</th>
-                                    <th>Category</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-                                    <th>Created At</th>
-                                </tr>
-                            </thead>
+                    <div className="support-kpi-card">
+                        <div className="support-kpi-icon icon-amber-soft">
+                            <i className="bi bi-hourglass-split"></i>
+                        </div>
+                        <div className="support-kpi-content">
+                            <span className="support-kpi-label">Active / In Progress</span>
+                            <span className="support-kpi-val">{activeTickets}</span>
+                            <span className="support-kpi-sub">Currently under engineering</span>
+                        </div>
+                    </div>
 
-                            <tbody>
-                                {tickets.length > 0 ? (
-                                    tickets.map((t, idx) => (
-                                        <tr key={t._id || idx}>
-                                            <td>{idx + 1}</td>
-                                            <td className="fw-semibold">{t.title}</td>
-                                            <td>
-                                                <span className="badge bg-light text-dark text-capitalize">
-                                                    {t.category ? t.category.replace('_', ' ') : 'General'}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`badge ${
-                                                    t.priority === 'high' || t.priority === 'urgent'
-                                                        ? 'bg-danger'
-                                                        : t.priority === 'medium'
-                                                            ? 'bg-warning text-dark'
-                                                            : 'bg-info text-dark'
-                                                }`}>
-                                                    {t.priority}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`badge ${
-                                                    t.status === 'resolved' || t.status === 'closed'
-                                                        ? 'bg-success'
-                                                        : t.status === 'in_progress'
-                                                            ? 'bg-warning text-dark'
-                                                            : 'bg-primary'
-                                                }`}>
-                                                    {t.status ? t.status.replace('_', ' ') : 'Open'}
-                                                </span>
-                                            </td>
-                                            <td>{new Date(t.createdAt).toLocaleDateString('en-GB')}</td>
-                                        </tr>
-                                    ))
-                                ) : (
+                    <div className="support-kpi-card">
+                        <div className="support-kpi-icon icon-emerald-soft">
+                            <i className="bi bi-patch-check-fill"></i>
+                        </div>
+                        <div className="support-kpi-content">
+                            <span className="support-kpi-label">Resolved Tickets</span>
+                            <span className="support-kpi-val">{resolvedTickets}</span>
+                            <span className="support-kpi-sub">Completed & verified</span>
+                        </div>
+                    </div>
+
+                    <div className="support-kpi-card">
+                        <div className="support-kpi-icon icon-sky-soft">
+                            <i className="bi bi-headset"></i>
+                        </div>
+                        <div className="support-kpi-content">
+                            <span className="support-kpi-label">Dedicated Lead</span>
+                            <span className="support-kpi-val" style={{ fontSize: '15px' }}>Support Team</span>
+                            <span className="support-kpi-sub">Avg response &lt; 2 hrs</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tickets Table Card */}
+                <div className="pro-card support-tickets-card">
+                    <div className="pro-card-header">
+                        <div className="card-title-group">
+                            <div className="card-title-icon indigo-soft">
+                                <i className="bi bi-collection"></i>
+                            </div>
+                            <div>
+                                <h4 className="pro-card-title">Your Support Requests</h4>
+                                <span className="pro-card-subtitle">Live status, priority, and resolution tracking</span>
+                            </div>
+                        </div>
+                        {tickets.length > 0 && (
+                            <span className="badge bg-light text-dark fw-bold px-3 py-2 rounded-pill border">
+                                {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="table-responsive-wrapper">
+                        {tickets.length > 0 ? (
+                            <table className="pro-table">
+                                <thead>
                                     <tr>
-                                        <td colSpan="6" className="text-center py-4 text-muted">
-                                            No support tickets found. Click "Create Support Ticket" to submit a request.
-                                        </td>
+                                        <th style={{ width: '45px' }}>#</th>
+                                        <th>Subject & Details</th>
+                                        <th>Category</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th style={{ textAlign: 'right' }}>Created At</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {tickets.map((t, idx) => {
+                                        const isResolved = t.status === 'resolved' || t.status === 'closed';
+                                        const isInProgress = t.status === 'in_progress';
+                                        const statusCls = isResolved ? 'status-resolved' : isInProgress ? 'status-in_progress' : 'status-open';
+                                        
+                                        const isUrgent = t.priority === 'urgent' || t.priority === 'high';
+                                        const isMedium = t.priority === 'medium';
+                                        const prioCls = isUrgent ? 'priority-high' : isMedium ? 'priority-medium' : 'priority-low';
+
+                                        return (
+                                            <tr key={t._id || idx} className="pro-table-row">
+                                                <td className="cell-index">{String(idx + 1).padStart(2, '0')}</td>
+                                                <td>
+                                                    <div className="ticket-title-link">
+                                                        {t.title}
+                                                    </div>
+                                                    {t.description && (
+                                                        <div className="ticket-desc-snippet" title={t.description}>
+                                                            {t.description}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <span className="category-tag-pill">
+                                                        <i className="bi bi-tag-fill text-muted" style={{ fontSize: '9px' }}></i>
+                                                        {t.category ? t.category.replace(/_/g, ' ') : 'General'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className={`priority-badge-pill ${prioCls}`}>
+                                                        {t.priority || 'Normal'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className={`ticket-status-pill ${statusCls}`}>
+                                                        <span className="status-dot-sm"></span>
+                                                        {t.status ? t.status.replace(/_/g, ' ') : 'Open'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
+                                                    {new Date(t.createdAt).toLocaleDateString('en-GB', {
+                                                        day: '2-digit',
+                                                        month: 'short',
+                                                        year: 'numeric'
+                                                    })}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <div className="support-empty-state">
+                                <div className="support-empty-icon-wrap">
+                                    <i className="bi bi-inbox-fill"></i>
+                                </div>
+                                <h4 className="support-empty-title">No Support Requests Found</h4>
+                                <p className="support-empty-desc">
+                                    You haven't submitted any support requests yet. Click below to create a ticket whenever you need assistance.
+                                </p>
+                                <button 
+                                    type="button" 
+                                    className="btn-create-ticket-primary"
+                                    onClick={() => setShowModal(true)}
+                                >
+                                    <i className="bi bi-plus-lg"></i>
+                                    <span>Create Support Ticket</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Ticket Modal */}
-                <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+                {/* Modern Support Request Modal */}
+                <Modal 
+                    show={showModal} 
+                    onHide={() => setShowModal(false)} 
+                    centered
+                    className="custom-support-modal"
+                >
                     <Modal.Header closeButton>
-                        <Modal.Title className="h5 fw-bold">New Support Request</Modal.Title>
+                        <Modal.Title>
+                            <i className="bi bi-pencil-square text-primary me-2"></i>
+                            New Support Request
+                        </Modal.Title>
                     </Modal.Header>
-                    <Form onSubmit={handleSubmitTicket}>
+                    
+                    <form onSubmit={handleSubmitTicket}>
                         <Modal.Body>
-                            <Form.Group className="mb-3">
-                                <Form.Label className="fw-semibold">Subject / Title</Form.Label>
-                                <Form.Control
+                            <div className="mb-3">
+                                <label className="modal-form-label">
+                                    Subject / Title <span className="text-danger">*</span>
+                                </label>
+                                <input
                                     type="text"
-                                    placeholder="Brief summary of your query"
+                                    className="modal-form-control"
+                                    placeholder="Brief summary of your query or issue"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     required
                                 />
-                            </Form.Group>
+                            </div>
 
-                            <Form.Group className="mb-3">
-                                <Form.Label className="fw-semibold">Category</Form.Label>
-                                <Form.Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                                    <option value="general_inquiry">General Inquiry</option>
-                                    <option value="technical_issue">Technical Issue</option>
-                                    <option value="bug">Bug Report</option>
-                                    <option value="feature_request">Feature Request</option>
-                                </Form.Select>
-                            </Form.Group>
+                            <div className="row g-3 mb-3">
+                                <div className="col-md-6">
+                                    <label className="modal-form-label">Category</label>
+                                    <select 
+                                        className="modal-form-select" 
+                                        value={category} 
+                                        onChange={(e) => setCategory(e.target.value)}
+                                    >
+                                        <option value="general_inquiry">General Inquiry</option>
+                                        <option value="technical_issue">Technical Issue</option>
+                                        <option value="bug">Bug Report</option>
+                                        <option value="feature_request">Feature Request / Scope</option>
+                                    </select>
+                                </div>
 
-                            <Form.Group className="mb-3">
-                                <Form.Label className="fw-semibold">Priority</Form.Label>
-                                <Form.Select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </Form.Select>
-                            </Form.Group>
+                                <div className="col-md-6">
+                                    <label className="modal-form-label">Priority Level</label>
+                                    <select 
+                                        className="modal-form-select" 
+                                        value={priority} 
+                                        onChange={(e) => setPriority(e.target.value)}
+                                    >
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                            <Form.Group className="mb-3">
-                                <Form.Label className="fw-semibold">Description</Form.Label>
-                                <Form.Control
-                                    as="textarea"
+                            <div className="mb-2">
+                                <label className="modal-form-label">Detailed Description</label>
+                                <textarea
+                                    className="modal-form-control"
                                     rows={4}
-                                    placeholder="Provide detailed information..."
+                                    placeholder="Provide detailed information or steps so our engineering team can assist promptly..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                 />
-                            </Form.Group>
+                            </div>
                         </Modal.Body>
 
                         <Modal.Footer>
-                            <Button variant="secondary" onClick={() => setShowModal(false)}>
+                            <button 
+                                type="button" 
+                                className="btn-modal-cancel" 
+                                onClick={() => setShowModal(false)}
+                            >
                                 Cancel
-                            </Button>
-                            <Button variant="primary" type="submit" disabled={submitting}>
-                                {submitting ? 'Submitting...' : 'Submit Request'}
-                            </Button>
+                            </button>
+                            <button 
+                                type="submit" 
+                                className="btn-modal-submit" 
+                                disabled={submitting}
+                            >
+                                {submitting ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-send-fill me-1"></i> Submit Request
+                                    </>
+                                )}
+                            </button>
                         </Modal.Footer>
-                    </Form>
+                    </form>
                 </Modal>
             </main>
         </div>
