@@ -351,8 +351,6 @@ class UserController {
             });
 
             const count = await User.countDocuments(searchQuery);
-
-            console.log(users, "uuuuuuuuuuuuu")
             return res.status(200).json({
                 status: 200,
                 message: "Users retrieved successfully",
@@ -640,7 +638,7 @@ class UserController {
                     .populate("sprint", "name")
                     .lean();
 
-                  
+
                 const taskDetails = tasks.map((task) => ({
                     _id: task._id,
                     taskName: task.summary,

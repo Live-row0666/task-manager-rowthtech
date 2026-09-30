@@ -6,13 +6,18 @@ const CommonHeader = ({ title }) => {
     const dispatch = useDispatch();
     const user = useSelector((state) => state.Auth.user);
 
-    const name = user?.username || "Client";
+    const name = user?.username || user?.name || "LegalTech Client";
     const initials = name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+        ? name
+            .split(" ")
+            .filter(Boolean)
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2) || "LC"
+        : "LC";
+
+    const roleName = typeof user?.role === 'object' ? user?.role?.name : (user?.role || "Client");
 
     return (
         <header className="dash-header">
@@ -21,7 +26,7 @@ const CommonHeader = ({ title }) => {
             </div>
 
             <div className="header-actions">
-                <button className="notification-btn" title="Notifications">
+                <button className="notification-btn" title="Notifications" type="button">
                     <i className="bi bi-bell"></i>
                     <span className="notification-badge"></span>
                 </button>
@@ -33,9 +38,7 @@ const CommonHeader = ({ title }) => {
 
                     <div className="user-profile-details">
                         <span className="user-profile-name">{name}</span>
-                        <span className="user-profile-role">
-                            {typeof user?.role === 'object' ? user?.role?.name : (user?.role || "Client Portal")}
-                        </span>
+                        <span className="user-profile-role">{roleName}</span>
                     </div>
                 </div>
 
@@ -43,6 +46,7 @@ const CommonHeader = ({ title }) => {
                     className="logout-btn-styled"
                     onClick={() => dispatch(logoutUser())}
                     title="Logout session"
+                    type="button"
                 >
                     <i className="bi bi-box-arrow-right"></i>
                     <span>Logout</span>

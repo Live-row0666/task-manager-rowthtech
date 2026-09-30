@@ -583,7 +583,6 @@ class UserAuthController {
 
 
     async logout(req, res) {
-        console.log("logouuuuuuuuuuuuu")
         try {
             const logoutTime = new Date();
 
