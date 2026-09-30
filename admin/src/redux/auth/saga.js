@@ -7,7 +7,6 @@ import {
     signup as signupApi,
     forgotPassword as forgotPasswordApi,
     forgotPasswordConfirm,
-    getUserStats as getUserStatsApi
 } from '../../helpers/';
 import axios from 'axios';
 import { APICore, setAuthorization } from '../../helpers/api/apiCore';

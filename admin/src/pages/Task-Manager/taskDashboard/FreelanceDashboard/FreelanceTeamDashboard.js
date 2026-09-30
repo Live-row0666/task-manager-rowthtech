@@ -7,7 +7,6 @@ import { useDispatch } from 'react-redux';
 import { getAllProjects, getAllTaskStatusesAction, getsingleSprintTask } from '../../../../redux/actions';
 import { useSelector } from 'react-redux';
 import TaskCard from '../MarketingDashboard/TaskCard';
-import { updateTaskFunction } from '../../../../helpers/marketingTeamApiService';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getUserTasksTimer } from '../../../../redux/task/api';

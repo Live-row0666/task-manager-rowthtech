@@ -178,8 +178,8 @@ class UserAuthController {
 
                     await attendance.save();
 
-                } 
-                
+                }
+
 
             } else {
 

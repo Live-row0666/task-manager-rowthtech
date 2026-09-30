@@ -9,13 +9,12 @@ services:
     container_name: taskmanagerserver-dev
     ports:
       - "9100:9100"
+    env_file:
+      - ./server/.env
     volumes:
       - ./server:/app
       - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - NODE_ENV=development
-      - PORT=9100
     restart: unless-stopped
 
   taskmanageradmin:
@@ -26,13 +25,14 @@ services:
     container_name: taskmanageradmin-dev
     ports:
       - "9101:9101"
+    env_file:
+      - ./admin/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./admin:/app
       - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - PORT=9101
-      - CHOKIDAR_USEPOLLING=true
     stdin_open: true
     tty: true
     restart: unless-stopped
@@ -45,13 +45,14 @@ services:
     container_name: taskmanageruser-dev
     ports:
       - "9102:9102"
+    env_file:
+      - ./user/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./user:/app
       - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - PORT=9102
-      - CHOKIDAR_USEPOLLING=true
     stdin_open: true
     tty: true
     restart: unless-stopped
@@ -64,13 +65,14 @@ services:
     container_name: taskmanagerclient-dev
     ports:
       - "9103:9103"
+    env_file:
+      - ./client/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./client:/app
       - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - PORT=9103
-      - CHOKIDAR_USEPOLLING=true
     stdin_open: true
     tty: true
     restart: unless-stopped

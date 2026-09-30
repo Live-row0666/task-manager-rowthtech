@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ListGroup, Container, Row, Col, Link, Table, Button, Form, Card } from 'react-bootstrap';
+import { ListGroup, Container, Row, Col, Table, Button, Form, Card } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
 import Create from './modal/create';
 import moment from 'moment';
@@ -11,7 +11,7 @@ import Stack from '@mui/material/Stack';
 import Update from './modal/update';
 import { getAllProjects } from '../../../../../../redux/projects/action';
 import { getsingleMileStone } from '../../../../../../redux/milestone/action';
-import { getSingleSprint, getSprintById } from '../../../../../../redux/sprint/action';
+import { getSingleSprint } from '../../../../../../redux/sprint/action';
 import { getAllRoles, getAllUsers } from '../../../../../../redux/actions';
 import { Modal } from 'react-bootstrap';
 import ToastHandle from '../../../../../../constants/toaster/toaster';

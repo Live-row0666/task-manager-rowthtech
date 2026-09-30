@@ -12,7 +12,6 @@ import { Link } from 'react-router-dom';
 import MainLoader from '../../../../../constants/Loader/loader';
 import Pagination from '@mui/material/Pagination';
 import Stack from '@mui/material/Stack';
-import getAllSingleSprints from '../../../../../constants/endpoint';
 import ProjectPreview from '../../Projectpreview';
 import DescriptionOffCanvas from '../../../../../components/DescriptionOffCanvas';
 import { getProjectsById } from '../../../../../redux/actions';
