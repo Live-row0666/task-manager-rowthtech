@@ -44,10 +44,9 @@ const Login = () => {
 
     return (
         <AccountLayout>
-            <div className="text-center w-75 m-auto">
-                <h4 className="text-dark-50 text-center mt-0 fw-bold">Sign In</h4>
-                <p className="text-muted mb-4">
-                    Enter your email address and password to access client panel.
+            <div className="text-center mb-4">
+                <p className="auth-card-subtitle">
+                    Enter your email & password to access your dashboard
                 </p>
             </div>
 
@@ -57,30 +56,35 @@ const Login = () => {
                 </Alert>
             )}
                                                                                                           
-            <Form onSubmit={handleSubmit}>
+            <Form onSubmit={handleSubmit} className="auth-form">
                 <Form.Group className="mb-3" controlId="username">
-                    <Form.Label className="mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>Email</Form.Label>
-                    <Form.Control
-                        type="email"
-                        placeholder="Enter your Email"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                        style={{ fontSize: '12px' }}
-                    />
+                    <Form.Label className="auth-form-label">Email Address</Form.Label>
+                    <div className="auth-input-wrap">
+                        <i className="bi bi-envelope auth-input-icon"></i>
+                        <Form.Control
+                            type="email"
+                            className="auth-input-field"
+                            placeholder="name@company.com"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </div>
                 </Form.Group>
 
                 <Form.Group className="mb-3" controlId="password">
-                    <div className="d-flex justify-content-between align-items-center">
-                        <Form.Label className="mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>Password</Form.Label>
-                        <Link to="/account/forget-password" style={{ fontSize: '12px', color: '#6c757d', textDecoration: 'none' }}>
-                            Forgot your password?
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                        <Form.Label className="auth-form-label mb-0">Password</Form.Label>
+                        <Link to="/account/forget-password" className="auth-forgot-link">
+                            Forgot password?
                         </Link>
                     </div>
-                    <InputGroup>
+                    <div className="auth-input-wrap">
+                        <i className="bi bi-lock auth-input-icon"></i>
                         <Form.Control
                             type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
+                            className="auth-input-field pe-5"
+                            placeholder="••••••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             onCopy={(e) => e.preventDefault()}
@@ -88,43 +92,45 @@ const Login = () => {
                             onPaste={(e) => e.preventDefault()}
                             required
                         />
-                        <div
-                            className={classNames('input-group-text', 'input-group-password', {
-                                'show-password': showPassword,
-                            })}
-                            data-password={showPassword ? 'true' : 'false'}
+                        <button
+                            type="button"
+                            className="auth-password-toggle"
+                            onClick={() => setShowPassword(!showPassword)}
+                            title={showPassword ? "Hide password" : "Show password"}
                         >
-                            <span
-                                className="password-eye"
-                                onClick={() => setShowPassword(!showPassword)}
-                            >
-                                <i
-                                    className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"
-                                        }`}
-                                ></i>
-                            </span>
-                        </div>
-                    </InputGroup>
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                    </div>
                 </Form.Group>
 
-                <Form.Group className="mb-3" controlId="rememberMe">
+                <div className="d-flex align-items-center justify-content-between mb-4 mt-2">
                     <Form.Check
                         type="checkbox"
-                        label="Remember Me"
+                        id="rememberMe"
+                        label="Remember me"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        style={{ fontSize: '13px', color: '#556272', cursor: 'pointer' }}
+                        className="auth-checkbox"
                     />
-                </Form.Group>
+                </div>
 
-                <div className="mb-3 mb-0 d-flex justify-content-center">
+                <div className="mt-4 mb-2">
                     <Button
-                        className="btn bg-dark text-white fw-semibold d-flex w-25 align-items-center justify-content-center gap-1"
-                        style={{ padding: '4px 12px', fontSize: '11px', outline: 'none', border: 'none' }}
+                        className="w-100 btn-auth-primary d-flex align-items-center justify-content-center gap-2"
                         type="submit"
                         disabled={loading}
                     >
-                        {loading ? <Spinner animation="border" size="sm" className="spinner-border-sm" /> : 'Log In'}
+                        {loading ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="spinner-border-sm" />
+                                <span>Signing in...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>Sign In</span>
+                                <i className="bi bi-arrow-right" style={{ fontSize: '15px' }}></i>
+                            </>
+                        )}
                     </Button>
                 </div>
             </Form>

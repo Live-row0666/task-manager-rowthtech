@@ -38,10 +38,10 @@ const ForgetPassword = () => {
 
     return (
         <AccountLayout bottomLinks={bottomLink}>
-            <div className="text-center w-75 m-auto">
-                <h4 className="text-dark-50 text-center mt-0 fw-bold">Reset Password</h4>
-                <p className="text-muted mb-4" style={{ fontSize: '13px' }}>
-                    Enter your email address and we'll send you an email with instructions to reset your password.
+            <div className="text-center mb-4">
+                <h4 className="auth-card-title">Forgot Password</h4>
+                <p className="auth-card-subtitle">
+                    Enter your email to receive password reset instructions
                 </p>
             </div>
 
@@ -58,42 +58,39 @@ const ForgetPassword = () => {
             )}
 
             {!passwordReset && (
-                <Form onSubmit={handleSubmit}>
-                    <Form.Group className="mb-3" controlId="email">
-                        <Form.Label className="mb-0" style={{ fontSize: '13px', fontWeight: 500 }}>Email Address</Form.Label>
-                        <Form.Control
-                            type="email"
-                            placeholder="Enter your Email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            style={{ fontSize: '12px' }}
-                        />
+                <Form onSubmit={handleSubmit} className="auth-form">
+                    <Form.Group className="mb-4" controlId="email">
+                        <Form.Label className="auth-form-label">Email Address</Form.Label>
+                        <div className="auth-input-wrap">
+                            <i className="bi bi-envelope auth-input-icon"></i>
+                            <Form.Control
+                                type="email"
+                                className="auth-input-field"
+                                placeholder="name@company.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
                     </Form.Group>
 
-                    <div className="mb-3 d-flex justify-content-center">
+                    <div className="mt-4 mb-2">
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="bg-dark text-white fw-semibold d-flex align-items-center justify-content-center gap-2 w-50"
-                            style={{
-                                padding: "6px 16px",
-                                fontSize: "11px",
-                                border: "none",
-                                minHeight: "36px",
-                            }}
+                            className="w-100 btn-auth-primary d-flex align-items-center justify-content-center gap-2"
                         >
-                            {loading && (
-                                <Spinner
-                                    animation="border"
-                                    style={{
-                                        width: "12px",
-                                        height: "12px",
-                                        borderWidth: "2px",
-                                    }}
-                                />
+                            {loading ? (
+                                <>
+                                    <Spinner animation="border" size="sm" className="spinner-border-sm" />
+                                    <span>Sending Reset Link...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Send Reset Link</span>
+                                    <i className="bi bi-arrow-right" style={{ fontSize: '15px' }}></i>
+                                </>
                             )}
-                            {loading ? "Resetting..." : "Reset Password"}
                         </Button>
                     </div>
                 </Form>

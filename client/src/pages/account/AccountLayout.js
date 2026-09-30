@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import Logo from '../../assets/images/logo/rowthtech.svg';
+import Logo from '../../assets/images/logo/logo.webp';
 
 const AccountLayout = ({ bottomLinks, children }) => {
     useEffect(() => {
@@ -13,30 +13,35 @@ const AccountLayout = ({ bottomLinks, children }) => {
     }, []);
 
     return (
-        <>
-            <div className="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5 ">
-                <Container>
-                    <Row className="justify-content-center">
-                        <Col md={8} lg={6} xl={5} xxl={4}>
-                            <Card className="overflow-hidden">
-                                {/* logo */}
-                                <div className="pt-4 pb-4 text-center bg-black">
-                                    <Link to="/">
-                                        <span>
-                                            <img src={Logo} alt="ROWTH TECH" height="26" />
-                                        </span>
-                                    </Link>
+        <div className="account-pages py-4 py-sm-5">
+            <Container>
+                <Row className="justify-content-center">
+                    <Col xs={11} sm={9} md={7} lg={5} xl={4} xxl={4}>
+                        {/* Auth Form Card */}
+                        <Card className="auth-card">
+                            <Card.Body className="p-4 p-sm-4">
+                                {/* Brand Logo inside the card */}
+                                <div className="text-center mb-3">
+                                    <a
+                                        href="https://www.rowthtech.com/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="d-inline-block"
+                                        title="Visit RowthTech"
+                                    >
+                                        <img src={Logo} alt="RowthTech" className="auth-brand-logo" />
+                                    </a>
                                 </div>
-                                <Card.Body className="p-4 bg-white">{children}</Card.Body>
-                            </Card>
+                                {children}
+                            </Card.Body>
+                        </Card>
 
-                            {/* bottom links */}
-                            {bottomLinks}
-                        </Col>
-                    </Row>
-                </Container>
-            </div>
-        </>
+                        {/* Bottom Links */}
+                        {bottomLinks}
+                    </Col>
+                </Row>
+            </Container>
+        </div>
     );
 };
 
