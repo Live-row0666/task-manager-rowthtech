@@ -311,6 +311,25 @@
 }
 
 .mst-icons i:hover{
-
     color:#7C3AED;
+}
+
+/* Responsive Rules for MilestoneTasks */
+@media (max-width: 768px) {
+    .milestone-toolbar {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+        padding: 10px 14px;
+    }
+
+    .mst-topbar {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+    }
+
+    .mst-search {
+        width: 100% !important;
+    }
 }

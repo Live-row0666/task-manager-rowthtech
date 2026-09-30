@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { getDashboard, getClientMilestonesAction, getClientTasksAction } from '../redux/actions';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import CommonHeader from "../components/commonHeader";
@@ -114,10 +114,18 @@ const Projects = () => {
         }));
     }, [projectsList]);
 
+    const currentProjId = selectedProjectFilter?.value || currentProject?._id;
+
     const milestoneList = useMemo(() => {
-        if (clientMilestones && clientMilestones.length > 0) return clientMilestones;
-        return dashboard?.milestones || [];
-    }, [clientMilestones, dashboard?.milestones]);
+        const list = (clientMilestones && clientMilestones.length > 0) ? clientMilestones : (dashboard?.milestones || []);
+        if (currentProjId) {
+            return list.filter(m => {
+                const mProjId = m.project?._id || m.project;
+                return !mProjId || String(mProjId) === String(currentProjId);
+            });
+        }
+        return list;
+    }, [clientMilestones, dashboard?.milestones, currentProjId]);
 
     const milestoneOptions = useMemo(() => {
         return milestoneList.map(item => ({
@@ -126,26 +134,35 @@ const Projects = () => {
         }));
     }, [milestoneList]);
 
-    // Team members from current project and tasks
+    // Team members strictly belonging to the currently selected project
     const memberOptions = useMemo(() => {
         const membersMap = new Map();
+
+        // 1. Members defined in current project team
         if (currentProject?.team && Array.isArray(currentProject.team)) {
             currentProject.team.forEach(m => {
                 if (m && m._id && m.name) {
-                    membersMap.set(m._id, m.name);
+                    membersMap.set(String(m._id), m.name);
                 }
             });
         }
+
+        // 2. Assignees of tasks belonging strictly to this project
         (clientTasks || []).forEach(t => {
+            const taskProjectId = t.project?._id || t.project;
+            if (currentProjId && taskProjectId && String(taskProjectId) !== String(currentProjId)) {
+                return; // Skip tasks from other projects
+            }
             if (t?.assignee && t.assignee._id && t.assignee.name) {
-                membersMap.set(t.assignee._id, t.assignee.name);
+                membersMap.set(String(t.assignee._id), t.assignee.name);
             }
         });
+
         return Array.from(membersMap.entries()).map(([id, name]) => ({
             value: id,
             label: name
         }));
-    }, [currentProject, clientTasks]);
+    }, [currentProject, clientTasks, currentProjId]);
 
     const priorityOptions = [
         { value: 'Critical', label: 'Critical' },
@@ -199,9 +216,17 @@ const Projects = () => {
         return 'To Do';
     }, []);
 
-    // Filter tasks based on all active filters
+    // Filter tasks based on all active filters with strict project scoping
     const filteredTasks = useMemo(() => {
         return (clientTasks || []).filter(task => {
+            // Strict project filter: ensure task belongs to the selected project
+            if (currentProjId) {
+                const taskProjectId = task.project?._id || task.project;
+                if (taskProjectId && String(taskProjectId) !== String(currentProjId)) {
+                    return false;
+                }
+            }
+
             // Milestone filter
             if (selectedMilestone) {
                 const taskMilestoneId = task.milestone?._id || task.milestone;
@@ -252,7 +277,7 @@ const Projects = () => {
 
             return true;
         });
-    }, [clientTasks, selectedMilestone, selectedMember, selectedPriority, startDate, endDate, searchQuery]);
+    }, [clientTasks, currentProjId, selectedMilestone, selectedMember, selectedPriority, startDate, endDate, searchQuery]);
 
     // Group filtered tasks into Kanban columns
     const boardData = useMemo(() => {
@@ -309,41 +334,49 @@ const Projects = () => {
         if (days < 0) {
             return {
                 text: `${Math.abs(days)}d Overdue`,
-                bg: 'rgba(239, 68, 68, 0.12)',
-                textColor: '#dc2626'
+                bg: '#fef2f2',
+                textColor: '#dc2626',
+                border: '#fecaca',
+                icon: 'bi-clock-history'
             };
         } else if (days === 0) {
             return {
                 text: 'Due Today',
-                bg: 'rgba(245, 158, 11, 0.15)',
-                textColor: '#d97706'
+                bg: '#fffbeb',
+                textColor: '#d97706',
+                border: '#fde68a',
+                icon: 'bi-alarm'
             };
         } else if (days <= 3) {
             return {
                 text: `${days}d Left`,
-                bg: 'rgba(245, 158, 11, 0.15)',
-                textColor: '#d97706'
+                bg: '#fffbeb',
+                textColor: '#d97706',
+                border: '#fde68a',
+                icon: 'bi-hourglass-split'
             };
         }
         return {
             text: `${days}d Left`,
-            bg: 'rgba(16, 185, 129, 0.12)',
-            textColor: '#059669'
+            bg: '#f0fdf4',
+            textColor: '#16a34a',
+            border: '#bbf7d0',
+            icon: 'bi-calendar-check'
         };
     };
 
     const getPriorityBadgeStyle = (priority) => {
         const p = (priority || '').toLowerCase();
         if (p === 'critical') {
-            return { bg: 'rgba(239, 68, 68, 0.12)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.25)' };
+            return { bg: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' };
         }
         if (p === 'high') {
-            return { bg: 'rgba(249, 115, 22, 0.12)', color: '#ea580c', border: '1px solid rgba(249, 115, 22, 0.25)' };
+            return { bg: '#fff7ed', color: '#ea580c', border: '1px solid #ffedd5' };
         }
         if (p === 'medium') {
-            return { bg: 'rgba(59, 130, 246, 0.12)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.25)' };
+            return { bg: '#eff6ff', color: '#2563eb', border: '1px solid #dbeafe' };
         }
-        return { bg: 'rgba(100, 116, 139, 0.1)', color: '#475569', border: '1px solid rgba(100, 116, 139, 0.2)' };
+        return { bg: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' };
     };
 
     const handleTaskClick = (task) => {
@@ -365,22 +398,23 @@ const Projects = () => {
     const customSelectStyles = {
         control: (base, state) => ({
             ...base,
-            minHeight: '34px',
-            height: '34px',
+            minHeight: '36px',
+            height: '36px',
             display: 'flex',
             alignItems: 'center',
             fontSize: '12.5px',
-            borderRadius: '8px',
+            borderRadius: '9px',
             borderColor: state.isFocused ? '#727cf5' : '#e2e8f0',
-            boxShadow: state.isFocused ? '0 0 0 2px rgba(114, 124, 245, 0.18)' : 'none',
+            boxShadow: state.isFocused ? '0 0 0 3px rgba(114, 124, 245, 0.15)' : 'none',
             '&:hover': {
-                borderColor: '#727cf5'
+                borderColor: '#cbd5e1'
             },
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            transition: 'all 0.2s ease',
         }),
         valueContainer: (base) => ({
             ...base,
-            padding: '0 10px'
+            padding: '0 10px',
         }),
         input: (base) => ({
             ...base,
@@ -396,7 +430,8 @@ const Projects = () => {
         placeholder: (base) => ({
             ...base,
             fontSize: '12px',
-            color: '#94a3b8'
+            color: '#94a3b8',
+            fontWeight: '500'
         }),
         option: (base, state) => ({
             ...base,
@@ -404,7 +439,7 @@ const Projects = () => {
             backgroundColor: state.isSelected ? '#727cf5' : state.isFocused ? '#f1f5f9' : 'transparent',
             color: state.isSelected ? '#ffffff' : '#1e293b',
             cursor: 'pointer',
-            fontWeight: state.isSelected ? '600' : '400',
+            fontWeight: state.isSelected ? '600' : '500',
             padding: '8px 12px',
             '&:active': {
                 backgroundColor: '#727cf5'
@@ -412,18 +447,34 @@ const Projects = () => {
         }),
         indicatorsContainer: (base) => ({
             ...base,
-            height: '34px'
+            height: '36px'
         }),
-        indicatorSeparator: (base) => ({
+        indicatorSeparator: () => ({
+            display: 'none'
+        }),
+        dropdownIndicator: (base, state) => ({
             ...base,
-            backgroundColor: '#e2e8f0'
+            padding: '4px 8px',
+            color: state.isFocused ? '#727cf5' : '#94a3b8',
+            '&:hover': {
+                color: '#64748b'
+            }
+        }),
+        clearIndicator: (base) => ({
+            ...base,
+            padding: '4px 6px',
+            color: '#94a3b8',
+            '&:hover': {
+                color: '#ef4444'
+            }
         }),
         menu: (base) => ({
             ...base,
             zIndex: 9999,
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0'
+            borderRadius: '10px',
+            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden'
         })
     };
 
@@ -439,25 +490,27 @@ const Projects = () => {
                 <div className="projects-main-card">
                     {/* Top Filters Bar */}
                     <div className="projects-toolbar-wrapper">
-                        <div className="d-flex flex-column flex-xl-row justify-content-between gap-2.5">
-                            {/* Left Controls: View Toggle & Search */}
-                            <div className="d-flex flex-wrap align-items-center gap-2">
-                                <div className="btn-group view-mode-toggle" role="group">
+                        <div className="projects-toolbar-row">
+                            {/* Left Controls: View Toggle & Search & Project Info */}
+                            <div className="toolbar-left-group">
+                                <div className="segmented-view-toggle">
                                     <button
                                         type="button"
-                                        className={`btn btn-sm ${viewMode === 'board' ? 'btn-primary active' : 'btn-outline-secondary'}`}
+                                        className={`segment-btn ${viewMode === 'board' ? 'active' : ''}`}
                                         onClick={() => setViewMode('board')}
                                         title="Kanban Board View"
                                     >
-                                        <i className="bi bi-kanban me-1"></i> Board
+                                        <i className="bi bi-kanban"></i>
+                                        <span>Board</span>
                                     </button>
                                     <button
                                         type="button"
-                                        className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary active' : 'btn-outline-secondary'}`}
+                                        className={`segment-btn ${viewMode === 'list' ? 'active' : ''}`}
                                         onClick={() => setViewMode('list')}
                                         title="Table List View"
                                     >
-                                        <i className="bi bi-list-ul me-1"></i> List
+                                        <i className="bi bi-list-task"></i>
+                                        <span>List</span>
                                     </button>
                                 </div>
 
@@ -466,7 +519,7 @@ const Projects = () => {
                                     <i className="bi bi-search search-icon"></i>
                                     <input
                                         type="text"
-                                        className="form-control form-control-sm projects-search-input"
+                                        className="form-control projects-search-input"
                                         placeholder="Search tasks, assignees..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -477,27 +530,27 @@ const Projects = () => {
                                             onClick={() => setSearchQuery('')}
                                             title="Clear search"
                                         >
-                                            <i className="bi bi-x"></i>
+                                            <i className="bi bi-x-circle-fill"></i>
                                         </button>
                                     )}
                                 </div>
 
                                 {currentProject && (
                                     <button
-                                        className="btn btn-sm btn-outline-info d-flex align-items-center gap-1.5 project-info-quick-btn"
+                                        className="project-info-pill-btn"
                                         onClick={() => handleOpenProjectModal(currentProject)}
                                         title="View Project Specifications & Credentials"
                                     >
-                                        <i className="bi bi-info-circle"></i>
+                                        <i className="bi bi-info-circle-fill"></i>
                                         <span>Project Info</span>
                                     </button>
                                 )}
                             </div>
 
-                            {/* Right Controls: Filters */}
-                            <div className="d-flex flex-wrap align-items-center gap-2">
+                            {/* Right Controls: Filter Dropdowns */}
+                            <div className="toolbar-right-group">
                                 {/* Project Selector */}
-                                <div style={{ minWidth: 190, maxWidth: 240 }}>
+                                <div className="filter-select-wrapper project-select-box">
                                     <Select
                                         value={selectedProjectFilter}
                                         onChange={handleProjectChange}
@@ -510,7 +563,7 @@ const Projects = () => {
                                 </div>
 
                                 {/* Milestone Selector */}
-                                <div style={{ minWidth: 170, maxWidth: 210 }}>
+                                <div className="filter-select-wrapper milestone-select-box">
                                     <Select
                                         value={selectedMilestone}
                                         onChange={handleMilestoneChange}
@@ -523,7 +576,7 @@ const Projects = () => {
                                 </div>
 
                                 {/* Team Member Selector */}
-                                <div style={{ minWidth: 160, maxWidth: 190 }}>
+                                <div className="filter-select-wrapper member-select-box">
                                     <Select
                                         value={selectedMember}
                                         onChange={setSelectedMember}
@@ -536,7 +589,7 @@ const Projects = () => {
                                 </div>
 
                                 {/* Priority Selector */}
-                                <div style={{ minWidth: 140, maxWidth: 160 }}>
+                                <div className="filter-select-wrapper priority-select-box">
                                     <Select
                                         value={selectedPriority}
                                         onChange={setSelectedPriority}
@@ -548,24 +601,27 @@ const Projects = () => {
                                 </div>
 
                                 {/* Date Range Picker */}
-                                <div className="date-picker-container" style={{ width: 180 }}>
-                                    <DatePicker
-                                        selectsRange
-                                        startDate={startDate}
-                                        endDate={endDate}
-                                        onChange={(update) => setSelectedDateRange(update)}
-                                        isClearable
-                                        placeholderText="Select Date Range"
-                                        dateFormat="dd MMM yyyy"
-                                        className="form-control form-control-sm projects-date-input"
-                                    />
+                                <div className="date-picker-container filter-select-wrapper date-range-select-box">
+                                    <div className="date-input-with-icon">
+                                        <i className="bi bi-calendar-range date-picker-prefix-icon"></i>
+                                        <DatePicker
+                                            selectsRange
+                                            startDate={startDate}
+                                            endDate={endDate}
+                                            onChange={(update) => setSelectedDateRange(update)}
+                                            isClearable
+                                            placeholderText="Select Date Range"
+                                            dateFormat="dd MMM yyyy"
+                                            className="form-control projects-date-input"
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Reset All Filters Button */}
                                 {isAnyFilterActive && (
                                     <button
                                         type="button"
-                                        className="btn btn-sm btn-light border text-danger d-flex align-items-center gap-1 clear-filters-btn"
+                                        className="btn clear-filters-btn"
                                         onClick={handleClearAllFilters}
                                         title="Clear all active filters"
                                     >
@@ -578,40 +634,43 @@ const Projects = () => {
 
                         {/* Active Filter Badges Bar */}
                         {isAnyFilterActive && (
-                            <div className="active-filters-bar mt-2 pt-2 border-top d-flex flex-wrap align-items-center gap-1.5">
-                                <span className="active-filters-label text-muted small">
-                                    <i className="bi bi-funnel-fill me-1 text-primary"></i> Active Filters ({filteredTasks.length} tasks matched):
+                            <div className="active-filters-bar">
+                                <span className="active-filters-label">
+                                    <i className="bi bi-funnel-fill text-primary"></i> Filtered ({filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}):
                                 </span>
                                 {selectedMilestone && (
                                     <span className="filter-chip">
-                                        Milestone: <strong>{selectedMilestone.label}</strong>
-                                        <i className="bi bi-x ms-1" onClick={() => setSelectedMilestone(null)}></i>
+                                        <span className="chip-key">Milestone:</span> {selectedMilestone.label}
+                                        <i className="bi bi-x-circle-fill chip-remove" onClick={() => setSelectedMilestone(null)}></i>
                                     </span>
                                 )}
                                 {selectedMember && (
                                     <span className="filter-chip">
-                                        Assignee: <strong>{selectedMember.label}</strong>
-                                        <i className="bi bi-x ms-1" onClick={() => setSelectedMember(null)}></i>
+                                        <span className="chip-key">Assignee:</span> {selectedMember.label}
+                                        <i className="bi bi-x-circle-fill chip-remove" onClick={() => setSelectedMember(null)}></i>
                                     </span>
                                 )}
                                 {selectedPriority && (
                                     <span className="filter-chip">
-                                        Priority: <strong>{selectedPriority.label}</strong>
-                                        <i className="bi bi-x ms-1" onClick={() => setSelectedPriority(null)}></i>
+                                        <span className="chip-key">Priority:</span> {selectedPriority.label}
+                                        <i className="bi bi-x-circle-fill chip-remove" onClick={() => setSelectedPriority(null)}></i>
                                     </span>
                                 )}
                                 {startDate && endDate && (
                                     <span className="filter-chip">
-                                        Date: <strong>{formatDate(startDate)} - {formatDate(endDate)}</strong>
-                                        <i className="bi bi-x ms-1" onClick={() => setSelectedDateRange([null, null])}></i>
+                                        <span className="chip-key">Date:</span> {formatDate(startDate)} - {formatDate(endDate)}
+                                        <i className="bi bi-x-circle-fill chip-remove" onClick={() => setSelectedDateRange([null, null])}></i>
                                     </span>
                                 )}
                                 {searchQuery && (
                                     <span className="filter-chip">
-                                        Search: <strong>"{searchQuery}"</strong>
-                                        <i className="bi bi-x ms-1" onClick={() => setSearchQuery('')}></i>
+                                        <span className="chip-key">Search:</span> "{searchQuery}"
+                                        <i className="bi bi-x-circle-fill chip-remove" onClick={() => setSearchQuery('')}></i>
                                     </span>
                                 )}
+                                <button className="clear-all-inline-btn" onClick={handleClearAllFilters}>
+                                    Clear all
+                                </button>
                             </div>
                         )}
                     </div>
@@ -620,25 +679,25 @@ const Projects = () => {
                     <div className="projects-content-viewport">
                         {loading || clientTasksLoading ? (
                             <div className="d-flex flex-column justify-content-center align-items-center py-5" style={{ minHeight: '50vh' }}>
-                                <div className="spinner-border text-primary mb-3" role="status">
+                                <div className="spinner-border text-primary mb-3" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
                                     <span className="visually-hidden">Loading tasks...</span>
                                 </div>
-                                <p className="text-muted fw-500">Loading project workspace...</p>
+                                <p className="text-muted fw-semibold">Loading project workspace...</p>
                             </div>
                         ) : filteredTasks.length === 0 ? (
                             <div className="d-flex flex-column justify-content-center align-items-center py-5 empty-workspace-state" style={{ minHeight: '50vh' }}>
                                 <div className="empty-icon-circle mb-3">
-                                    <i className="bi bi-inbox fs-1 text-muted"></i>
+                                    <i className="bi bi-kanban fs-2 text-primary opacity-50"></i>
                                 </div>
                                 <h5 className="fw-bold text-dark mb-1">No Tasks Found</h5>
-                                <p className="text-muted small mb-3 text-center" style={{ maxWidth: 400 }}>
+                                <p className="text-muted small mb-3 text-center" style={{ maxWidth: 420 }}>
                                     {isAnyFilterActive
-                                        ? "No tasks match your active filter criteria. Try adjusting or resetting the filters."
-                                        : "There are currently no tasks recorded for this milestone or project."}
+                                        ? "No tasks match your active filter criteria. Try clearing or adjusting your search parameters."
+                                        : "There are currently no tasks recorded for this project milestone."}
                                 </p>
                                 {isAnyFilterActive && (
-                                    <button className="btn btn-sm btn-primary rounded-pill px-3" onClick={handleClearAllFilters}>
-                                        <i className="bi bi-arrow-counterclockwise me-1"></i> Clear Filters
+                                    <button className="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onClick={handleClearAllFilters}>
+                                        <i className="bi bi-arrow-counterclockwise me-1"></i> Clear All Filters
                                     </button>
                                 )}
                             </div>
@@ -652,9 +711,9 @@ const Projects = () => {
                                             <div key={col.id} className="kanban-col-wrapper">
                                                 <div className="kanban-column-card">
                                                     {/* Column Header */}
-                                                    <div className="kanban-column-header" style={{ borderTop: `3px solid ${col.color}` }}>
+                                                    <div className="kanban-column-header">
                                                         <div className="d-flex align-items-center gap-2">
-                                                            <span className="status-dot" style={{ backgroundColor: col.color }}></span>
+                                                            <span className="status-dot" style={{ backgroundColor: col.color, boxShadow: `0 0 0 3px ${col.color}25` }}></span>
                                                             <span className="column-title-text">{col.title}</span>
                                                         </div>
                                                         <span
@@ -683,7 +742,7 @@ const Projects = () => {
                                                                     >
                                                                         {/* Card Top Badges */}
                                                                         <div className="d-flex align-items-center justify-content-between gap-1 mb-2">
-                                                                            <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                                                            <div className="d-flex align-items-center gap-2 flex-wrap">
                                                                                 {task.priority && (
                                                                                     <span
                                                                                         className="task-badge-pill priority-pill"
@@ -699,11 +758,16 @@ const Projects = () => {
                                                                                 )}
                                                                             </div>
 
-                                                                            {/* Deadline badge */}
+                                                                            {/* Deadline / Overdue badge */}
                                                                             <span
                                                                                 className="task-deadline-badge"
-                                                                                style={{ backgroundColor: daysInfo.bg, color: daysInfo.textColor }}
+                                                                                style={{
+                                                                                    backgroundColor: daysInfo.bg,
+                                                                                    color: daysInfo.textColor,
+                                                                                    borderColor: daysInfo.border || 'transparent'
+                                                                                }}
                                                                             >
+                                                                                <i className={`bi ${daysInfo.icon || 'bi-calendar3'} me-1`}></i>
                                                                                 {daysInfo.text}
                                                                             </span>
                                                                         </div>
@@ -723,7 +787,7 @@ const Projects = () => {
                                                                         {/* Milestone Tag */}
                                                                         {task.milestone && (
                                                                             <div className="task-milestone-tag">
-                                                                                <i className="bi bi-flag-fill me-1 text-primary opacity-75"></i>
+                                                                                <i className="bi bi-bookmark-fill me-1"></i>
                                                                                 <span>{task.milestone.title || 'Milestone'}</span>
                                                                             </div>
                                                                         )}
@@ -735,7 +799,7 @@ const Projects = () => {
                                                                                     <span>Progress</span>
                                                                                     <span className="fw-bold">{task.progress}%</span>
                                                                                 </div>
-                                                                                <div className="progress" style={{ height: '4px' }}>
+                                                                                <div className="progress" style={{ height: '4px', borderRadius: '4px' }}>
                                                                                     <div
                                                                                         className="progress-bar bg-success"
                                                                                         role="progressbar"
@@ -746,8 +810,8 @@ const Projects = () => {
                                                                         )}
 
                                                                         {/* Card Footer: Assignee & Date */}
-                                                                        <div className="task-card-footer mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between">
-                                                                            <div className="d-flex align-items-center gap-1.5">
+                                                                        <div className="task-card-footer">
+                                                                            <div className="d-flex align-items-center gap-2 assignee-group">
                                                                                 {assigneeInitials ? (
                                                                                     <div
                                                                                         className="assignee-avatar-circle"
@@ -765,7 +829,7 @@ const Projects = () => {
                                                                                 </span>
                                                                             </div>
 
-                                                                            <div className="task-meta-right d-flex align-items-center gap-2">
+                                                                            <div className="task-meta-right">
                                                                                 {task.dueDate && (
                                                                                     <span className="task-due-date" title={`Due: ${formatDate(task.dueDate)}`}>
                                                                                         <i className="bi bi-calendar3 me-1"></i>
@@ -785,7 +849,9 @@ const Projects = () => {
                                                             })
                                                         ) : (
                                                             <div className="kanban-empty-col">
-                                                                <i className="bi bi-check2-circle mb-1 opacity-40 fs-3"></i>
+                                                                <div className="empty-col-icon-wrap">
+                                                                    <i className="bi bi-check2-circle"></i>
+                                                                </div>
                                                                 <span>No tasks in {col.title}</span>
                                                             </div>
                                                         )}
@@ -823,7 +889,7 @@ const Projects = () => {
                                                     <tr key={task._id} className="task-table-row cp" onClick={() => handleTaskClick(task)}>
                                                         <td>
                                                             <div className="d-flex flex-column">
-                                                                <div className="d-flex align-items-center gap-1.5 mb-1">
+                                                                <div className="d-flex align-items-center gap-2 mb-1">
                                                                     {task.workType && (
                                                                         <span className="task-badge-pill worktype-pill" style={{ fontSize: '10px', padding: '1px 6px' }}>
                                                                             {task.workType}
@@ -922,118 +988,148 @@ const Projects = () => {
                 centered
                 className="task-detail-modal"
             >
-                <Modal.Header closeButton className="border-0 pb-0">
-                    <Modal.Title className="task-modal-header-custom w-100 pe-3">
-                        <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                            {selectedTask?.priority && (
+                <Modal.Header className="custom-modal-header border-0 pb-0">
+                    <div className="d-flex flex-column w-100">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                            <div className="d-flex align-items-center gap-2 flex-wrap">
+                                {selectedTask?.priority && (
+                                    <span
+                                        className="task-badge-pill priority-pill"
+                                        style={getPriorityBadgeStyle(selectedTask.priority)}
+                                    >
+                                        {selectedTask.priority} Priority
+                                    </span>
+                                )}
+                                {selectedTask?.workType && (
+                                    <span className="task-badge-pill worktype-pill">
+                                        {selectedTask.workType}
+                                    </span>
+                                )}
                                 <span
-                                    className="task-badge-pill priority-pill"
-                                    style={getPriorityBadgeStyle(selectedTask.priority)}
+                                    className="task-status-pill-header"
+                                    style={{
+                                        backgroundColor: COLUMN_CONFIG.find(c => c.id === normalizeStatus(selectedTask?.status))?.badgeBg || '#e2e8f0',
+                                        color: COLUMN_CONFIG.find(c => c.id === normalizeStatus(selectedTask?.status))?.badgeColor || '#334155'
+                                    }}
                                 >
-                                    {selectedTask.priority} Priority
+                                    <span
+                                        className="status-dot-mini"
+                                        style={{ backgroundColor: COLUMN_CONFIG.find(c => c.id === normalizeStatus(selectedTask?.status))?.color || '#64748b' }}
+                                    ></span>
+                                    {selectedTask?.status || 'To Do'}
                                 </span>
-                            )}
-                            {selectedTask?.workType && (
-                                <span className="task-badge-pill worktype-pill">
-                                    {selectedTask.workType}
-                                </span>
-                            )}
-                            <span
-                                className="badge rounded-pill px-2.5 py-1 text-capitalize fw-bold ms-auto"
-                                style={{
-                                    backgroundColor: COLUMN_CONFIG.find(c => c.id === normalizeStatus(selectedTask?.status))?.badgeBg || '#e2e8f0',
-                                    color: COLUMN_CONFIG.find(c => c.id === normalizeStatus(selectedTask?.status))?.badgeColor || '#334155'
-                                }}
+                            </div>
+                            <button
+                                type="button"
+                                className="btn-modal-close-icon"
+                                onClick={() => setShowTaskModal(false)}
+                                title="Close"
                             >
-                                {selectedTask?.status || 'To Do'}
-                            </span>
+                                <i className="bi bi-x-lg"></i>
+                            </button>
                         </div>
-                        <h4 className="task-modal-title mb-0">{selectedTask?.summary || selectedTask?.title}</h4>
-                    </Modal.Title>
+                        <h4 className="task-modal-main-title">{selectedTask?.summary || selectedTask?.title}</h4>
+                    </div>
                 </Modal.Header>
 
-                <Modal.Body className="pt-3">
+                <Modal.Body className="custom-modal-body">
                     {selectedTask && (
                         <div className="task-modal-body-layout">
                             {/* Description Section */}
-                            <div className="modal-card-block mb-3">
-                                <h6 className="block-subtitle"><i className="bi bi-card-text me-1 text-primary"></i> Description</h6>
-                                <div className="task-modal-desc">
+                            <div className="modal-content-card">
+                                <div className="card-section-label">
+                                    <i className="bi bi-text-left text-primary me-1.5"></i> Description
+                                </div>
+                                <div className="task-modal-desc-text">
                                     {selectedTask.description
                                         ? selectedTask.description.replace(/<[^>]*>/g, '')
-                                        : 'No additional description provided for this task.'}
+                                        : 'No description provided for this task.'}
                                 </div>
                             </div>
 
                             {/* Meta Grid */}
-                            <div className="modal-meta-grid mb-3">
-                                <div className="meta-grid-card">
-                                    <span className="meta-label">Milestone</span>
-                                    <span className="meta-value fw-bold text-primary">
-                                        <i className="bi bi-flag-fill me-1"></i>
+                            <div className="modal-meta-grid-modern">
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-bookmark-fill text-indigo"></i>
+                                        <span>Milestone</span>
+                                    </div>
+                                    <span className="meta-card-val text-primary fw-bold">
                                         {selectedTask.milestone?.title || 'General Milestone'}
                                     </span>
                                 </div>
 
-                                <div className="meta-grid-card">
-                                    <span className="meta-label">Project</span>
-                                    <span className="meta-value fw-bold text-dark">
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-folder2-open text-info"></i>
+                                        <span>Project</span>
+                                    </div>
+                                    <span className="meta-card-val text-dark fw-bold text-truncate" title={selectedTask.project?.name || currentProject?.name || 'Project'}>
                                         {selectedTask.project?.name || currentProject?.name || 'Project'}
                                     </span>
                                 </div>
 
-                                <div className="meta-grid-card">
-                                    <span className="meta-label">Assignee</span>
-                                    <div className="d-flex align-items-center gap-1.5 mt-1">
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-person-fill text-purple"></i>
+                                        <span>Assignee</span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 mt-1">
                                         <div className="assignee-avatar-circle mini">
                                             {selectedTask.assignee?.name
                                                 ? selectedTask.assignee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
                                                 : <i className="bi bi-person"></i>}
                                         </div>
-                                        <div>
-                                            <span className="meta-value d-block fw-semibold">{selectedTask.assignee?.name || 'Unassigned'}</span>
+                                        <div className="text-truncate">
+                                            <span className="meta-card-val fw-semibold d-block text-truncate">{selectedTask.assignee?.name || 'Unassigned'}</span>
                                             {selectedTask.assignee?.email && (
-                                                <small className="text-muted" style={{ fontSize: '11px' }}>{selectedTask.assignee.email}</small>
+                                                <small className="text-muted d-block text-truncate" style={{ fontSize: '11px' }}>{selectedTask.assignee.email}</small>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="meta-grid-card">
-                                    <span className="meta-label">Due Date</span>
-                                    <span className="meta-value fw-semibold">
-                                        <i className="bi bi-calendar-event me-1 text-muted"></i>
-                                        {formatDate(selectedTask.dueDate || selectedTask.completionDate)}
-                                    </span>
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-calendar-event text-success"></i>
+                                        <span>Due Date</span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 mt-1">
+                                        <span className="meta-card-val fw-bold text-dark">
+                                            {formatDate(selectedTask.dueDate || selectedTask.completionDate)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Progress & Estimates */}
                             {(typeof selectedTask.progress === 'number' || selectedTask.estimatedTime || selectedTask.timeSpent) && (
-                                <div className="modal-card-block mb-3">
-                                    <h6 className="block-subtitle"><i className="bi bi-speedometer2 me-1 text-info"></i> Progress & Hours</h6>
-                                    <div className="row g-2 align-items-center">
+                                <div className="modal-content-card">
+                                    <div className="card-section-label">
+                                        <i className="bi bi-speedometer2 text-info me-1.5"></i> Progress & Time
+                                    </div>
+                                    <div className="row g-3 align-items-center">
                                         {typeof selectedTask.progress === 'number' && (
                                             <div className="col-12 col-md-6">
-                                                <div className="d-flex justify-content-between small mb-1">
-                                                    <span>Completion</span>
-                                                    <span className="fw-bold">{selectedTask.progress}%</span>
+                                                <div className="d-flex justify-content-between small mb-1.5">
+                                                    <span className="text-muted fw-semibold">Completion</span>
+                                                    <span className="fw-bold text-dark">{selectedTask.progress}%</span>
                                                 </div>
-                                                <div className="progress" style={{ height: '6px' }}>
-                                                    <div className="progress-bar bg-primary" style={{ width: `${selectedTask.progress}%` }}></div>
+                                                <div className="progress" style={{ height: '7px', borderRadius: '6px' }}>
+                                                    <div className="progress-bar bg-primary" style={{ width: `${selectedTask.progress}%`, borderRadius: '6px' }}></div>
                                                 </div>
                                             </div>
                                         )}
                                         {selectedTask.estimatedTime > 0 && (
                                             <div className="col-6 col-md-3">
-                                                <span className="meta-label">Est. Time</span>
-                                                <span className="fw-bold text-dark">{selectedTask.estimatedTime} hrs</span>
+                                                <span className="d-block text-muted small fw-semibold">Est. Time</span>
+                                                <span className="fw-bold text-dark fs-6">{selectedTask.estimatedTime} hrs</span>
                                             </div>
                                         )}
                                         {selectedTask.timeSpent > 0 && (
                                             <div className="col-6 col-md-3">
-                                                <span className="meta-label">Time Spent</span>
-                                                <span className="fw-bold text-success">{selectedTask.timeSpent} hrs</span>
+                                                <span className="d-block text-muted small fw-semibold">Time Spent</span>
+                                                <span className="fw-bold text-success fs-6">{selectedTask.timeSpent} hrs</span>
                                             </div>
                                         )}
                                     </div>
@@ -1042,8 +1138,10 @@ const Projects = () => {
 
                             {/* Attachments */}
                             {Array.isArray(selectedTask.attachments) && selectedTask.attachments.length > 0 && (
-                                <div className="modal-card-block">
-                                    <h6 className="block-subtitle"><i className="bi bi-paperclip me-1 text-secondary"></i> Attachments ({selectedTask.attachments.length})</h6>
+                                <div className="modal-content-card">
+                                    <div className="card-section-label">
+                                        <i className="bi bi-paperclip text-secondary me-1.5"></i> Attachments ({selectedTask.attachments.length})
+                                    </div>
                                     <div className="attachments-list-grid">
                                         {selectedTask.attachments.map((att, idx) => (
                                             <a
@@ -1053,7 +1151,9 @@ const Projects = () => {
                                                 rel="noopener noreferrer"
                                                 className="attachment-item-card"
                                             >
-                                                <i className="bi bi-file-earmark-arrow-down text-primary fs-5"></i>
+                                                <div className="att-icon-wrap">
+                                                    <i className="bi bi-file-earmark-arrow-down text-primary fs-5"></i>
+                                                </div>
                                                 <div className="text-truncate">
                                                     <span className="att-name text-truncate">{att.name || `Attachment ${idx + 1}`}</span>
                                                     <small className="text-muted d-block">{formatDate(att.uploadedAt)}</small>
@@ -1066,12 +1166,6 @@ const Projects = () => {
                         </div>
                     )}
                 </Modal.Body>
-
-                <Modal.Footer className="border-0 pt-0">
-                    <Button variant="secondary" className="btn-modal-close px-3" onClick={() => setShowTaskModal(false)}>
-                        Close
-                    </Button>
-                </Modal.Footer>
             </Modal>
 
             {/* Project Details Modal */}
@@ -1082,36 +1176,57 @@ const Projects = () => {
                 centered
                 className="project-detail-modal"
             >
-                <Modal.Header closeButton className="border-0 pb-0">
-                    <Modal.Title className="modal-title-custom">
-                        <span className="modal-project-tag">{selectedProject?.projectType || 'Tech'}</span>
-                        <h2>{selectedProject?.name}</h2>
-                    </Modal.Title>
+                <Modal.Header className="custom-modal-header border-0 pb-0">
+                    <div className="d-flex flex-column w-100">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                            <span className="modal-project-tag">{selectedProject?.projectType || 'Tech'}</span>
+                            <button
+                                type="button"
+                                className="btn-modal-close-icon"
+                                onClick={() => setShowProjectModal(false)}
+                                title="Close"
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <h3 className="project-modal-main-title">{selectedProject?.name}</h3>
+                    </div>
                 </Modal.Header>
-                <Modal.Body className="pt-2">
+                <Modal.Body className="custom-modal-body">
                     {selectedProject && (
                         <div className="modal-body-layout">
-                            <div className="modal-section description-sec">
-                                <h5 className="section-title"><i className="bi bi-file-earmark-text"></i> Description</h5>
+                            <div className="modal-content-card">
+                                <div className="card-section-label">
+                                    <i className="bi bi-file-earmark-text text-primary me-1.5"></i> Description
+                                </div>
                                 <p className="modal-desc-content">
                                     {selectedProject.description || 'No description available for this project.'}
                                 </p>
                             </div>
 
-                            <div className="modal-section grid-section">
-                                <div className="modal-grid-item">
-                                    <span className="grid-item-label">Status</span>
-                                    <span className={`status-badge-pill ${selectedProject.projectStatus?.toLowerCase() || 'ongoing'}`}>
+                            <div className="modal-meta-grid-modern">
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-activity text-primary"></i>
+                                        <span>Status</span>
+                                    </div>
+                                    <span className={`status-badge-pill mt-1 ${selectedProject.projectStatus?.toLowerCase() || 'ongoing'}`}>
                                         {selectedProject.projectStatus || 'Ongoing'}
                                     </span>
                                 </div>
-                                <div className="modal-grid-item">
-                                    <span className="grid-item-label">Start Date</span>
-                                    <span className="grid-item-val">{formatDate(selectedProject.start || selectedProject.startDate)}</span>
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-calendar-check text-success"></i>
+                                        <span>Start Date</span>
+                                    </div>
+                                    <span className="meta-card-val fw-bold text-dark mt-1">{formatDate(selectedProject.start || selectedProject.startDate)}</span>
                                 </div>
-                                <div className="modal-grid-item">
-                                    <span className="grid-item-label">End Date</span>
-                                    <span className="grid-item-val">{formatDate(selectedProject.end || selectedProject.estimatedCompletion)}</span>
+                                <div className="meta-card-modern">
+                                    <div className="meta-card-header">
+                                        <i className="bi bi-calendar-x text-warning"></i>
+                                        <span>End Date</span>
+                                    </div>
+                                    <span className="meta-card-val fw-bold text-dark mt-1">{formatDate(selectedProject.end || selectedProject.estimatedCompletion)}</span>
                                 </div>
                             </div>
 
@@ -1119,85 +1234,89 @@ const Projects = () => {
                             {((selectedProject.figmaLinks && selectedProject.figmaLinks.length > 0) ||
                                 (selectedProject.documentLinks && selectedProject.documentLinks.length > 0) ||
                                 (selectedProject.websites && selectedProject.websites.length > 0)) && (
-                                <div className="modal-section links-sec">
-                                    <h5 className="section-title"><i className="bi bi-link-45deg"></i> Resources & Links</h5>
-
-                                    {/* Figma Links */}
-                                    {selectedProject.figmaLinks && selectedProject.figmaLinks.length > 0 && (
-                                        <div className="link-sub-section">
-                                            <div className="sub-section-title"><i className="bi bi-pencil-ruler text-info"></i> Figma Designs</div>
-                                            <div className="resource-links-grid">
-                                                {selectedProject.figmaLinks.map((link, idx) => (
-                                                    <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="resource-link-card">
-                                                        <span className="link-title">{link.title || 'Design Link'}</span>
-                                                        <i className="bi bi-box-arrow-up-right link-go-icon"></i>
-                                                    </a>
-                                                ))}
-                                            </div>
+                                    <div className="modal-content-card">
+                                        <div className="card-section-label">
+                                            <i className="bi bi-link-45deg text-primary me-1.5"></i> Resources & Links
                                         </div>
-                                    )}
 
-                                    {/* Document Links */}
-                                    {selectedProject.documentLinks && selectedProject.documentLinks.length > 0 && (
-                                        <div className="link-sub-section">
-                                            <div className="sub-section-title"><i className="bi bi-file-earmark-text text-primary"></i> Document Links</div>
-                                            <div className="resource-links-grid">
-                                                {selectedProject.documentLinks.map((link, idx) => (
-                                                    <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="resource-link-card">
-                                                        <span className="link-title">{link.title || 'Document Link'}</span>
-                                                        <i className="bi bi-box-arrow-up-right link-go-icon"></i>
-                                                    </a>
-                                                ))}
+                                        {/* Figma Links */}
+                                        {selectedProject.figmaLinks && selectedProject.figmaLinks.length > 0 && (
+                                            <div className="link-sub-section mb-3">
+                                                <div className="sub-section-title"><i className="bi bi-pencil-ruler text-info me-1"></i> Figma Designs</div>
+                                                <div className="resource-links-grid">
+                                                    {selectedProject.figmaLinks.map((link, idx) => (
+                                                        <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="resource-link-card">
+                                                            <span className="link-title">{link.title || 'Design Link'}</span>
+                                                            <i className="bi bi-box-arrow-up-right link-go-icon"></i>
+                                                        </a>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
-                                    {/* Websites & Credentials */}
-                                    {selectedProject.websites && selectedProject.websites.length > 0 && (
-                                        <div className="link-sub-section">
-                                            <div className="sub-section-title"><i className="bi bi-globe text-success"></i> Websites & Credentials</div>
-                                            <div className="websites-credentials-wrapper">
-                                                {selectedProject.websites.map((web, idx) => (
-                                                    <div key={idx} className="website-cred-card">
-                                                        <div className="web-header">
-                                                            <span className="web-title">{web.title}</span>
-                                                            <a href={web.url} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline-success py-1 px-2" style={{ fontSize: '10px' }}>
-                                                                Visit <i className="bi bi-box-arrow-up-right ms-1"></i>
-                                                            </a>
-                                                        </div>
-                                                        {web.creds && web.creds.map((cred, cIdx) => (
-                                                            <div key={cIdx} className="cred-row mt-2">
-                                                                <span className="cred-role">{cred.role || 'Access'}:</span>
-                                                                <div className="cred-details">
-                                                                    <div className="cred-field">
-                                                                        <span className="field-label">User:</span>
-                                                                        <span className="field-val">{cred.username}</span>
-                                                                        <button className="btn btn-xs btn-link p-0 text-muted ms-1" onClick={() => handleCopy(cred.username, `user-${idx}-${cIdx}`)}>
-                                                                            <i className={`bi ${showCopiedIndex === `user-${idx}-${cIdx}` ? 'bi-check2 text-success' : 'bi-clipboard'}`}></i>
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="cred-field ms-3">
-                                                                        <span className="field-label">Pass:</span>
-                                                                        <span className="field-val">••••••••</span>
-                                                                        <button className="btn btn-xs btn-link p-0 text-muted ms-1" onClick={() => handleCopy(cred.password, `pass-${idx}-${cIdx}`)}>
-                                                                            <i className={`bi ${showCopiedIndex === `pass-${idx}-${cIdx}` ? 'bi-check2 text-success' : 'bi-clipboard'}`}></i>
-                                                                        </button>
+                                        {/* Document Links */}
+                                        {selectedProject.documentLinks && selectedProject.documentLinks.length > 0 && (
+                                            <div className="link-sub-section mb-3">
+                                                <div className="sub-section-title"><i className="bi bi-file-earmark-text text-primary me-1"></i> Document Links</div>
+                                                <div className="resource-links-grid">
+                                                    {selectedProject.documentLinks.map((link, idx) => (
+                                                        <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="resource-link-card">
+                                                            <span className="link-title">{link.title || 'Document Link'}</span>
+                                                            <i className="bi bi-box-arrow-up-right link-go-icon"></i>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Websites & Credentials */}
+                                        {selectedProject.websites && selectedProject.websites.length > 0 && (
+                                            <div className="link-sub-section">
+                                                <div className="sub-section-title"><i className="bi bi-globe text-success me-1"></i> Websites & Credentials</div>
+                                                <div className="websites-credentials-wrapper">
+                                                    {selectedProject.websites.map((web, idx) => (
+                                                        <div key={idx} className="website-cred-card">
+                                                            <div className="web-header">
+                                                                <span className="web-title">{web.title}</span>
+                                                                <a href={web.url} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline-success py-1 px-2.5" style={{ fontSize: '11px', borderRadius: '6px' }}>
+                                                                    Visit <i className="bi bi-box-arrow-up-right ms-1"></i>
+                                                                </a>
+                                                            </div>
+                                                            {web.creds && web.creds.map((cred, cIdx) => (
+                                                                <div key={cIdx} className="cred-row mt-2">
+                                                                    <span className="cred-role">{cred.role || 'Access'}:</span>
+                                                                    <div className="cred-details">
+                                                                        <div className="cred-field">
+                                                                            <span className="field-label">User:</span>
+                                                                            <span className="field-val">{cred.username}</span>
+                                                                            <button className="btn btn-xs btn-link p-0 text-muted ms-1" onClick={() => handleCopy(cred.username, `user-${idx}-${cIdx}`)}>
+                                                                                <i className={`bi ${showCopiedIndex === `user-${idx}-${cIdx}` ? 'bi-check2 text-success' : 'bi-clipboard'}`}></i>
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="cred-field ms-3">
+                                                                            <span className="field-label">Pass:</span>
+                                                                            <span className="field-val">••••••••</span>
+                                                                            <button className="btn btn-xs btn-link p-0 text-muted ms-1" onClick={() => handleCopy(cred.password, `pass-${idx}-${cIdx}`)}>
+                                                                                <i className={`bi ${showCopiedIndex === `pass-${idx}-${cIdx}` ? 'bi-check2 text-success' : 'bi-clipboard'}`}></i>
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ))}
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        )}
+                                    </div>
+                                )}
 
                             {/* Tech Stack List */}
                             {Array.isArray(selectedProject.technology) && selectedProject.technology.length > 0 && (
-                                <div className="modal-section tech-sec">
-                                    <h5 className="section-title"><i className="bi bi-cpu"></i> Technologies</h5>
+                                <div className="modal-content-card">
+                                    <div className="card-section-label">
+                                        <i className="bi bi-cpu text-primary me-1.5"></i> Technologies
+                                    </div>
                                     <div className="tech-badge-container">
                                         {selectedProject.technology.map(t => (
                                             <span key={t._id} className="tech-badge large">{t.name}</span>
@@ -1208,17 +1327,19 @@ const Projects = () => {
 
                             {/* Team */}
                             {Array.isArray(selectedProject.team) && selectedProject.team.length > 0 && (
-                                <div className="modal-section team-sec">
-                                    <h5 className="section-title"><i className="bi bi-people"></i> Assigned Resources</h5>
+                                <div className="modal-content-card">
+                                    <div className="card-section-label">
+                                        <i className="bi bi-people text-primary me-1.5"></i> Assigned Resources
+                                    </div>
                                     <div className="modal-team-list-grid">
                                         {selectedProject.team.map((member) => (
                                             <div key={member._id} className="team-member-item">
                                                 <div className="team-member-avatar">
                                                     {member.name ? member.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '??'}
                                                 </div>
-                                                <div className="team-member-details">
-                                                    <span className="team-member-name">{member.name}</span>
-                                                    {member.designation && <span className="small text-muted">{typeof member.designation === 'object' ? member.designation.name : member.designation}</span>}
+                                                <div className="team-member-details text-truncate">
+                                                    <span className="team-member-name text-truncate">{member.name}</span>
+                                                    {member.designation && <span className="small text-muted d-block text-truncate">{typeof member.designation === 'object' ? member.designation.name : member.designation}</span>}
                                                 </div>
                                             </div>
                                         ))}
@@ -1228,11 +1349,6 @@ const Projects = () => {
                         </div>
                     )}
                 </Modal.Body>
-                <Modal.Footer className="border-0">
-                    <Button variant="secondary" className="btn-modal-close" onClick={() => setShowProjectModal(false)}>
-                        Close
-                    </Button>
-                </Modal.Footer>
             </Modal>
         </div>
     );

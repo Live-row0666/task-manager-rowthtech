@@ -18,8 +18,22 @@ router.get("/client-documents", verifyClient, ClientDocumentsController.getDocum
 router.get('/client-milestone', verifyClient, async (req, res) => {
     try {
         const { projectId, isActive } = req.query;
+        const clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
+        const clientProjectIds = clientProjects.map(p => p._id.toString());
+
         const query = {};
-        if (projectId) query.project = projectId;
+        if (projectId) {
+            if (clientProjectIds.includes(projectId.toString())) {
+                query.project = projectId;
+            } else {
+                return res.status(200).json({ status: 200, data: [] });
+            }
+        } else if (clientProjects.length > 0) {
+            query.project = { $in: clientProjects.map(p => p._id) };
+        } else {
+            return res.status(200).json({ status: 200, data: [] });
+        }
+
         query.isActive = isActive === 'false' ? false : true;
         const milestones = await ClientMilestone.find(query)
             .populate('project', 'name')
@@ -35,19 +49,26 @@ router.get('/client-milestone', verifyClient, async (req, res) => {
 router.get('/client-task', verifyClient, async (req, res) => {
     try {
         const { milestoneId, projectId, limit = 500 } = req.query;
+        const clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
+        const clientProjectIds = clientProjects.map(p => p._id.toString());
+
         const query = { isActive: true };
-        if (milestoneId) query.milestone = milestoneId;
         if (projectId) {
-            query.project = projectId;
-        } else {
-            // Find all active projects of this client
-            const clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
-            if (clientProjects.length > 0) {
-                query.project = { $in: clientProjects.map(p => p._id) };
+            if (clientProjectIds.includes(projectId.toString())) {
+                query.project = projectId;
+            } else {
+                return res.status(200).json({ status: 200, data: [] });
             }
+        } else if (clientProjects.length > 0) {
+            query.project = { $in: clientProjects.map(p => p._id) };
+        } else {
+            return res.status(200).json({ status: 200, data: [] });
         }
+
+        if (milestoneId) query.milestone = milestoneId;
+
         const tasks = await ClientTask.find(query)
-            .populate('assignee', 'name email designation role')
+            .populate('assignee', 'name email designation role profilePicture')
             .populate('milestone', 'title status startDate completionDate')
             .populate('project', 'name projectStatus projectType')
             .limit(Number(limit))

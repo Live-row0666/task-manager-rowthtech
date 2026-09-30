@@ -21,8 +21,19 @@ const CommonHeader = ({ title }) => {
 
     return (
         <header className="dash-header">
-            <div className="header-page-title">
-                <h3>{title}</h3>
+            <div className="header-left-group">
+                <button
+                    type="button"
+                    className="btn-mobile-sidebar-toggle"
+                    onClick={() => document.body.classList.toggle('sidebar-mobile-open')}
+                    title="Toggle navigation menu"
+                    aria-label="Toggle navigation"
+                >
+                    <i className="bi bi-list"></i>
+                </button>
+                <div className="header-page-title">
+                    <h3>{title}</h3>
+                </div>
             </div>
 
             <div className="header-actions">

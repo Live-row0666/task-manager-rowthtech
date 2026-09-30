@@ -345,6 +345,35 @@
 }
 
 .search-box input:focus{
-
     border-color:#8B5CF6;
+}
+
+/* Responsive Rules for Milestones */
+@media (max-width: 992px) {
+    .ms-content {
+        padding: 12px 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .project-table-card .card-header .d-flex {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+
+    .search-box,
+    .filter-item,
+    .milestone-search {
+        width: 100% !important;
+    }
+
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        overflow-x: auto;
+    }
+
+    .project-table {
+        min-width: 720px;
+    }
 }
