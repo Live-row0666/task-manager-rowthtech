@@ -7,6 +7,7 @@ import Logo from '../assets/images/logo/rowthtech.svg';
 import './MilestoneTasks.css';
 import Select from "react-select";
 import CommonSidebar from '../components/commonSidebar';
+import CommonHeader from '../components/commonHeader';
 const COLS = ['To Do', 'In Progress', 'Testing', 'On Hold', 'Done'];
 const COLCLR = { 'To Do': '#6c757d', 'In Progress': '#0d6efd', 'Testing': '#6f42c1', 'On Hold': '#fd7e14', 'Done': '#198754' };
 const PRBG = { Critical: 'rgba(243,4,24,0.1)', High: 'rgba(255,165,2,0.1)', Medium: 'rgba(30,144,255,0.1)', Low: 'rgba(46,213,115,0.1)' };
@@ -170,28 +171,19 @@ const MilestoneTasks = () => {
 
             {/* Main */}
             <main className="dash-main">
-                <header className="dash-header">
-                    <div className="header-page-title">
+                <CommonHeader
+                    title={
                         <div className="mst-breadcrumb">
-                            {pName && <><span className="mst-bc-project">{pName}</span><i className="bi bi-chevron-right mst-bc-sep" /></>}
+                            {pName && (
+                                <>
+                                    <span className="mst-bc-project">{pName}</span>
+                                    <i className="bi bi-chevron-right mst-bc-sep" />
+                                </>
+                            )}
                             <span className="mst-bc-ms">{activeMsName}</span>
                         </div>
-                    </div>
-                    <div className="header-actions">
-                        <button className="notification-btn"><i className="bi bi-bell" /><span className="notification-badge" /></button>
-                        <div className="user-profile-widget">
-                            <div className="user-avatar-circle">{initials}</div>
-                            <div className="user-profile-details">
-                                <span className="user-profile-name">{name}</span>
-                                <span className="user-profile-role">{user?.role || 'Client'}</span>
-                            </div>
-                        </div>
-                        <button className="btn btn-outline-danger btn-sm" onClick={() => dispatch(logoutUser())}
-                            style={{ fontSize: '11px', padding: '4px 10px', fontWeight: 600 }}>
-                            <i className="bi bi-box-arrow-right me-1" />Logout
-                        </button>
-                    </div>
-                </header>
+                    }
+                />
 
                 {/* Task area */}
                 <div style={{ padding: '8px 12px' }}>

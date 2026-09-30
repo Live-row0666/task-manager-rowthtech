@@ -1,349 +1,527 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { getDashboard, getClientMilestonesAction, logoutUser } from '../redux/actions';
-import Logo from '../assets/images/logo/rowthtech.svg';
+import { useNavigate } from 'react-router-dom';
+import { getDashboard, getClientMilestonesAction } from '../redux/actions';
 import moment from 'moment';
-import './Milestones.css';
-import Select from 'react-select';
 import CommonHeader from '../components/commonHeader';
 import CommonSidebar from '../components/commonSidebar';
-const filterSelectStyles = {
+import './Dashboard.css';
+import './Milestones.css';
 
-    control: (base) => ({
+// Smooth animated counter component
+const CountUp = ({ end = 0, duration = 800, decimals = 0 }) => {
+    const [count, setCount] = useState(0);
 
-        ...base,
-
-        minHeight: "34px",
-
-        height: "34px",
-
-        borderRadius: "6px",
-
-        border: "1px solid #E5E7EB",
-
-        boxShadow: "none",
-
-        "&:hover": {
-
-            borderColor: "#D1D5DB"
+    useEffect(() => {
+        let startTime = null;
+        const target = Number(end) || 0;
+        if (target === 0) {
+            setCount(0);
+            return;
         }
 
-    }),
+        let animationFrameId;
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+            const currentVal = easeOutProgress * target;
 
-    valueContainer: (base) => ({
+            setCount(currentVal);
 
-        ...base,
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                setCount(target);
+            }
+        };
 
-        height: "34px",
+        animationFrameId = requestAnimationFrame(animate);
+        return () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        };
+    }, [end, duration]);
 
-        padding: "0 10px",
-
-        fontSize: "12px"
-
-    }),
-
-    indicatorsContainer: (base) => ({
-
-        ...base,
-
-        height: "34px"
-
-    }),
-
-    placeholder: (base) => ({
-
-        ...base,
-
-        fontSize: "12px",
-
-        color: "#9CA3AF"
-
-    }),
-
-    singleValue: (base) => ({
-
-        ...base,
-
-        fontSize: "12px"
-
-    })
-
+    return <>{decimals > 0 ? count.toFixed(decimals) : Math.round(count)}</>;
 };
+
 const Milestones = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { user, dashboard, clientMilestones, clientMilestonesLoading } = useSelector(s => ({
-        user: s.Auth.user,
+    const { dashboard, clientMilestones, clientMilestonesLoading } = useSelector(s => ({
         dashboard: s.Auth.dashboard,
         clientMilestones: s.Auth.clientMilestones || [],
         clientMilestonesLoading: s.Auth.clientMilestonesLoading,
     }));
 
-    const name = user?.username || 'Client';
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-
     const [selProject, setSelProject] = useState('');
     const [search, setSearch] = useState('');
-
-    useEffect(() => { dispatch(getDashboard()); }, [dispatch]);
-
-    // Auto-select first project when projects load
-
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+    const projectDropdownRef = useRef(null);
 
     useEffect(() => {
-        if (selProject) dispatch(getClientMilestonesAction(selProject, true));
-    }, [selProject, dispatch]);
+        dispatch(getDashboard());
+    }, [dispatch]);
 
-    const projects = useMemo(() => dashboard?.projects || [], [dashboard]);
-    const projectOptions = projects.map((p) => ({
-        value: p._id,
-        label: p.name,
-    }));
+    const projects = useMemo(() => dashboard?.projects || [], [dashboard?.projects]);
 
     useEffect(() => {
         if (projects.length > 0 && !selProject) {
             setSelProject(projects[0]._id);
         }
-    }, [projects]);
+    }, [projects, selProject]);
+
+    useEffect(() => {
+        if (selProject) {
+            dispatch(getClientMilestonesAction(selProject, true));
+        }
+    }, [selProject, dispatch]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target)) {
+                setIsProjectDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const currentProject = projects.find(p => p._id === selProject) || dashboard?.project;
+    const rawMilestones = useMemo(() => Array.isArray(clientMilestones) ? clientMilestones : [], [clientMilestones]);
+
+    // Filter milestones
     const filtered = useMemo(() => {
-        if (!search.trim()) return clientMilestones;
-        return clientMilestones.filter(m => m.title?.toLowerCase().includes(search.toLowerCase()));
-    }, [clientMilestones, search]);
+        return rawMilestones.filter((m) => {
+            const matchesSearch = !search.trim() || 
+                (m.title || m.name || '').toLowerCase().includes(search.toLowerCase());
 
-    const daysLeft = end => end ? moment(end).diff(moment(), 'days') : null;
+            let matchesStatus = true;
+            if (statusFilter === 'Completed') matchesStatus = m.status === 'Completed';
+            else if (statusFilter === 'In Progress') matchesStatus = m.status === 'In Progress';
+            else if (statusFilter === 'Not Started') matchesStatus = m.status === 'Not Started' || !m.status;
 
-    const statusConfig = {
-        'Not Started': { bg: '#f1f3f5', color: '#6c757d', border: '#dee2e6' },
-        'In Progress': { bg: '#e7f3ff', color: '#0d6efd', border: '#b6d4fe' },
-        'Completed': { bg: '#e8f5e9', color: '#198754', border: '#a5d6a7' },
-        'Delayed': { bg: '#fff3cd', color: '#856404', border: '#ffe083' },
+            return matchesSearch && matchesStatus;
+        });
+    }, [rawMilestones, search, statusFilter]);
+
+    // Computed Stats
+    const totalCount = rawMilestones.length;
+    const completedCount = rawMilestones.filter(m => m.status === 'Completed').length;
+    const inProgressCount = rawMilestones.filter(m => m.status === 'In Progress').length;
+    const notStartedCount = rawMilestones.filter(m => m.status === 'Not Started' || !m.status).length;
+    const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+    const nextTarget = rawMilestones.find(m => m.status === 'In Progress') || rawMilestones[0];
+
+    const daysLeft = (end) => (end ? moment(end).diff(moment(), 'days') : null);
+
+    const getDaysBadge = (days, status) => {
+        if (status === 'Completed') {
+            return <span className="ms-days-badge days-normal"><i className="bi bi-check2"></i> Delivered</span>;
+        }
+        if (days === null) return <span className="text-muted small">-</span>;
+        if (days < 0) {
+            return <span className="ms-days-badge days-overdue"><i className="bi bi-clock-history"></i> {Math.abs(days)}d overdue</span>;
+        }
+        if (days <= 3) {
+            return <span className="ms-days-badge days-warning"><i className="bi bi-hourglass-bottom"></i> {days}d left</span>;
+        }
+        return <span className="ms-days-badge days-normal"><i className="bi bi-calendar2-check"></i> {days}d left</span>;
     };
 
-    const priorityConfig = {
-        High: { bg: 'rgba(220,53,69,0.1)', color: '#dc3545' },
-        Medium: { bg: 'rgba(255,193,7,0.15)', color: '#856404' },
-        Low: { bg: 'rgba(25,135,84,0.1)', color: '#198754' },
+    const getPriorityBadge = (priority) => {
+        const p = (priority || 'Medium').toLowerCase();
+        if (p === 'high') return <span className="ms-prio-badge prio-high">High</span>;
+        if (p === 'low') return <span className="ms-prio-badge prio-low">Low</span>;
+        return <span className="ms-prio-badge prio-medium">Medium</span>;
+    };
+
+    const getStatusBadge = (status) => {
+        const s = status || 'Not Started';
+        if (s === 'Completed') return <span className="ms-status-pill status-completed"><i className="bi bi-check-circle-fill"></i> Completed</span>;
+        if (s === 'In Progress') return <span className="ms-status-pill status-inprogress"><i className="bi bi-hourglass-split"></i> In Progress</span>;
+        return <span className="ms-status-pill status-notstarted"><i className="bi bi-dash-circle"></i> Not Started</span>;
     };
 
     return (
         <div className="dashboard-wrapper">
             <CommonSidebar active="milestones" />
+
             <main className="dash-main">
                 <CommonHeader title="Milestones" />
 
-                <div className="ms-content">
+                {/* Hero Header Section */}
+                <div className="milestones-hero-bar">
+                    <div className="milestones-hero-left">
+                        <div className="milestones-badge-tag">
+                            <i className="bi bi-flag-fill"></i>
+                            Roadmap & Delivery Phases
+                        </div>
+                        <h2 className="milestones-hero-title">Project Milestones & Roadmap</h2>
+                        <p className="milestones-hero-subtitle">
+                            Track development deliverables, milestone timelines, delivery velocity, and subtask execution.
+                        </p>
 
-                    <div className="card shadow-sm border-0">
-
-                        {/* Card Header */}
-                        <div className="card-header bg-white border-0 py-2 mb-3">
-                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-
-                                <div className="task-filter-bar">
-
-                                    <div className="filter-item">
-                                        <Select
-                                            value={
-                                                projectOptions.find(
-                                                    option => option.value === selProject
-                                                ) || null
-                                            }
-                                            onChange={(selected) =>
-                                                setSelProject(selected ? selected.value : "")
-                                            }
-                                            options={projectOptions}
-                                            placeholder="Select Project"
-                                            isClearable
-                                            styles={filterSelectStyles}
-                                        />
-                                    </div>
-                                    {/* 
-    <div className="filter-item">
-        <Select
-            options={milestoneOptions}
-            placeholder="Select Milestone"
-            isClearable
-            styles={filterSelectStyles}
-        />
-    </div> */}
-
-                                    <div className="search-box">
-
-                                        <i className="bi bi-search"></i>
-
-                                        <input
-                                            type="text"
-                                            placeholder="Search milestones..."
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                        />
-
-                                    </div>
-
-                                </div>
-
+                        <div className="milestones-meta-chips">
+                            <div className="ms-meta-chip">
+                                <i className="bi bi-folder2-open"></i>
+                                <span>{currentProject?.name || "Active Workspace"}</span>
+                            </div>
+                            <div className="ms-meta-chip ms-chip-live">
+                                <span className="pulse-dot-green"></span>
+                                <span>Live Delivery Tracker</span>
+                            </div>
+                            <div className="ms-meta-chip">
+                                <i className="bi bi-layers"></i>
+                                <span>{totalCount} Total Phases</span>
                             </div>
                         </div>
-                        {/* Card Body */}
-
-                        <div className="card-body p-0">
-
-                            {!selProject ? (
-                                <div className="ms-empty">
-                                    <i className="bi bi-flag ms-empty-icon d-block"></i>
-                                    <p>Select a project to view its milestones</p>
-                                </div>
-                            ) : clientMilestonesLoading ? (
-                                <div className="ms-loading">
-                                    <div className="spinner-border text-primary"></div>
-                                </div>
-                            ) : filtered.length === 0 ? (
-                                <div className="ms-empty">
-                                    <i className="bi bi-inbox ms-empty-icon d-block"></i>
-                                    <p>No milestones found</p>
-                                </div>
-                            ) : (
-                                <div className="project-table-card">
-
-                                    <div className="table-responsive project-table-wrapper">
-
-                                        <table className="project-table">
-
-                                            <thead>
-                                                <tr>
-                                                    <th style={{ width: "60px" }}>#</th>
-                                                    <th>Milestone Name</th>
-                                                    <th>Start Date</th>
-                                                    <th>End Date</th>
-                                                    <th className="text-center">Days Left</th>
-                                                    <th className="text-center">Priority</th>
-                                                    <th className="text-center">Status</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-
-                                                {filtered.map((m, idx) => {
-
-                                                    const days = daysLeft(m.completionDate);
-
-                                                    const taskUrl =
-                                                        `/dashboard/milestone-tasks/${m._id}?projectId=${selProject}&mName=${encodeURIComponent(
-                                                            m.title || 'Milestone'
-                                                        )}&pName=${encodeURIComponent(
-                                                            projects.find(p => p._id === selProject)?.name || ""
-                                                        )}`;
-
-                                                    return (
-
-                                                        <tr
-                                                            key={m._id}
-                                                            className="project-row"
-                                                            onClick={() => navigate(taskUrl)}
-                                                        >
-
-                                                            <td className="project-index">
-
-                                                                {idx + 1}
-
-                                                            </td>
-
-                                                            <td>
-
-                                                                <div className="project-name">
-
-                                                                    {m.title}
-
-                                                                </div>
-
-                                                            </td>
-
-                                                            <td>
-
-                                                                {m.startDate
-                                                                    ? moment.utc(m.startDate).format("DD MMM YYYY")
-                                                                    : "N/A"}
-
-                                                            </td>
-
-                                                            <td>
-
-                                                                {m.completionDate
-                                                                    ? moment.utc(m.completionDate).format("DD MMM YYYY")
-                                                                    : "N/A"}
-
-                                                            </td>
-
-                                                            <td className="text-center">
-
-                                                                {days !== null && (
-
-                                                                    <span
-                                                                        className={`days-pill ${days < 0
-                                                                            ? "danger"
-                                                                            : days <= 3
-                                                                                ? "warning"
-                                                                                : "success"
-                                                                            }`}
-                                                                    >
-
-                                                                        {days < 0
-                                                                            ? `${Math.abs(days)}d overdue`
-                                                                            : `${days}d left`}
-
-                                                                    </span>
-
-                                                                )}
-
-                                                            </td>
-
-                                                            <td className="text-center">
-
-                                                                <span
-                                                                    className={`priority-pill ${(m.priority || 'medium').toLowerCase()}`}
-                                                                >
-
-                                                                    {m.priority || 'Medium'}
-
-                                                                </span>
-
-                                                            </td>
-
-                                                            <td className="text-center">
-
-                                                                <span
-                                                                    className={`status-pill ${(m.status || 'in progress')
-                                                                        .toLowerCase()
-                                                                        .replace(/\s+/g, "-")}`}
-                                                                >
-
-                                                                    {m.status || 'In Progress'}
-
-                                                                </span>
-
-                                                            </td>
-
-                                                        </tr>
-
-                                                    );
-
-                                                })}
-
-                                            </tbody>
-
-                                        </table>
-
-                                    </div>
-
-                                </div>
-                            )}
-
-                        </div>
-
                     </div>
 
+                    <div className="milestones-hero-actions">
+                        {/* Project Switcher Dropdown */}
+                        {projects.length > 0 && (
+                            <div className="project-dropdown-wrapper" ref={projectDropdownRef}>
+                                <button
+                                    type="button"
+                                    className={`project-dropdown-trigger ${isProjectDropdownOpen ? 'active' : ''}`}
+                                    onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                                    title="Switch active project workspace"
+                                >
+                                    <div className="project-trigger-left">
+                                        <i className="bi bi-briefcase-fill project-trigger-icon"></i>
+                                        <span className="project-trigger-name">
+                                            {currentProject?.name || "Select Project"}
+                                        </span>
+                                    </div>
+                                    <i className={`bi bi-chevron-down project-trigger-chevron ${isProjectDropdownOpen ? 'open' : ''}`}></i>
+                                </button>
+
+                                {isProjectDropdownOpen && (
+                                    <div className="project-dropdown-menu">
+                                        <div className="project-dropdown-header">
+                                            <span>Active Projects</span>
+                                        </div>
+                                        <div className="project-dropdown-list">
+                                            {projects.map((p) => {
+                                                const isSelected = p._id === selProject;
+                                                return (
+                                                    <div
+                                                        key={p._id}
+                                                        className={`project-dropdown-item ${isSelected ? 'selected' : ''}`}
+                                                        onClick={() => {
+                                                            setSelProject(p._id);
+                                                            setIsProjectDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="item-icon-wrap">
+                                                            <i className="bi bi-folder2-open"></i>
+                                                        </div>
+                                                        <span className="item-name">{p.name}</span>
+                                                        {isSelected && <i className="bi bi-check2 item-check"></i>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <button 
+                            type="button" 
+                            className="btn-ms-action" 
+                            onClick={() => {
+                                if (selProject) dispatch(getClientMilestonesAction(selProject, true));
+                            }}
+                            title="Refresh milestones"
+                        >
+                            <i className="bi bi-arrow-clockwise"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* 4 Executive KPI Stat Cards */}
+                <div className="ms-kpi-grid">
+                    {/* Card 1: Total Milestones */}
+                    <div className="ms-kpi-card">
+                        <div className="ms-kpi-top">
+                            <span className="ms-kpi-label">Total Milestones</span>
+                            <div className="ms-kpi-icon ms-icon-purple">
+                                <i className="bi bi-layers-fill"></i>
+                            </div>
+                        </div>
+                        <div className="ms-kpi-main">
+                            <span className="ms-kpi-val text-primary">
+                                <CountUp end={totalCount} />
+                            </span>
+                            <span className="ms-kpi-tag tag-purple">Phases</span>
+                        </div>
+                        <div className="ms-kpi-progress">
+                            <div className="ms-kpi-progress-bar bg-bar-purple" style={{ width: '100%' }}></div>
+                        </div>
+                        <span className="ms-kpi-sub">
+                            Full scope of active project
+                        </span>
+                    </div>
+
+                    {/* Card 2: Completed Milestones */}
+                    <div className="ms-kpi-card">
+                        <div className="ms-kpi-top">
+                            <span className="ms-kpi-label">Delivered</span>
+                            <div className="ms-kpi-icon ms-icon-emerald">
+                                <i className="bi bi-check2-circle"></i>
+                            </div>
+                        </div>
+                        <div className="ms-kpi-main">
+                            <span className="ms-kpi-val text-success">
+                                <CountUp end={completedCount} />
+                            </span>
+                            <span className="ms-kpi-tag tag-emerald">
+                                <CountUp end={completionRate} decimals={0} />% Done
+                            </span>
+                        </div>
+                        <div className="ms-kpi-progress">
+                            <div className="ms-kpi-progress-bar bg-bar-emerald" style={{ width: `${completionRate}%` }}></div>
+                        </div>
+                        <span className="ms-kpi-sub">
+                            {completedCount} of {totalCount} phases delivered
+                        </span>
+                    </div>
+
+                    {/* Card 3: In Progress */}
+                    <div className="ms-kpi-card">
+                        <div className="ms-kpi-top">
+                            <span className="ms-kpi-label">In Progress</span>
+                            <div className="ms-kpi-icon ms-icon-amber">
+                                <i className="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
+                        <div className="ms-kpi-main">
+                            <span className="ms-kpi-val text-amber">
+                                <CountUp end={inProgressCount} />
+                            </span>
+                            <span className="ms-kpi-tag tag-amber">Active</span>
+                        </div>
+                        <div className="ms-kpi-progress">
+                            <div className="ms-kpi-progress-bar bg-bar-amber" style={{ width: `${totalCount > 0 ? (inProgressCount / totalCount) * 100 : 0}%` }}></div>
+                        </div>
+                        <span className="ms-kpi-sub">
+                            Currently undergoing development
+                        </span>
+                    </div>
+
+                    {/* Card 4: Current Target */}
+                    <div className="ms-kpi-card">
+                        <div className="ms-kpi-top">
+                            <span className="ms-kpi-label">Current Target</span>
+                            <div className="ms-kpi-icon ms-icon-sky">
+                                <i className="bi bi-flag-fill"></i>
+                            </div>
+                        </div>
+                        <div className="ms-kpi-main">
+                            <span className="ms-kpi-val text-dark" style={{ fontSize: '18px' }} title={nextTarget?.title || nextTarget?.name}>
+                                {nextTarget?.title || nextTarget?.name || "None queued"}
+                            </span>
+                            <span className="ms-kpi-tag tag-sky">Active</span>
+                        </div>
+                        <div className="ms-kpi-progress">
+                            <div className="ms-kpi-progress-bar bg-bar-sky" style={{ width: `${nextTarget?.progress || 30}%` }}></div>
+                        </div>
+                        <span className="ms-kpi-sub">
+                            Due: {nextTarget?.completionDate ? moment.utc(nextTarget.completionDate).format('DD MMM YYYY') : 'Pending'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Main Milestones Directory Card */}
+                <div className="ms-main-card">
+                    <div className="ms-toolbar">
+                        <div className="ms-toolbar-left">
+                            <h3 className="ms-toolbar-title">Milestones Detailed Status</h3>
+                            <span className="ms-count-badge">
+                                {filtered.length} of {totalCount} Phases
+                            </span>
+                        </div>
+
+                        <div className="ms-toolbar-controls">
+                            {/* Filter Tabs */}
+                            <div className="ms-filter-tabs">
+                                <button
+                                    type="button"
+                                    className={`ms-filter-btn ${statusFilter === 'all' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('all')}
+                                >
+                                    <span>All</span>
+                                    <span className="ms-filter-count">{totalCount}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`ms-filter-btn ${statusFilter === 'In Progress' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('In Progress')}
+                                >
+                                    <span>In Progress</span>
+                                    <span className="ms-filter-count">{inProgressCount}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`ms-filter-btn ${statusFilter === 'Completed' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('Completed')}
+                                >
+                                    <span>Completed</span>
+                                    <span className="ms-filter-count">{completedCount}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`ms-filter-btn ${statusFilter === 'Not Started' ? 'active' : ''}`}
+                                    onClick={() => setStatusFilter('Not Started')}
+                                >
+                                    <span>Not Started</span>
+                                    <span className="ms-filter-count">{notStartedCount}</span>
+                                </button>
+                            </div>
+
+                            {/* Search Box */}
+                            <div className="ms-search-box">
+                                <i className="bi bi-search ms-search-icon"></i>
+                                <input
+                                    type="text"
+                                    className="ms-search-input"
+                                    placeholder="Search milestones..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                                {search && (
+                                    <button
+                                        type="button"
+                                        className="ms-search-clear"
+                                        onClick={() => setSearch('')}
+                                        title="Clear search"
+                                    >
+                                        <i className="bi bi-x-circle-fill"></i>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {clientMilestonesLoading ? (
+                        <div className="ms-loading-wrap">
+                            <div className="ms-spinner"></div>
+                            <div>Loading project milestones...</div>
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className="ms-empty-state">
+                            <div className="ms-empty-icon-wrap">
+                                <i className="bi bi-flag"></i>
+                            </div>
+                            <h4 className="ms-empty-title">No Milestones Found</h4>
+                            <p className="ms-empty-desc">
+                                {search || statusFilter !== 'all'
+                                    ? "No milestones matched your active search query or filter."
+                                    : "No milestones have been configured for this project yet."}
+                            </p>
+                            {(search || statusFilter !== 'all') && (
+                                <button
+                                    type="button"
+                                    className="btn-ms-action"
+                                    onClick={() => {
+                                        setSearch('');
+                                        setStatusFilter('all');
+                                    }}
+                                >
+                                    <i className="bi bi-arrow-counterclockwise"></i>
+                                    Reset Filters
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="table-responsive">
+                            <table className="table-ms-custom">
+                                <thead>
+                                    <tr>
+                                        <th className="ms-col-idx">#</th>
+                                        <th>Milestone Name</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th className="text-center">Delivery / Days</th>
+                                        <th className="text-center">Priority</th>
+                                        <th className="text-center">Status</th>
+                                        <th style={{ textAlign: 'right' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((m, idx) => {
+                                        const days = daysLeft(m.completionDate);
+                                        const taskUrl = `/dashboard/milestone-tasks/${m._id}?projectId=${selProject}&mName=${encodeURIComponent(
+                                            m.title || 'Milestone'
+                                        )}&pName=${encodeURIComponent(
+                                            projects.find(p => p._id === selProject)?.name || ""
+                                        )}`;
+
+                                        return (
+                                            <tr
+                                                key={m._id || idx}
+                                                onClick={() => navigate(taskUrl)}
+                                                title="Click to view tasks"
+                                            >
+                                                <td className="ms-col-idx">{idx + 1}</td>
+                                                <td>
+                                                    <div className="ms-title-cell">
+                                                        <div className="ms-icon-avatar">
+                                                            <i className="bi bi-flag-fill"></i>
+                                                        </div>
+                                                        <div className="ms-title-text">
+                                                            {m.title || m.name}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className="ms-date-pill">
+                                                        <i className="bi bi-calendar3"></i>
+                                                        {m.startDate ? moment.utc(m.startDate).format("DD MMM YYYY") : "N/A"}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="ms-date-pill">
+                                                        <i className="bi bi-calendar-check"></i>
+                                                        {m.completionDate ? moment.utc(m.completionDate).format("DD MMM YYYY") : "N/A"}
+                                                    </span>
+                                                </td>
+                                                <td className="text-center">
+                                                    {getDaysBadge(days, m.status)}
+                                                </td>
+                                                <td className="text-center">
+                                                    {getPriorityBadge(m.priority)}
+                                                </td>
+                                                <td className="text-center">
+                                                    {getStatusBadge(m.status)}
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-view-tasks"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(taskUrl);
+                                                        }}
+                                                    >
+                                                        <span>Tasks</span>
+                                                        <i className="bi bi-arrow-right-short"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

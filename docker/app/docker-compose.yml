@@ -1,41 +1,78 @@
-version: "3"
+version: "3.8"
+
 services:
   taskmanagerserver:
-    image: taskmanagerserver
-    build: ../../server
+    image: taskmanagerserver-dev
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: taskmanagerserver-dev
     ports:
-      - 9012:9012
-    container_name: taskmanagerserver
-
+      - "9100:9100"
+    env_file:
+      - ./server/.env
     volumes:
+      - ./server:/app
+      - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
 
-  taskmanagerdmin:
-    image: taskmanagerdmin
-    build: ../../admin
+  taskmanageradmin:
+    image: taskmanageradmin-dev
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.dev
+    container_name: taskmanageradmin-dev
     ports:
-      - 9013:9013
-    container_name: taskmanagerdmin
-
+      - "9101:9101"
+    env_file:
+      - ./admin/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
+      - ./admin:/app
+      - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
 
   taskmanageruser:
-    image: taskmanageruser
-    build: ../../user
+    image: taskmanageruser-dev
+    build:
+      context: ./user
+      dockerfile: Dockerfile.dev
+    container_name: taskmanageruser-dev
     ports:
-      - 9014:9014
-    container_name: taskmanageruser
-
+      - "9102:9102"
+    env_file:
+      - ./user/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
+      - ./user:/app
+      - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
 
   taskmanagerclient:
-    image: taskmanagerclient
-    build: ../../client
+    image: taskmanagerclient-dev
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: taskmanagerclient-dev
     ports:
-      - 9015:9015
-    container_name: taskmanagerclient
-
+      - "9103:9103"
+    env_file:
+      - ./client/.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     volumes:
+      - ./client:/app
+      - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
