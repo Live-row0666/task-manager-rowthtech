@@ -18,7 +18,7 @@ const verifyAdminUser = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).populate('role', 'name');
-    if(user && user.role.name === 'admin'){
+    if (user && user.role.name === 'admin') {
       const apiEndpoint = `${req.method} ${req.originalUrl}`;
       await createLog({
         userId: user._id.toString(), // Convert ObjectId to string
@@ -125,13 +125,13 @@ const verifyClient = async (req, res, next) => {
     console.log("VERIFY CLIENT ERROR =>", error);
 
     return res.status(500).json({
-        status: 500,
-        message: error.message,
-        stack: error.stack,
+      status: 500,
+      message: error.message,
+      stack: error.stack,
     });
-}
+  }
 };
 
-const verifyAdmin = verifyAdminUser; 
+const verifyAdmin = verifyAdminUser;
 
 module.exports = { verifyAdminUser, verifyUser, verifyAdmin, verifyClient };

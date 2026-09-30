@@ -20,7 +20,7 @@ const supportSchema = new mongoose.Schema({
         enum: ['low', 'medium', 'high', 'urgent'],
         default: 'medium'
     },
-    
+
     status: {
         type: String,
         enum: ['open', 'in_progress', 'resolved', 'closed'],

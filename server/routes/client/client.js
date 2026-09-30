@@ -59,38 +59,14 @@ router.get('/client-task', verifyClient, async (req, res) => {
     }
 });
 
-// GET /api/v1/client/support
-router.get('/support', verifyClient, async (req, res) => {
-    try {
-        const Support = require('../../models/support');
-        const tickets = await Support.find()
-            .sort({ createdAt: -1 })
-            .lean();
-        return res.status(200).json({ status: 200, data: tickets });
-    } catch (err) {
-        return res.status(500).json({ status: 500, message: err.message });
-    }
-});
+const ClientSupportController = require('../../controllers/client/support');
+const upload = require('../../middleware/upload');
 
-// POST /api/v1/client/support
-router.post('/support', verifyClient, async (req, res) => {
-    try {
-        const Support = require('../../models/support');
-        const { title, description, category = 'general_inquiry', priority = 'medium' } = req.body;
-        
-        const newTicket = await Support.create({
-            title,
-            description,
-            category,
-            priority,
-            status: 'open',
-            createdAt: new Date()
-        });
-        
-        return res.status(201).json({ status: 201, data: newTicket, message: "Support ticket created successfully" });
-    } catch (err) {
-        return res.status(500).json({ status: 500, message: err.message });
-    }
-});
+// Support routes (client scoped with project & screenshot attachments)
+router.get('/support', verifyClient, ClientSupportController.getTickets);
+router.post('/support', verifyClient, upload.array('screenshots'), ClientSupportController.createTicket);
+router.get('/support/:id', verifyClient, ClientSupportController.getTicketById);
+router.put('/support/:id', verifyClient, upload.array('screenshots'), ClientSupportController.updateTicket);
+router.delete('/support/:id', verifyClient, ClientSupportController.deleteTicket);
 
 module.exports = router;

@@ -102,12 +102,24 @@ class APICore {
         return axios.post(url, data);
     };
 
+    createWithFormData = (url, data) => {
+        return axios.post(url, data, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    };
+
     updatePatch = (url, data) => {
         return axios.patch(url, data);
     };
 
     update = (url, data) => {
         return axios.put(url, data);
+    };
+
+    updateWithFormData = (url, data) => {
+        return axios.put(url, data, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
     };
 
     delete = (url) => {
