@@ -53,7 +53,7 @@ const CommonSidebar = ({ active }) => {
                         </Link>
                     </li>
 
-                    <li>
+                    {/* <li>
                         <Link
                             to="/dashboard/projects"
                             className={`menu-item-link ${active === "projects" || active === "myprojects" ? "active" : ""}`}
@@ -62,7 +62,7 @@ const CommonSidebar = ({ active }) => {
                             <i className="bi bi-folder2"></i>
                             <span>My Project</span>
                         </Link>
-                    </li>
+                    </li> */}
 
                     <li>
                         <Link
