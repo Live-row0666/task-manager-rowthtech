@@ -60,12 +60,13 @@ class ClientDependencyController {
                 query.project = projectId;
             }
 
-            const [total, pending, submitted, inReview, completed] = await Promise.all([
+            const [total, pending, submitted, inReview, completed, unreadByClientCount] = await Promise.all([
                 ClientDependency.countDocuments(query),
                 ClientDependency.countDocuments({ ...query, status: 'pending' }),
                 ClientDependency.countDocuments({ ...query, status: 'submitted' }),
                 ClientDependency.countDocuments({ ...query, status: 'in_review' }),
-                ClientDependency.countDocuments({ ...query, status: 'completed' })
+                ClientDependency.countDocuments({ ...query, status: 'completed' }),
+                ClientDependency.countDocuments({ ...query, unreadByClient: { $gt: 0 } })
             ]);
 
             return res.status(200).json({
@@ -76,7 +77,9 @@ class ClientDependencyController {
                     pending,
                     submitted,
                     inReview,
-                    completed
+                    completed,
+                    unreadCount: unreadByClientCount,
+                    hasUpdates: pending > 0 || unreadByClientCount > 0
                 }
             });
         } catch (error) {

@@ -243,6 +243,13 @@ class ClientSupportController {
                 .populate('project', 'name projectStatus projectType')
                 .populate('assignedTo', 'name email');
 
+            const io = req.app.get('io');
+            if (io) {
+                io.to('admin_support_channel').emit('ticket_created', { ticket: populatedTicket });
+                io.to('admin_support_channel').emit('support_updated', { type: 'created', ticket: populatedTicket });
+                io.to(`client_${clientId}`).emit('ticket_created', { ticket: populatedTicket });
+            }
+
             return res.status(201).json({
                 status: 201,
                 success: true,
@@ -251,6 +258,32 @@ class ClientSupportController {
             });
         } catch (error) {
             console.error('ClientSupport createTicket error:', error);
+            return res.status(500).json({
+                status: 500,
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    // GET /api/v1/client/support/unread-count
+    async getUnreadCount(req, res) {
+        try {
+            const clientId = req.client._id;
+            const count = await ClientSupport.countDocuments({
+                client: clientId,
+                unreadByClient: { $gt: 0 }
+            });
+            return res.status(200).json({
+                status: 200,
+                success: true,
+                data: {
+                    unreadCount: count,
+                    hasUpdates: count > 0
+                }
+            });
+        } catch (error) {
+            console.error('ClientSupport getUnreadCount error:', error);
             return res.status(500).json({
                 status: 500,
                 success: false,

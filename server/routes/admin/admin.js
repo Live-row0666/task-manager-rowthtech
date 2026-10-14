@@ -35,6 +35,7 @@ const clientTaskRoutes = require('./clientTask');
 const clientDocumentsRoutes = require('./clientDocuments');
 const clientSupportRoutes = require('./clientSupport');
 const clientDependencyRoutes = require('./clientDependency');
+const clientChatRoutes = require('./clientChat');
 
 // Mount routes
 router.use('/s3', s3Routes);
@@ -69,4 +70,5 @@ router.use('/client-task', clientTaskRoutes);
 router.use('/documents', clientDocumentsRoutes);
 router.use('/client-support', clientSupportRoutes);
 router.use('/client-dependency', clientDependencyRoutes);
+router.use('/client-chat', clientChatRoutes);
 module.exports = router;

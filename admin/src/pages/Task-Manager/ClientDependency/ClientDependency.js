@@ -163,6 +163,17 @@ const ClientDependency = () => {
     const [copiedFieldId, setCopiedFieldId] = useState(null);
     const [reviewAdminNote, setReviewAdminNote] = useState('');
 
+    // Admin Fill Modal State
+    const [showFillModal, setShowFillModal] = useState(false);
+    const [fillDep, setFillDep] = useState(null);
+    const [fillValues, setFillValues] = useState({});
+    const [fillFiles, setFillFiles] = useState({});
+    const [fillAdminNotes, setFillAdminNotes] = useState('');
+    const [fillStatus, setFillStatus] = useState('completed');
+    const [fillRevealedSecrets, setFillRevealedSecrets] = useState({});
+    const [submittingFill, setSubmittingFill] = useState(false);
+    const fillFileInputRefs = useRef({});
+
     const socketRef = useRef(null);
 
     const [directProjects, setDirectProjects] = useState([]);
@@ -541,6 +552,121 @@ const ClientDependency = () => {
         }
     };
 
+    // Open Fill Modal
+    const handleOpenFillModal = (dep) => {
+        setFillDep(dep);
+        const initialVals = {};
+        const initialFiles = {};
+        if (dep.dynamicFields) {
+            dep.dynamicFields.forEach((field) => {
+                initialVals[field.id] = field.value || '';
+                if (field.fileValue) {
+                    initialFiles[field.id] = field.fileValue;
+                }
+            });
+        }
+        setFillValues(initialVals);
+        setFillFiles(initialFiles);
+        setFillAdminNotes(dep.adminNotes || '');
+        const allFilled = dep.dynamicFields && dep.dynamicFields.length > 0 && dep.dynamicFields.every((f) => {
+            if (f.fieldType === 'file') return !!f.fileValue?.url;
+            return !!f.value && String(f.value).trim().length > 0;
+        });
+        setFillStatus(allFilled ? 'completed' : (dep.status === 'completed' ? 'completed' : 'submitted'));
+        setFillRevealedSecrets({});
+        setShowFillModal(true);
+    };
+
+    // Handle field text change in fill modal
+    const handleFillFieldChange = (fieldId, val) => {
+        setFillValues((prev) => ({
+            ...prev,
+            [fieldId]: val
+        }));
+    };
+
+    // Handle file select in fill modal
+    const handleFillFileSelect = (fieldId, file) => {
+        if (!file) return;
+        setFillFiles((prev) => ({
+            ...prev,
+            [fieldId]: file
+        }));
+    };
+
+    // Remove selected file in fill modal
+    const handleFillRemoveFile = (fieldId) => {
+        setFillFiles((prev) => {
+            const copy = { ...prev };
+            delete copy[fieldId];
+            return copy;
+        });
+    };
+
+    // Toggle reveal password in fill modal
+    const toggleFillSecretReveal = (fieldId) => {
+        setFillRevealedSecrets((prev) => ({
+            ...prev,
+            [fieldId]: !prev[fieldId]
+        }));
+    };
+
+    // Submit Fulfillment by Admin
+    const handleSubmitAdminFill = async (e) => {
+        e.preventDefault();
+        if (!fillDep?._id) return;
+
+        // Allow partial fulfillment: admin can fill just one or more fields without requiring all fields at once
+        const hasAnyField = fillDep.dynamicFields?.some((field) => {
+            if (field.fieldType === 'file') {
+                return fillFiles[field.id] || field.fileValue?.url;
+            }
+            const val = fillValues[field.id];
+            return val !== undefined && String(val).trim().length > 0;
+        });
+
+        if (!hasAnyField && !fillAdminNotes.trim()) {
+            triggerToast('Please fill in at least one requirement field or add a note before saving.', 'error');
+            return;
+        }
+
+        try {
+            setSubmittingFill(true);
+            const formData = new FormData();
+            formData.append('fields', JSON.stringify(fillValues));
+            formData.append('adminNotes', fillAdminNotes.trim());
+            formData.append('status', fillStatus);
+
+            // Append newly uploaded files with field ID as key
+            Object.keys(fillFiles).forEach((fieldId) => {
+                const f = fillFiles[fieldId];
+                if (f instanceof File) {
+                    formData.append(fieldId, f);
+                }
+            });
+
+            const res = await api.updateWithFormData(
+                `/api/v1/admin/client-dependency/${fillDep._id}/submit`,
+                formData
+            );
+
+            if (res && (res.status === 200 || res.data?.status === 200 || res.status === true)) {
+                triggerToast('Requirement values fulfilled and saved successfully!');
+                setShowFillModal(false);
+                if (showReviewModal) setShowReviewModal(false);
+                fetchDependencies();
+                fetchStats();
+            } else {
+                triggerToast(res?.data?.message || res?.message || 'Failed to fulfill requirement', 'error');
+            }
+        } catch (err) {
+            console.error('Error fulfilling dependency by admin:', err);
+            triggerToast(err?.message || 'Error saving fulfillment', 'error');
+        } finally {
+            setSubmittingFill(false);
+        }
+    };
+
     // Delete Dependency
     const handleDeleteDependency = async () => {
         if (!depToDelete?._id) return;
@@ -622,12 +748,9 @@ const ClientDependency = () => {
 
             {/* KPI Summary Cards */}
             <div className="client-dep-stats-grid">
-                <div
-                    className={`dep-stat-card ${selectedStatus === 'all' && selectedPriority === 'all' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedStatus('all'); setSelectedPriority('all'); }}
-                >
+                <div className="dep-stat-card">
                     <div>
-                        <div className="dep-stat-label">Total Requests</div>
+                        <div className="dep-stat-label">Total Dependencies</div>
                         <div className="dep-stat-value text-primary">{stats.total || 0}</div>
                     </div>
                     <div className="dep-stat-icon-wrap dep-icon-total">
@@ -635,10 +758,7 @@ const ClientDependency = () => {
                     </div>
                 </div>
 
-                <div
-                    className={`dep-stat-card ${selectedStatus === 'pending' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedStatus('pending'); setSelectedPriority('all'); }}
-                >
+                <div className="dep-stat-card">
                     <div>
                         <div className="dep-stat-label">Pending Client</div>
                         <div className="dep-stat-value text-warning">{stats.pending || 0}</div>
@@ -648,10 +768,7 @@ const ClientDependency = () => {
                     </div>
                 </div>
 
-                <div
-                    className={`dep-stat-card ${selectedStatus === 'submitted' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedStatus('submitted'); setSelectedPriority('all'); }}
-                >
+                <div className="dep-stat-card">
                     <div>
                         <div className="dep-stat-label">Ready for Review</div>
                         <div className="dep-stat-value" style={{ color: '#7c3aed' }}>{stats.submitted || 0}</div>
@@ -661,10 +778,7 @@ const ClientDependency = () => {
                     </div>
                 </div>
 
-                <div
-                    className={`dep-stat-card ${selectedStatus === 'in_review' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedStatus('in_review'); setSelectedPriority('all'); }}
-                >
+                <div className="dep-stat-card">
                     <div>
                         <div className="dep-stat-label">In Review</div>
                         <div className="dep-stat-value text-info">{stats.in_review || 0}</div>
@@ -674,29 +788,13 @@ const ClientDependency = () => {
                     </div>
                 </div>
 
-                <div
-                    className={`dep-stat-card ${selectedStatus === 'completed' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedStatus('completed'); setSelectedPriority('all'); }}
-                >
+                <div className="dep-stat-card">
                     <div>
                         <div className="dep-stat-label">Completed</div>
                         <div className="dep-stat-value text-success">{stats.completed || 0}</div>
                     </div>
                     <div className="dep-stat-icon-wrap dep-icon-completed">
                         <i className="uil uil-check-circle"></i>
-                    </div>
-                </div>
-
-                <div
-                    className={`dep-stat-card ${selectedPriority === 'urgent' ? 'active-filter' : ''}`}
-                    onClick={() => { setSelectedPriority('urgent'); setSelectedStatus('all'); }}
-                >
-                    <div>
-                        <div className="dep-stat-label">Urgent / High</div>
-                        <div className="dep-stat-value text-danger">{stats.urgent || 0}</div>
-                    </div>
-                    <div className="dep-stat-icon-wrap dep-icon-urgent">
-                        <i className="uil uil-bolt-alt"></i>
                     </div>
                 </div>
             </div>
@@ -965,7 +1063,6 @@ const ClientDependency = () => {
                                                 </div>
                                             </div>
                                         </td>
-
                                         <td>
                                             <span className={`dep-status-pill ${dep.status}`}>
                                                 {dep.status === 'pending' && <><i className="uil uil-clock"></i> Pending Client</>}
@@ -975,9 +1072,16 @@ const ClientDependency = () => {
                                                 {dep.status === 'rejected' && <><i className="uil uil-times-circle"></i> Revision</>}
                                             </span>
                                         </td>
-
                                         <td className="text-end">
                                             <div className="dep-actions-row">
+                                                <button
+                                                    className="btn-action-fill"
+                                                    onClick={() => handleOpenFillModal(dep)}
+                                                    title="Fill requirement values"
+                                                >
+                                                    <i className="uil uil-edit-alt"></i>
+                                                    <span>Fill</span>
+                                                </button>
                                                 <button
                                                     className="btn-action-view"
                                                     onClick={() => handleOpenReviewModal(dep)}
@@ -1597,12 +1701,307 @@ const ClientDependency = () => {
                                             <i className="uil uil-check-circle me-1"></i> Approve & Complete
                                         </button>
                                     )}
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-success"
+                                        onClick={() => {
+                                            setShowReviewModal(false);
+                                            handleOpenFillModal(activeDependency);
+                                        }}
+                                    >
+                                        <i className="uil uil-edit-alt me-1"></i> Fill / Edit Values
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </Modal>
                 )
             }
+
+            {/* ADMIN FILL / FULFILL MODAL */}
+            {fillDep && (
+                <Modal
+                    show={showFillModal}
+                    onHide={() => setShowFillModal(false)}
+                    size="lg"
+                    centered
+                    dialogClassName="dep-custom-modal dep-fill-modal"
+                >
+                    <form onSubmit={handleSubmitAdminFill}>
+                        <div className="dep-modal-header">
+                            <div className="dep-modal-header-left">
+                                <div className="dep-modal-header-icon fill-header-icon">
+                                    <i className="uil uil-edit-alt"></i>
+                                </div>
+                                <div>
+                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                        <span className="review-ticket-tag">
+                                            DEP-{fillDep._id ? fillDep._id.substr(-5).toUpperCase() : 'REQ'}
+                                        </span>
+                                        <span className={`dep-priority-pill ${fillDep.priority}`}>
+                                            <span className="priority-dot"></span>
+                                            {fillDep.priority?.toUpperCase()}
+                                        </span>
+                                        <span className={`dep-status-pill ${fillDep.status}`}>
+                                            {fillDep.status?.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <h5 className="dep-modal-title mb-0">Fill Dependency: {fillDep.title}</h5>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dep-modal-close-btn"
+                                onClick={() => setShowFillModal(false)}
+                                title="Close modal"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <div className="dep-modal-body">
+                            {/* Meta details bar */}
+                            <div className="review-meta-bar mb-3">
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Client</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-user"></i>
+                                        {fillDep.client?.name || fillDep.client?.clientName || 'Assigned Client'}
+                                    </span>
+                                </div>
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Project</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-folder"></i>
+                                        {fillDep.project?.projectName || fillDep.project?.name || 'Assigned Project'}
+                                    </span>
+                                </div>
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Timeline</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-hourglass"></i>
+                                        {fillDep.expectedDays} Days Required
+                                    </span>
+                                </div>
+                            </div>
+
+                            {fillDep.description && (
+                                <div className="review-instructions-box mb-3">
+                                    <span className="instr-label">Requirement Instructions:</span>
+                                    <p>{fillDep.description}</p>
+                                </div>
+                            )}
+
+                            {/* Dynamic Input Fields to Fill */}
+                            <div className="fill-fields-section">
+                                <div className="fill-fields-heading">
+                                    <h6>
+                                        <i className="uil uil-sliders-v-alt text-primary me-1"></i>
+                                        Requirement Details ({fillDep.dynamicFields?.length || 0})
+                                    </h6>
+                                    <span className="text-muted small">Fill credentials, API keys, documents or assets</span>
+                                </div>
+
+                                <div className="fill-fields-list">
+                                    {fillDep.dynamicFields?.map((field, idx) => {
+                                        const isSecret = field.fieldType === 'password';
+                                        const isRevealed = fillRevealedSecrets[field.id || idx];
+                                        const currentVal = fillValues[field.id] || '';
+                                        const currentFile = fillFiles[field.id];
+
+                                        return (
+                                            <div key={field.id || idx} className="fill-field-card">
+                                                <div className="fill-field-header">
+                                                    <label className="fill-field-label">
+                                                        <span className="field-seq-tag me-1">#{idx + 1}</span>
+                                                        {field.label}
+                                                        {field.isRequired && <span className="req ms-1">*</span>}
+                                                    </label>
+                                                    <span className={`field-type-pill ${field.fieldType}`}>
+                                                        {field.fieldType === 'password' && <><i className="uil uil-key-skeleton me-1"></i>Secret Token</>}
+                                                        {field.fieldType === 'file' && <><i className="uil uil-paperclip me-1"></i>File / Document</>}
+                                                        {field.fieldType === 'url' && <><i className="uil uil-link-h me-1"></i>URL / Link</>}
+                                                        {field.fieldType === 'textarea' && <><i className="uil uil-subject me-1"></i>Multi-line Text</>}
+                                                        {field.fieldType === 'text' && <><i className="uil uil-font me-1"></i>Text</>}
+                                                    </span>
+                                                </div>
+
+                                                {/* Field input switch */}
+                                                {field.fieldType === 'password' ? (
+                                                    <div className="fill-input-group">
+                                                        <input
+                                                            type={isRevealed ? 'text' : 'password'}
+                                                            className="dep-form-control fill-input"
+                                                            placeholder={field.placeholder || 'Enter secret key / token / password'}
+                                                            value={currentVal}
+                                                            onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="btn-fill-toggle-pass"
+                                                            onClick={() => toggleFillSecretReveal(field.id || idx)}
+                                                            title={isRevealed ? 'Hide secret' : 'Show secret'}
+                                                        >
+                                                            <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
+                                                        </button>
+                                                    </div>
+                                                ) : field.fieldType === 'textarea' ? (
+                                                    <textarea
+                                                        className="dep-form-control fill-textarea"
+                                                        rows="3"
+                                                        placeholder={field.placeholder || 'Enter details / config...'}
+                                                        value={currentVal}
+                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                    />
+                                                ) : field.fieldType === 'url' ? (
+                                                    <input
+                                                        type="url"
+                                                        className="dep-form-control fill-input"
+                                                        placeholder={field.placeholder || 'https://api.example.com/...'}
+                                                        value={currentVal}
+                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                    />
+                                                ) : field.fieldType === 'file' ? (
+                                                    <div>
+                                                        <input
+                                                            type="file"
+                                                            style={{ display: 'none' }}
+                                                            ref={(el) => (fillFileInputRefs.current[field.id] = el)}
+                                                            onChange={(e) => handleFillFileSelect(field.id, e.target.files?.[0])}
+                                                        />
+                                                        {currentFile instanceof File ? (
+                                                            <div className="fill-selected-file-pill">
+                                                                <i className="uil uil-file-check-alt text-success fs-5"></i>
+                                                                <div className="file-info-text">
+                                                                    <span className="fw-semibold">{currentFile.name}</span>
+                                                                    <span className="text-muted small ms-2">({(currentFile.size / 1024).toFixed(1)} KB)</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-remove-fill-file ms-auto"
+                                                                    onClick={() => handleFillRemoveFile(field.id)}
+                                                                    title="Remove selected file"
+                                                                >
+                                                                    <i className="uil uil-times"></i>
+                                                                </button>
+                                                            </div>
+                                                        ) : (currentFile?.url || field.fileValue?.url) ? (
+                                                            <div className="fill-selected-file-pill">
+                                                                <i className="uil uil-paperclip text-primary fs-5"></i>
+                                                                <div className="file-info-text">
+                                                                    <span className="fw-semibold">{currentFile?.name || field.fileValue?.name || 'Attached File'}</span>
+                                                                    <a
+                                                                        href={currentFile?.url || field.fileValue?.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="ms-2 small text-primary text-decoration-underline"
+                                                                    >
+                                                                        View Current
+                                                                    </a>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-secondary ms-auto"
+                                                                    onClick={() => fillFileInputRefs.current[field.id]?.click()}
+                                                                >
+                                                                    <i className="uil uil-sync me-1"></i> Replace
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div
+                                                                className="fill-file-dropzone"
+                                                                onClick={() => fillFileInputRefs.current[field.id]?.click()}
+                                                            >
+                                                                <i className="uil uil-cloud-upload dropzone-icon"></i>
+                                                                <p className="dropzone-text mb-0">Click to upload document or asset</p>
+                                                                <span className="dropzone-sub">PDF, PNG, JPG, ZIP, JSON, or TXT</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        className="dep-form-control fill-input"
+                                                        placeholder={field.placeholder || 'Enter value...'}
+                                                        value={currentVal}
+                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                    />
+                                                )}
+
+                                                {field.helpText && (
+                                                    <div className="fill-field-help">
+                                                        <i className="uil uil-info-circle me-1"></i>
+                                                        {field.helpText}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Status Selection & Admin Notes */}
+                            <div className="row g-3 mt-2">
+                                <div className="col-md-6">
+                                    <label className="fw-semibold mb-1">Set Status upon Fulfilling</label>
+                                    <select
+                                        className="dep-form-control"
+                                        value={fillStatus}
+                                        onChange={(e) => setFillStatus(e.target.value)}
+                                    >
+                                        <option value="completed">Approve & Complete (Default)</option>
+                                        <option value="submitted">Submitted (Ready for PM Review)</option>
+                                        <option value="in_review">In Review</option>
+                                    </select>
+                                    <small className="text-muted d-block mt-1">
+                                        Choose status to reflect on this dependency request
+                                    </small>
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="fw-semibold mb-1">Admin Notes / Remarks (Optional)</label>
+                                    <input
+                                        type="text"
+                                        className="dep-form-control"
+                                        placeholder="Add memo or fulfillment notes..."
+                                        value={fillAdminNotes}
+                                        onChange={(e) => setFillAdminNotes(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="dep-modal-footer">
+                            <button
+                                type="button"
+                                className="btn-modal-cancel"
+                                onClick={() => setShowFillModal(false)}
+                                disabled={submittingFill}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="btn-modal-submit btn-save-fill"
+                                disabled={submittingFill}
+                            >
+                                {submittingFill ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-1"></span>
+                                        Saving Fulfillment...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="uil uil-check-circle me-1"></i>
+                                        Save & Fulfill Requirements
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
 
             {/* DELETE CONFIRMATION MODAL */}
             <Modal

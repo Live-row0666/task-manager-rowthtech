@@ -203,6 +203,12 @@ class APICore {
         return axios.patch(url, formData, config);
     };
 
+    updateWithFormData = (url, data) => {
+        return axios.put(url, data, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    };
+
     isUserAuthenticated = () => {
         const user = this.getLoggedInUser();
         if (!user || (user && !user.token)) {

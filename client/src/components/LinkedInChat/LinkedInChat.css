@@ -1,0 +1,715 @@
+/* ==========================================================================
+   LinkedIn-Style Bottom-Right Docked Live Chat Widget - Client Portal
+   ========================================================================== */
+
+.li-chat-container {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    z-index: 99999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ==========================================================================
+   1. Floating Chat Icon Button on Bottom Right
+   ========================================================================== */
+.client-floating-chat-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    flex-direction: row-reverse;
+}
+
+.client-chat-icon-btn {
+    position: relative;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4), 0 8px 30px rgba(0, 0, 0, 0.15);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.client-floating-chat-trigger:hover .client-chat-icon-btn {
+    transform: scale(1.08) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5), 0 12px 35px rgba(0, 0, 0, 0.2);
+}
+
+.client-chat-icon-main {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.client-chat-pulse-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid rgba(37, 99, 235, 0.6);
+    animation: clientPulse 2.2s infinite;
+    pointer-events: none;
+}
+
+@keyframes clientPulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    70% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+}
+
+.client-chat-badge-bubble {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 21px;
+    height: 21px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5);
+    animation: liPulse 1.8s infinite;
+}
+
+.client-chat-pill-tooltip {
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.tooltip-online-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.client-floating-chat-trigger:hover .client-chat-pill-tooltip {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+    transform: translateX(-3px);
+}
+
+
+.li-avatar-wrap {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+.li-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.li-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.li-online-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 9px;
+    height: 9px;
+    background: #10b981;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+}
+
+.li-docked-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+.li-docked-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.li-unread-badge {
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+    animation: liPulse 2s infinite;
+}
+
+@keyframes liPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+.li-chevron-icon {
+    font-size: 14px;
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+
+/* ==========================================================================
+   2. Open Floating Chat Window
+   ========================================================================== */
+.li-chat-window {
+    width: 480px;
+    height: 620px;
+    max-height: calc(100vh - 40px);
+    max-width: calc(100vw - 32px);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: liSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes liSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header */
+.li-chat-header {
+    height: 62px;
+    padding: 0 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.li-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.li-header-names {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.li-header-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.li-header-status {
+    font-size: 12px;
+    color: #10b981;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 1px;
+}
+
+.li-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.li-btn-header-action {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.li-btn-header-action:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+/* Message Thread Body */
+.li-chat-body {
+    flex: 1;
+    padding: 16px 18px;
+    overflow-y: auto;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.li-chat-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.li-chat-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.li-chat-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 6px;
+}
+
+.li-chat-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Welcome banner */
+.li-welcome-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* text-align: center;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+} */
+
+.li-welcome-icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.li-welcome-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 3px;
+}
+
+.li-welcome-text {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Date divider */
+.li-date-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 6px 0;
+}
+
+.li-date-divider span {
+    background: #e2e8f0;
+    color: #64748b;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+}
+
+/* Message Row */
+.li-msg-row {
+    display: flex;
+    gap: 8px;
+    max-width: 86%;
+}
+
+.li-msg-row.received {
+    align-self: flex-start;
+}
+
+.li-msg-row.sent {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.li-msg-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.li-msg-avatar-fallback {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.li-msg-content-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.li-msg-row.sent .li-msg-content-wrap {
+    align-items: flex-end;
+}
+
+.li-msg-sender-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 3px;
+}
+
+.li-msg-bubble {
+    padding: 11px 16px;
+    border-radius: 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+}
+
+.li-msg-row.received .li-msg-bubble {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+    border-top-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.li-msg-row.sent .li-msg-bubble {
+    background: #2563eb;
+    color: #ffffff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.li-msg-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.li-msg-row.sent .li-msg-meta {
+    color: #64748b;
+}
+
+/* Attachments inside bubble */
+.li-msg-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.li-attachment-img {
+    max-width: 180px;
+    max-height: 140px;
+    border-radius: 8px;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.li-attachment-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.05);
+    color: inherit;
+    transition: background 0.15s ease;
+}
+
+.li-msg-row.sent .li-attachment-file {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.li-attachment-file:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.li-msg-row.sent .li-attachment-file:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Typing Indicator Animation */
+.li-typing-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+}
+
+.li-typing-bubble {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 8px 14px;
+    border-radius: 14px;
+    border-top-left-radius: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.li-dot {
+    width: 6px;
+    height: 6px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: liDotBounce 1.4s infinite ease-in-out both;
+}
+
+.li-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.li-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes liDotBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* ==========================================================================
+   3. Chat Input Footer
+   ========================================================================== */
+.li-chat-footer {
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 16px;
+    flex-shrink: 0;
+}
+
+/* Selected attachment pill */
+.li-selected-attach-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 10px;
+}
+
+.li-attach-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.li-btn-remove-attach {
+    background: transparent;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 14px;
+}
+
+.li-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.li-chat-textarea {
+    flex: 1;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 14px;
+    color: #1e293b;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    min-height: 42px;
+    line-height: 1.45;
+    transition: border-color 0.15s ease;
+}
+
+.li-chat-textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.li-chat-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.li-btn-attach {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.li-btn-attach:hover {
+    background: #f1f5f9;
+    color: #2563eb;
+}
+
+.li-btn-send {
+    background: #2563eb;
+    border: none;
+    color: #ffffff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.li-btn-send:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4);
+}
+
+.li-btn-send:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 576px) {
+    .li-chat-container {
+        right: 12px;
+        left: 12px;
+    }
+
+    .li-chat-docked-bar {
+        width: 100%;
+    }
+
+    .li-chat-window {
+        width: 100%;
+        height: 80vh;
+    }
+}

@@ -239,25 +239,18 @@ const Dependencies = () => {
         e.preventDefault();
         if (!activeDep?._id) return;
 
-        // Validate required fields
-        if (activeDep.dynamicFields) {
-            for (const field of activeDep.dynamicFields) {
-                if (field.isRequired) {
-                    if (field.fieldType === 'file') {
-                        const hasFile = fieldFiles[field.id] || field.fileValue?.url;
-                        if (!hasFile) {
-                            showToast(`Please upload required file for "${field.label}"`, 'error');
-                            return;
-                        }
-                    } else {
-                        const val = fieldValues[field.id];
-                        if (!val || String(val).trim() === '') {
-                            showToast(`Please fill in required field "${field.label}"`, 'error');
-                            return;
-                        }
-                    }
-                }
+        // Allow partial fulfillment: client can fill 1 or more fields without requiring all fields at once
+        const hasAnyField = activeDep.dynamicFields?.some((field) => {
+            if (field.fieldType === 'file') {
+                return fieldFiles[field.id] || field.fileValue?.url;
             }
+            const val = fieldValues[field.id];
+            return val !== undefined && String(val).trim().length > 0;
+        });
+
+        if (!hasAnyField && !clientNotes.trim()) {
+            showToast('Please fill in at least one requirement field or add a note before submitting.', 'error');
+            return;
         }
 
         try {
@@ -731,7 +724,6 @@ const Dependencies = () => {
                                                         value={currentVal}
                                                         onChange={(e) => handleFieldChange(field.id, e.target.value)}
                                                         disabled={isViewOnly}
-                                                        required={field.isRequired && !currentVal}
                                                     />
                                                     <button
                                                         type="button"
@@ -750,7 +742,6 @@ const Dependencies = () => {
                                                     value={currentVal}
                                                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
                                                     disabled={isViewOnly}
-                                                    required={field.isRequired && !currentVal}
                                                 />
                                             ) : field.fieldType === 'url' ? (
                                                 <input
@@ -760,7 +751,6 @@ const Dependencies = () => {
                                                     value={currentVal}
                                                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
                                                     disabled={isViewOnly}
-                                                    required={field.isRequired && !currentVal}
                                                 />
                                             ) : field.fieldType === 'file' ? (
                                                 <div>
@@ -826,7 +816,6 @@ const Dependencies = () => {
                                                     value={currentVal}
                                                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
                                                     disabled={isViewOnly}
-                                                    required={field.isRequired && !currentVal}
                                                 />
                                             )}
 

@@ -82,11 +82,13 @@ router.get('/client-task', verifyClient, async (req, res) => {
 
 const ClientSupportController = require('../../controllers/client/support');
 const ClientDependencyController = require('../../controllers/client/dependency');
+const ClientChatController = require('../../controllers/client/chat');
 const upload = require('../../middleware/upload');
 
 // Support routes (client scoped with project & screenshot attachments)
 router.get('/support/download', ClientSupportController.downloadFile);
 router.get('/support', verifyClient, ClientSupportController.getTickets);
+router.get('/support/unread-count', verifyClient, ClientSupportController.getUnreadCount);
 router.post('/support', verifyClient, upload.array('screenshots'), ClientSupportController.createTicket);
 router.get('/support/:id', verifyClient, ClientSupportController.getTicketById);
 router.put('/support/:id', verifyClient, upload.array('screenshots'), ClientSupportController.updateTicket);
@@ -99,5 +101,10 @@ router.get('/dependency/stats', verifyClient, ClientDependencyController.getStat
 router.get('/dependency', verifyClient, ClientDependencyController.getDependencies);
 router.get('/dependency/:id', verifyClient, ClientDependencyController.getDependencyById);
 router.put('/dependency/:id/submit', verifyClient, upload.any(), ClientDependencyController.submitDependency);
+
+// Direct Chat routes (LinkedIn-style client chat with Admin)
+router.get('/chat/messages', verifyClient, ClientChatController.getMessages);
+router.post('/chat/send', verifyClient, upload.array('attachments', 5), ClientChatController.sendMessage);
+router.put('/chat/read', verifyClient, ClientChatController.markAsRead);
 
 module.exports = router;

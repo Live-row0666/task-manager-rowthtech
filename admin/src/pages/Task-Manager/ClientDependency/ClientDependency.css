@@ -70,7 +70,7 @@
 /* KPI Summary Cards Grid */
 .client-dep-stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     margin-bottom: 1.25rem;
 }
@@ -85,19 +85,13 @@
     align-items: center;
     justify-content: space-between;
     transition: all 0.2s ease;
-    cursor: pointer;
+    cursor: default;
+    user-select: none;
 }
 
 .dep-stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     border-color: #cbd5e1;
-}
-
-.dep-stat-card.active-filter {
-    border-color: #3b82f6;
-    background: #f8faff;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .dep-stat-label {
@@ -616,6 +610,27 @@
     align-items: center;
     /* justify-content: flex-end; */
     gap: 0.5rem;
+}
+
+.btn-action-fill {
+    height: 32px;
+    padding: 0 0.85rem;
+    background: #10b981;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-action-fill:hover {
+    background: #059669;
+    color: #ffffff;
 }
 
 .btn-action-view {
@@ -1578,4 +1593,204 @@ textarea.dep-form-control {
 
 .status-action-btns .btn i {
     font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Admin Fill Dependency Modal Styling
+   ========================================================================== */
+
+.fill-header-icon {
+    background: #ecfdf5 !important;
+    color: #10b981 !important;
+}
+
+.fill-fields-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.fill-fields-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.fill-fields-heading h6 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.fill-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fill-field-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: all 0.2s ease;
+}
+
+.fill-field-card:hover,
+.fill-field-card:focus-within {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.fill-field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.fill-field-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.fill-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fill-input {
+    width: 100%;
+}
+
+.fill-input-group .fill-input {
+    padding-right: 40px;
+}
+
+.btn-fill-toggle-pass {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 4px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: color 0.15s ease;
+}
+
+.btn-fill-toggle-pass:hover {
+    color: #1e293b;
+}
+
+.fill-textarea {
+    width: 100%;
+    resize: vertical;
+    font-size: 0.85rem;
+}
+
+.fill-file-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 16px 20px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fill-file-dropzone:hover {
+    border-color: #10b981;
+    background: #ecfdf5;
+}
+
+.fill-file-dropzone .dropzone-icon {
+    font-size: 1.6rem;
+    color: #10b981;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.fill-file-dropzone .dropzone-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.fill-file-dropzone .dropzone-sub {
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.fill-selected-file-pill {
+    display: flex;
+    align-items: center;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    gap: 8px;
+}
+
+.fill-selected-file-pill .file-info-text {
+    font-size: 0.82rem;
+    color: #166534;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-remove-fill-file {
+    background: transparent;
+    border: none;
+    color: #dc2626;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+}
+
+.btn-remove-fill-file:hover {
+    background: #fee2e2;
+}
+
+.fill-field-help {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.btn-save-fill {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25) !important;
+}
+
+.btn-save-fill:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
 }

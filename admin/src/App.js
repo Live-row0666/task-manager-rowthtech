@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import Routes from './routes/Routes';
 import FloatingScreenCapture from './components/FloatingScreenCapture';
+import LinkedInChat from './components/LinkedInChat/LinkedInChat';
 import { initDevToolsProtection } from './utils/devToolsProtection';
 import { testProtection } from './utils/testDevProtection';
 
@@ -29,6 +30,7 @@ const App = (props: AppProps): React$Element<any> => {
         <>
             <Routes />
             <FloatingScreenCapture />
+            <LinkedInChat />
         </>
     );
 };

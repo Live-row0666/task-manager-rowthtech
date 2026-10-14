@@ -1,9 +1,17 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
+import config from "../config";
+import { APICore } from "../helpers/api/apiCore";
 import Logo from "../assets/images/logo/logo.webp";
+
+const api = new APICore();
 
 const CommonSidebar = ({ active }) => {
     const location = useLocation();
+
+    const [hasSupportUpdate, setHasSupportUpdate] = useState(false);
+    const [hasDependencyUpdate, setHasDependencyUpdate] = useState(false);
 
     const closeMobileSidebar = () => {
         document.body.classList.remove('sidebar-mobile-open');
@@ -13,6 +21,90 @@ const CommonSidebar = ({ active }) => {
     useEffect(() => {
         closeMobileSidebar();
     }, [location.pathname]);
+
+    // Auto-clear notification dots when user is viewing the respective section
+    useEffect(() => {
+        if (active === "support" || location.pathname.includes('/support')) {
+            setHasSupportUpdate(false);
+        }
+        if (active === "dependencies" || location.pathname.includes('/dependencies')) {
+            setHasDependencyUpdate(false);
+        }
+    }, [active, location.pathname]);
+
+    // Fetch initial notification/update counts from server
+    const checkUpdates = useCallback(async () => {
+        try {
+            const [supportRes, depRes] = await Promise.allSettled([
+                api.get('/api/v1/client/support/unread-count'),
+                api.get('/api/v1/client/dependency/stats')
+            ]);
+
+            if (supportRes.status === 'fulfilled' && supportRes.value?.data) {
+                const data = supportRes.value.data.data || supportRes.value.data;
+                if (data.hasUpdates || data.unreadCount > 0) {
+                    if (active !== 'support' && !window.location.pathname.includes('/support')) {
+                        setHasSupportUpdate(true);
+                    }
+                }
+            }
+
+            if (depRes.status === 'fulfilled' && depRes.value?.data) {
+                const data = depRes.value.data.data || depRes.value.data;
+                if (data.hasUpdates || data.unreadCount > 0 || data.pending > 0) {
+                    if (active !== 'dependencies' && !window.location.pathname.includes('/dependencies')) {
+                        setHasDependencyUpdate(true);
+                    }
+                }
+            }
+        } catch (e) { }
+    }, [active]);
+
+    // Real-time socket events for support and dependency updates
+    useEffect(() => {
+        const user = api.getLoggedInUser();
+        const userId = user?._id || user?.id;
+        if (!userId) return;
+
+        checkUpdates();
+
+        const socketServerUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
+        const socket = io(socketServerUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            timeout: 20000
+        });
+
+        const joinRoom = () => {
+            socket.emit('join_client_channel', userId);
+        };
+        joinRoom();
+        socket.on('connect', joinRoom);
+
+        // Support tickets updates
+        const onSupportUpdate = () => {
+            if (active !== 'support' && !window.location.pathname.includes('/support')) {
+                setHasSupportUpdate(true);
+            }
+        };
+        socket.on('ticket_updated', onSupportUpdate);
+        socket.on('support_updated', onSupportUpdate);
+        socket.on('new_client_support_response', onSupportUpdate);
+
+        // Dependency updates
+        const onDepUpdate = () => {
+            if (active !== 'dependencies' && !window.location.pathname.includes('/dependencies')) {
+                setHasDependencyUpdate(true);
+            }
+        };
+        socket.on('new_dependency_assigned', onDepUpdate);
+        socket.on('dependency_status_changed', onDepUpdate);
+        socket.on('dependency_updated', onDepUpdate);
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [checkUpdates, active]);
 
     return (
         <>
@@ -53,17 +145,6 @@ const CommonSidebar = ({ active }) => {
                         </Link>
                     </li>
 
-                    {/* <li>
-                        <Link
-                            to="/dashboard/projects"
-                            className={`menu-item-link ${active === "projects" || active === "myprojects" ? "active" : ""}`}
-                            onClick={closeMobileSidebar}
-                        >
-                            <i className="bi bi-folder2"></i>
-                            <span>My Project</span>
-                        </Link>
-                    </li> */}
-
                     <li>
                         <Link
                             to="/dashboard/milestones"
@@ -82,6 +163,9 @@ const CommonSidebar = ({ active }) => {
                         >
                             <i className="bi bi-stack"></i>
                             <span>Dependencies</span>
+                            {hasDependencyUpdate && (
+                                <span className="client-sidebar-green-dot" title="New updates available"></span>
+                            )}
                         </Link>
                     </li>
 
@@ -126,6 +210,9 @@ const CommonSidebar = ({ active }) => {
                         >
                             <i className="bi bi-headset"></i>
                             <span>Support</span>
+                            {hasSupportUpdate && (
+                                <span className="client-sidebar-green-dot" title="New updates available"></span>
+                            )}
                         </Link>
                     </li>
                 </ul>

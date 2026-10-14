@@ -12,6 +12,7 @@ router.use(verifyAdminUser);
 
 // Routes
 router.get('/', clientSupportController.getAllTickets);
+router.get('/unread-count', clientSupportController.getUnreadCount);
 router.get('/:id', clientSupportController.getTicketById);
 router.put('/:id', clientSupportController.updateTicket);
 router.put('/:id/read', clientSupportController.markAsRead);

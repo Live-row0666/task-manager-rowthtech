@@ -67,6 +67,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('client_chat_typing', (data) => {
+    if (data && data.clientId) {
+      if (data.senderType === 'client') {
+        socket.to('admin_support_channel').emit('client_chat_typing', data);
+      } else {
+        socket.to(`client_${data.clientId}`).emit('client_chat_typing', data);
+      }
+    }
+  });
+
   socket.on('disconnect', () => {});
 });
 

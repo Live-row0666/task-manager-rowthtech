@@ -13,6 +13,7 @@ import Team from './pages/Team';
 import Support from './pages/Support';
 import Dependencies from './pages/Dependencies';
 import PrivateRoute from './routes/PrivateRoute';
+import LinkedInChat from './components/LinkedInChat/LinkedInChat';
 import './App.css';
 
 function App() {
@@ -38,6 +39,9 @@ function App() {
         {/* Default redirect */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+
+      {/* Global LinkedIn-Style Live Chat Docked Widget */}
+      <LinkedInChat />
     </Router>
   );
 }

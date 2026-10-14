@@ -1,6 +1,15 @@
 const ClientDependency = require('../../models/clientDependency');
 const ClientProject = require('../../models/clientProject');
 const Client = require('../../models/client');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+});
 
 class ClientDependencyAdminController {
     // GET /api/v1/admin/client-dependency
@@ -58,13 +67,14 @@ class ClientDependencyAdminController {
             if (clientId && clientId !== 'all') query.client = clientId;
             if (projectId && projectId !== 'all') query.project = projectId;
 
-            const [total, pending, submitted, inReview, completed, rejected] = await Promise.all([
+            const [total, pending, submitted, inReview, completed, rejected, unreadByAdminCount] = await Promise.all([
                 ClientDependency.countDocuments(query),
                 ClientDependency.countDocuments({ ...query, status: 'pending' }),
                 ClientDependency.countDocuments({ ...query, status: 'submitted' }),
                 ClientDependency.countDocuments({ ...query, status: 'in_review' }),
                 ClientDependency.countDocuments({ ...query, status: 'completed' }),
-                ClientDependency.countDocuments({ ...query, status: 'rejected' })
+                ClientDependency.countDocuments({ ...query, status: 'rejected' }),
+                ClientDependency.countDocuments({ ...query, unreadByAdmin: { $gt: 0 } })
             ]);
 
             return res.status(200).json({
@@ -76,7 +86,9 @@ class ClientDependencyAdminController {
                     submitted,
                     inReview,
                     completed,
-                    rejected
+                    rejected,
+                    unreadCount: unreadByAdminCount,
+                    hasUpdates: submitted > 0 || unreadByAdminCount > 0
                 }
             });
         } catch (error) {
@@ -368,6 +380,144 @@ class ClientDependencyAdminController {
             });
         } catch (error) {
             console.error('Admin updateStatus error:', error);
+            return res.status(500).json({
+                status: 500,
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
+    // PUT /api/v1/admin/client-dependency/:id/submit
+    async submitDependency(req, res) {
+        try {
+            const { id } = req.params;
+            const dependency = await ClientDependency.findById(id);
+            if (!dependency) {
+                return res.status(404).json({
+                    status: 404,
+                    success: false,
+                    message: 'Dependency requirement not found'
+                });
+            }
+
+            // Parse submitted fields payload
+            let submittedFields = {};
+            if (req.body.fields) {
+                try {
+                    submittedFields = typeof req.body.fields === 'string'
+                        ? JSON.parse(req.body.fields)
+                        : req.body.fields;
+                } catch (e) {
+                    submittedFields = req.body.fields;
+                }
+            }
+
+            // Process uploaded files if any
+            const uploadedFilesMap = new Map();
+            if (req.files && req.files.length > 0) {
+                for (const file of req.files) {
+                    const fileName = `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`;
+                    let fileUrl = '';
+
+                    try {
+                        if (process.env.AWS_BUCKET_NAME) {
+                            const uploadParams = {
+                                Bucket: process.env.AWS_BUCKET_NAME,
+                                Key: `dependencies/${fileName}`,
+                                Body: file.buffer,
+                                ContentType: file.mimetype
+                            };
+                            await s3Client.send(new PutObjectCommand(uploadParams));
+                            fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/dependencies/${fileName}`;
+                        } else {
+                            fileUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+                        }
+                    } catch (s3Err) {
+                        console.error('S3 dependency upload fallback to base64:', s3Err);
+                        fileUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+                    }
+
+                    uploadedFilesMap.set(file.fieldname, {
+                        originalName: file.originalname,
+                        fileName: fileName,
+                        url: fileUrl,
+                        size: file.size,
+                        type: file.mimetype
+                    });
+                }
+            }
+
+            // Update dynamic fields
+            dependency.dynamicFields = dependency.dynamicFields.map(field => {
+                const updated = { ...field.toObject() };
+
+                if (field.fieldType === 'file') {
+                    const uploaded = uploadedFilesMap.get(field.id);
+                    if (uploaded) {
+                        updated.fileValue = uploaded;
+                        updated.isFilled = true;
+                        updated.filledAt = new Date();
+                    }
+                } else if (submittedFields[field.id] !== undefined) {
+                    const val = submittedFields[field.id];
+                    updated.value = (val !== null && val !== undefined) ? String(val).trim() : '';
+                    updated.isFilled = updated.value.length > 0;
+                    if (updated.isFilled) {
+                        updated.filledAt = new Date();
+                    }
+                }
+
+                return updated;
+            });
+
+            if (req.body.adminNotes !== undefined) {
+                dependency.adminNotes = req.body.adminNotes;
+            }
+            if (req.body.clientNotes !== undefined) {
+                dependency.clientNotes = req.body.clientNotes;
+            }
+
+            const targetStatus = req.body.status || 'completed';
+            dependency.status = targetStatus;
+            if (targetStatus === 'completed') {
+                dependency.completedAt = new Date();
+            }
+            dependency.unreadByAdmin = 0;
+            dependency.unreadByClient = (dependency.unreadByClient || 0) + 1;
+
+            await dependency.save();
+
+            const populated = await ClientDependency.findById(dependency._id)
+                .populate('client', 'name email contact companyName')
+                .populate('project', 'name projectStatus projectType')
+                .populate('createdBy', 'name email designation')
+                .lean();
+
+            const io = req.app.get('io');
+            if (io) {
+                io.to(`client_${dependency.client}`).emit('dependency_updated', {
+                    dependencyId: dependency._id.toString(),
+                    dependency: populated
+                });
+                io.to(`client_${dependency.client}`).emit('dependency_status_changed', {
+                    dependencyId: dependency._id.toString(),
+                    dependency: populated
+                });
+                io.to('admin_support_channel').emit('dependency_updated', {
+                    dependencyId: dependency._id.toString(),
+                    dependency: populated
+                });
+            }
+
+            return res.status(200).json({
+                status: 200,
+                success: true,
+                message: 'Dependency requirements successfully filled and saved',
+                data: populated
+            });
+        } catch (error) {
+            console.error('Admin submitDependency error:', error);
             return res.status(500).json({
                 status: 500,
                 success: false,

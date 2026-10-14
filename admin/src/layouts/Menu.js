@@ -1,10 +1,14 @@
-// @flow
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Collapse } from 'react-bootstrap';
 import classNames from 'classnames';
+import { io } from 'socket.io-client';
+import config from '../config';
+import { APICore } from '../helpers/api/apiCore';
 
 import { findAllParent, findMenuItem } from '../helpers/menu';
+
+const api = new APICore();
 
 const MenuItemWithChildren = ({ item, linkClassName, subMenuClassNames, activeMenuItems, toggleMenu }) => {
     const [open, setOpen] = useState(activeMenuItems.includes(item.key));
@@ -104,6 +108,9 @@ const MenuItemLink = ({ item, className }) => {
                 </span>
             )}
             <span> {item.label} </span>
+            {item.hasGreenDot && (
+                <span className="admin-sidebar-green-dot" title="New updates available" />
+            )}
         </Link>
     );
 };
@@ -121,6 +128,93 @@ const AppMenu = ({ menuItems }: AppMenuProps): React$Element<React$FragmentType>
     const menuRef = useRef(null);
 
     const [activeMenuItems, setActiveMenuItems] = useState([]);
+    const [supportHasUpdate, setSupportHasUpdate] = useState(false);
+    const [dependencyHasUpdate, setDependencyHasUpdate] = useState(false);
+
+    // Auto-clear dot when visiting the respective section
+    useEffect(() => {
+        if (location.pathname.includes('/client-supports')) {
+            setSupportHasUpdate(false);
+        }
+        if (location.pathname.includes('/client-dependencies')) {
+            setDependencyHasUpdate(false);
+        }
+    }, [location.pathname]);
+
+    // Check updates on mount and periodically
+    const checkUpdates = useCallback(async () => {
+        if (!api.isUserAuthenticated()) return;
+        try {
+            const [supportRes, depRes] = await Promise.allSettled([
+                api.get('/api/v1/admin/client-support/unread-count'),
+                api.get('/api/v1/admin/client-dependency/stats')
+            ]);
+
+            if (supportRes.status === 'fulfilled' && supportRes.value?.data) {
+                const data = supportRes.value.data.data || supportRes.value.data;
+                if (data.hasUpdates || data.unreadCount > 0) {
+                    if (!window.location.pathname.includes('/client-supports')) {
+                        setSupportHasUpdate(true);
+                    }
+                }
+            }
+
+            if (depRes.status === 'fulfilled' && depRes.value?.data) {
+                const data = depRes.value.data.data || depRes.value.data;
+                if (data.hasUpdates || data.unreadCount > 0 || data.submitted > 0) {
+                    if (!window.location.pathname.includes('/client-dependencies')) {
+                        setDependencyHasUpdate(true);
+                    }
+                }
+            }
+        } catch (e) { }
+    }, []);
+
+    // Socket.io real-time notifications for sidebar green dots
+    useEffect(() => {
+        if (!api.isUserAuthenticated()) return;
+        checkUpdates();
+
+        const socketServerUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
+        const socket = io(socketServerUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            timeout: 20000
+        });
+
+        const joinAdmin = () => {
+            socket.emit('join_admin_support');
+        };
+        joinAdmin();
+        socket.on('connect', joinAdmin);
+
+        // Support ticket socket triggers
+        const onSupportUpdate = () => {
+            if (!window.location.pathname.includes('/client-supports')) {
+                setSupportHasUpdate(true);
+            }
+        };
+        socket.on('ticket_created', onSupportUpdate);
+        socket.on('ticket_updated', onSupportUpdate);
+        socket.on('support_updated', onSupportUpdate);
+        socket.on('new_client_support_response', onSupportUpdate);
+
+        // Dependency socket triggers
+        const onDepUpdate = () => {
+            if (!window.location.pathname.includes('/client-dependencies')) {
+                setDependencyHasUpdate(true);
+            }
+        };
+        socket.on('dependency_submitted', onDepUpdate);
+        socket.on('dependency_created', onDepUpdate);
+        socket.on('dependency_updated', onDepUpdate);
+        socket.on('dependency_status_changed', onDepUpdate);
+        socket.on('new_dependency_assigned', onDepUpdate);
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [checkUpdates]);
 
     /*
      * toggle the menus
@@ -159,14 +253,24 @@ const AppMenu = ({ menuItems }: AppMenuProps): React$Element<React$FragmentType>
         activeMenu();
     }, [activeMenu]);
 
+    // Augment menu items with green dot flags
+    const augmentedMenuItems = (menuItems || []).map((item) => {
+        let hasGreenDot = false;
+        if (item.key === 'clientSupports' && supportHasUpdate) hasGreenDot = true;
+        if (item.key === 'clientDependencies' && dependencyHasUpdate) hasGreenDot = true;
+        return {
+            ...item,
+            hasGreenDot
+        };
+    });
+
     return (
         <>
             <ul className="side-nav" ref={menuRef} id="main-side-menu">
-                {(menuItems || []).map((item, idx) => {
+                {augmentedMenuItems.map((item, idx) => {
                     return (
                         <React.Fragment key={idx}>
                             {item.isTitle ? (
-                                // <li className="side-nav-title side-nav-item">{item.label}</li>
                                 <></>
                             ) : (
                                 <>

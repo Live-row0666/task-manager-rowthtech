@@ -54,6 +54,28 @@ class AdminClientSupportController {
         }
     }
 
+    // GET /api/v1/admin/client-support/unread-count
+    async getUnreadCount(req, res) {
+        try {
+            const count = await ClientSupport.countDocuments({ unreadByAdmin: { $gt: 0 } });
+            return res.status(200).json({
+                status: 200,
+                success: true,
+                data: {
+                    unreadCount: count,
+                    hasUpdates: count > 0
+                }
+            });
+        } catch (error) {
+            console.error('AdminClientSupport getUnreadCount error:', error);
+            return res.status(500).json({
+                status: 500,
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
     // PUT /api/v1/admin/client-support/:id/read
     async markAsRead(req, res) {
         try {
