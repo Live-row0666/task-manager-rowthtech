@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -18,6 +20,55 @@ const userRoutes = require('./routes/user/user');
 const clientRoutes = require('./routes/client/client');
 
 const app = express();
+const server = http.createServer(app);
+
+// Socket.io initialization with CORS
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
+  }
+});
+
+// Make io accessible throughout Express app
+app.set('io', io);
+
+// Socket connection and room events for real-time ticket support chat
+io.on('connection', (socket) => {
+  socket.on('join_ticket', (ticketId) => {
+    if (ticketId) {
+      socket.join(`ticket_${ticketId}`);
+    }
+  });
+
+  socket.on('leave_ticket', (ticketId) => {
+    if (ticketId) {
+      socket.leave(`ticket_${ticketId}`);
+    }
+  });
+
+  socket.on('join_admin_support', () => {
+    socket.join('admin_support_channel');
+  });
+
+  socket.on('leave_admin_support', () => {
+    socket.leave('admin_support_channel');
+  });
+
+  socket.on('join_client_channel', (clientId) => {
+    if (clientId) {
+      socket.join(`client_${clientId}`);
+    }
+  });
+
+  socket.on('leave_client_channel', (clientId) => {
+    if (clientId) {
+      socket.leave(`client_${clientId}`);
+    }
+  });
+
+  socket.on('disconnect', () => {});
+});
 
 // Connect to MongoDB
 connectDB();
@@ -82,7 +133,7 @@ process.on('uncaughtException', async (err) => {
 
 const PORT = process.env.PORT || 5000;
                        
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
   await Logger.info(`Server started on port ${PORT}`, 'SERVER_START', { port: PORT, env: process.env.NODE_ENV });
   

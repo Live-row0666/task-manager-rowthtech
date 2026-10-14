@@ -74,6 +74,16 @@ const CommonSidebar = ({ active }) => {
                             <span>Milestones</span>
                         </Link>
                     </li>
+                    <li>
+                        <Link
+                            to="/dashboard/dependencies"
+                            className={`menu-item-link ${active === "dependencies" ? "active" : ""}`}
+                            onClick={closeMobileSidebar}
+                        >
+                            <i className="bi bi-stack"></i>
+                            <span>Dependencies</span>
+                        </Link>
+                    </li>
 
                     <li>
                         <Link

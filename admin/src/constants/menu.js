@@ -100,6 +100,18 @@ const MenuItems = () => {
             icon: 'uil-columns',
         },
         {
+            key: 'clientSupports',
+            label: 'Client Supports',
+            url: 'dashboard/client-supports',
+            icon: 'uil-headphones',
+        },
+        {
+            key: 'clientDependencies',
+            label: 'Dependencies',
+            url: 'dashboard/client-dependencies',
+            icon: 'uil-layer-group',
+        },
+        {
             key: 'Settings',
             label: 'Settings',
             icon: 'uil-lock-open-alt',
@@ -132,9 +144,9 @@ const MenuItems = () => {
     // 🧼 Role based access
 
    
-    if (Role !== 'sub-admin') {
+    if (Role !== 'sub-admin' && Role !== 'admin' && Role !== 'Project Manager') {
         MENU_ITEMS = MENU_ITEMS.filter(item =>
-            !['clientProjects', 'clientTaskBoard', 'documents'].includes(item.key)
+            !['clientProjects', 'clientTaskBoard', 'documents', 'clientSupports', 'clientDependencies'].includes(item.key)
         );
     }
 

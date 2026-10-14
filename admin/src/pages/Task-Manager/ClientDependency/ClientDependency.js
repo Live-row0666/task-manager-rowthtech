@@ -1,0 +1,1658 @@
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Modal } from 'react-bootstrap';
+import { io } from 'socket.io-client';
+import config from '../../../config';
+import { getClientProjects } from '../../../redux/actions';
+import { getClients } from '../../../redux/client/action';
+import { APICore } from '../../../helpers/api/apiCore';
+import './ClientDependency.css';
+
+const api = new APICore();
+
+const QUICK_FIELD_TEMPLATES = [
+    {
+        title: 'API Secret / Token',
+        desc: 'Single secure token / secret key',
+        fields: [
+            {
+                id: 'token_field',
+                label: 'API Key / Secret Token',
+                fieldType: 'password',
+                placeholder: 'e.g. sk_live_...',
+                helpText: 'Secret API authorization token or key',
+                isRequired: true
+            }
+        ]
+    },
+    {
+        title: 'User Credentials',
+        desc: 'Username / Email & Password pair',
+        fields: [
+            {
+                id: 'username_field',
+                label: 'Username / Email',
+                fieldType: 'text',
+                placeholder: 'e.g. admin@company.com',
+                helpText: 'Login username or email address',
+                isRequired: true
+            },
+            {
+                id: 'password_field',
+                label: 'Account Password',
+                fieldType: 'password',
+                placeholder: 'Enter account password',
+                helpText: 'Password will be securely encrypted',
+                isRequired: true
+            }
+        ]
+    },
+    {
+        title: 'Payment Gateway Keys',
+        desc: 'Publishable & Secret keys',
+        fields: [
+            {
+                id: 'pub_key_field',
+                label: 'Publishable / Public Key',
+                fieldType: 'text',
+                placeholder: 'e.g. pk_live_...',
+                helpText: 'Publicly readable gateway key',
+                isRequired: true
+            },
+            {
+                id: 'sec_key_field',
+                label: 'Secret / Private Key',
+                fieldType: 'password',
+                placeholder: 'e.g. sk_live_...',
+                helpText: 'Secret server-side key',
+                isRequired: true
+            }
+        ]
+    },
+    {
+        title: 'Document / Asset Upload',
+        desc: 'Single file or document upload',
+        fields: [
+            {
+                id: 'doc_field',
+                label: 'Asset / Document File',
+                fieldType: 'file',
+                placeholder: '',
+                helpText: 'Upload required PDF, image, schema, or asset',
+                isRequired: true
+            }
+        ]
+    },
+    {
+        title: 'Database / Host Credentials',
+        desc: 'Host, Port, DB Name & Password',
+        fields: [
+            {
+                id: 'db_host_field',
+                label: 'Host / URL',
+                fieldType: 'url',
+                placeholder: 'e.g. https://api.service.com or db.aws.com',
+                helpText: 'Server host or API endpoint',
+                isRequired: true
+            },
+            {
+                id: 'db_name_field',
+                label: 'Port / Database Name',
+                fieldType: 'text',
+                placeholder: 'e.g. 5432 / prod_db',
+                helpText: 'Port and DB name identifier',
+                isRequired: false
+            },
+            {
+                id: 'db_pwd_field',
+                label: 'Database Password',
+                fieldType: 'password',
+                placeholder: 'Enter database password',
+                helpText: 'Secure DB password',
+                isRequired: true
+            }
+        ]
+    }
+];
+
+const ClientDependency = () => {
+    const dispatch = useDispatch();
+    const store = useSelector((state) => state);
+
+    // Dependencies and stats state
+    const [dependencies, setDependencies] = useState([]);
+    const [stats, setStats] = useState({
+        total: 0,
+        pending: 0,
+        submitted: 0,
+        in_review: 0,
+        completed: 0,
+        urgent: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    // Filters
+    const [selectedClient, setSelectedClient] = useState('all');
+    const [selectedProject, setSelectedProject] = useState('all');
+    const [selectedStatus, setSelectedStatus] = useState('all');
+    const [selectedPriority, setSelectedPriority] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Modals
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [activeDependency, setActiveDependency] = useState(null);
+    const [depToDelete, setDepToDelete] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [toastMessage, setToastMessage] = useState(null);
+
+    // Dynamic Create Form State
+    const [formClient, setFormClient] = useState('');
+    const [formProject, setFormProject] = useState('');
+    const [formTitle, setFormTitle] = useState('');
+    const [formDescription, setFormDescription] = useState('');
+    const [formPriority, setFormPriority] = useState('medium');
+    const [formExpectedDays, setFormExpectedDays] = useState(3);
+    const [formAdminNotes, setFormAdminNotes] = useState('');
+    const [formDynamicFields, setFormDynamicFields] = useState([]);
+
+    // Review Modal State
+    const [revealedPasswords, setRevealedPasswords] = useState({});
+    const [copiedFieldId, setCopiedFieldId] = useState(null);
+    const [reviewAdminNote, setReviewAdminNote] = useState('');
+
+    const socketRef = useRef(null);
+
+    const [directProjects, setDirectProjects] = useState([]);
+
+    // Redux clients and projects
+    const reduxClients = useMemo(() => {
+        const raw = store?.clientReducer?.clients || store?.getClientsReducer?.data?.data || [];
+        return Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
+    }, [store]);
+
+    const reduxProjects = useMemo(() => {
+        const list = store?.getClientProjectsReducer?.data?.data || store?.getProjectsReducer?.data?.data || [];
+        return Array.isArray(list) ? list : [];
+    }, [store]);
+
+    const allProjects = useMemo(() => {
+        if (reduxProjects && reduxProjects.length > 0) return reduxProjects;
+        if (directProjects && directProjects.length > 0) return directProjects;
+        return [];
+    }, [reduxProjects, directProjects]);
+
+    // Check if project belongs to selected client (handles arrays of clients and single objects/IDs)
+    const projectMatchesClient = useCallback((p, clientId) => {
+        if (!p || !clientId) return false;
+        if (clientId === 'all') return true;
+
+        if (Array.isArray(p.client)) {
+            return p.client.some((c) => {
+                if (!c) return false;
+                const cId = c._id || c.id || c;
+                return String(cId) === String(clientId);
+            });
+        }
+
+        if (p.client && typeof p.client === 'object') {
+            const cId = p.client._id || p.client.id;
+            if (String(cId) === String(clientId)) return true;
+        } else if (p.client) {
+            if (String(p.client) === String(clientId)) return true;
+        }
+
+        if (p.clientId && String(p.clientId) === String(clientId)) {
+            return true;
+        }
+
+        return false;
+    }, []);
+
+    // Filtered projects for create modal based on selected client
+    const clientProjectsForCreate = useMemo(() => {
+        if (!formClient) return [];
+        const matched = allProjects.filter((p) => projectMatchesClient(p, formClient));
+        return matched.length > 0 ? matched : allProjects;
+    }, [allProjects, formClient, projectMatchesClient]);
+
+    // Auto-select project if only one project is associated with the selected client
+    useEffect(() => {
+        if (formClient && clientProjectsForCreate.length === 1 && !formProject) {
+            setFormProject(clientProjectsForCreate[0]._id);
+        }
+    }, [formClient, clientProjectsForCreate, formProject]);
+
+    // Show temporary toast notification
+    const triggerToast = (msg, type = 'success') => {
+        setToastMessage({ msg, type });
+        setTimeout(() => {
+            setToastMessage(null);
+        }, 4000);
+    };
+
+    // Load clients & projects into Redux & direct state on mount
+    useEffect(() => {
+        dispatch(getClientProjects({ page: 1, limit: 500 }));
+        dispatch(getClients({ page: 1, limit: 500 }));
+
+        api.get('/api/v1/admin/client-project?page=1&limit=500')
+            .then((res) => {
+                const list = res?.data?.data || res?.data?.projects || res?.data || [];
+                if (Array.isArray(list) && list.length > 0) {
+                    setDirectProjects(list);
+                }
+            })
+            .catch(() => { });
+    }, [dispatch]);
+
+    // Socket.IO real-time listener
+    useEffect(() => {
+        const socketServerUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
+        const socket = io(socketServerUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+        });
+        socketRef.current = socket;
+
+        const joinAdmin = () => {
+            socket.emit('join_admin_support');
+        };
+
+        joinAdmin();
+        socket.on('connect', joinAdmin);
+
+        socket.on('dependency_created', (data) => {
+            fetchDependencies();
+            fetchStats();
+        });
+
+        socket.on('dependency_submitted', (data) => {
+            triggerToast(`Client submitted fulfillment for "${data.title || 'Dependency'}"!`, 'info');
+            fetchDependencies();
+            fetchStats();
+        });
+
+        socket.on('dependency_status_changed', (data) => {
+            fetchDependencies();
+            fetchStats();
+        });
+
+        socket.on('dependency_updated', () => {
+            fetchDependencies();
+            fetchStats();
+        });
+
+        return () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        };
+    }, []);
+
+    // Fetch Stats
+    const fetchStats = async () => {
+        try {
+            const res = await api.get('/api/v1/admin/client-dependency/stats');
+            if (res && res.data) {
+                const statsData = res.data.data || res.data;
+                setStats(statsData);
+            }
+        } catch (err) {
+            console.error('Error fetching dependency stats:', err);
+        }
+    };
+
+    // Fetch Dependencies list
+    const fetchDependencies = useCallback(async () => {
+        try {
+            setLoading(true);
+            const params = {};
+            if (selectedClient && selectedClient !== 'all') params.clientId = selectedClient;
+            if (selectedProject && selectedProject !== 'all') params.projectId = selectedProject;
+            if (selectedStatus && selectedStatus !== 'all') params.status = selectedStatus;
+            if (selectedPriority && selectedPriority !== 'all') params.priority = selectedPriority;
+            if (searchTerm.trim()) params.search = searchTerm.trim();
+
+            const res = await api.get('/api/v1/admin/client-dependency', params);
+            if (res && res.data) {
+                const list = Array.isArray(res.data.data)
+                    ? res.data.data
+                    : Array.isArray(res.data)
+                        ? res.data
+                        : [];
+                setDependencies(list);
+            } else {
+                setDependencies([]);
+            }
+        } catch (err) {
+            console.error('Error fetching dependencies:', err);
+            setDependencies([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedClient, selectedProject, selectedStatus, selectedPriority, searchTerm]);
+
+    useEffect(() => {
+        fetchDependencies();
+        fetchStats();
+    }, [fetchDependencies]);
+
+    // Reset Create Modal Form
+    const handleOpenCreateModal = () => {
+        setFormClient(reduxClients.length > 0 ? reduxClients[0]._id : '');
+        setFormProject('');
+        setFormTitle('');
+        setFormDescription('');
+        setFormPriority('medium');
+        setFormExpectedDays(3);
+        setFormAdminNotes('');
+        // Initialize with default API Token dynamic field
+        setFormDynamicFields([
+            {
+                id: 'field_' + Date.now(),
+                label: 'API Key / Secret Token',
+                fieldType: 'password',
+                placeholder: 'e.g. sk_live_...',
+                helpText: 'Secret API authorization key or token',
+                isRequired: true
+            }
+        ]);
+        setShowCreateModal(true);
+    };
+
+    // Add dynamic field manually
+    const handleAddCustomField = () => {
+        const newField = {
+            id: 'field_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            label: `Requirement Field #${formDynamicFields.length + 1}`,
+            fieldType: 'text',
+            placeholder: 'Enter value',
+            helpText: '',
+            isRequired: true
+        };
+        setFormDynamicFields([...formDynamicFields, newField]);
+    };
+
+    // Apply quick template
+    const handleApplyTemplate = (tmpl) => {
+        const instantiatedFields = tmpl.fields.map((f, idx) => ({
+            ...f,
+            id: 'field_' + Date.now() + '_' + idx
+        }));
+        setFormDynamicFields([...formDynamicFields, ...instantiatedFields]);
+        triggerToast(`Added template: "${tmpl.title}"`);
+    };
+
+    // Modify a dynamic field
+    const handleUpdateField = (index, key, value) => {
+        const updated = [...formDynamicFields];
+        updated[index] = { ...updated[index], [key]: value };
+        setFormDynamicFields(updated);
+    };
+
+    // Remove a dynamic field
+    const handleRemoveField = (index) => {
+        if (formDynamicFields.length <= 1) {
+            triggerToast('A dependency must have at least one requirement field.', 'error');
+            return;
+        }
+        const updated = formDynamicFields.filter((_, i) => i !== index);
+        setFormDynamicFields(updated);
+    };
+
+    // Move field up or down
+    const handleMoveField = (index, direction) => {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= formDynamicFields.length) return;
+        const updated = [...formDynamicFields];
+        const temp = updated[index];
+        updated[index] = updated[targetIndex];
+        updated[targetIndex] = temp;
+        setFormDynamicFields(updated);
+    };
+
+    // Save New Dependency
+    const handleCreateDependencySubmit = async (e) => {
+        e.preventDefault();
+        if (!formClient) {
+            triggerToast('Please select a client.', 'error');
+            return;
+        }
+        if (!formProject) {
+            triggerToast('Please select a project for this client.', 'error');
+            return;
+        }
+        if (!formTitle.trim()) {
+            triggerToast('Please enter dependency title.', 'error');
+            return;
+        }
+        if (formDynamicFields.length === 0) {
+            triggerToast('Please add at least one dynamic requirement field.', 'error');
+            return;
+        }
+
+        // Validate that all dynamic fields have a label
+        for (let i = 0; i < formDynamicFields.length; i++) {
+            if (!formDynamicFields[i].label.trim()) {
+                triggerToast(`Field #${i + 1} must have a title / label.`, 'error');
+                return;
+            }
+        }
+
+        try {
+            setSaving(true);
+            const payload = {
+                clientId: formClient,
+                projectId: formProject,
+                title: formTitle.trim(),
+                description: formDescription.trim(),
+                priority: formPriority,
+                expectedDays: parseInt(formExpectedDays, 10) || 3,
+                adminNotes: formAdminNotes.trim(),
+                dynamicFields: formDynamicFields
+            };
+
+            const res = await api.create('/api/v1/admin/client-dependency', payload);
+            if (res && res.status) {
+                triggerToast('Dependency requirement sent to client successfully!');
+                setShowCreateModal(false);
+                fetchDependencies();
+                fetchStats();
+            } else {
+                triggerToast(res?.message || 'Failed to create dependency.', 'error');
+            }
+        } catch (err) {
+            console.error('Error creating dependency:', err);
+            triggerToast(err?.message || 'Server error creating dependency.', 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Open Review / Detail Modal
+    const handleOpenReviewModal = async (dep) => {
+        try {
+            setActiveDependency(dep);
+            setReviewAdminNote(dep.adminNotes || '');
+            setRevealedPasswords({});
+            setShowReviewModal(true);
+
+            // Fetch latest fresh data for this dependency
+            const res = await api.get(`/api/v1/admin/client-dependency/${dep._id}`);
+            if (res && res.data) {
+                const freshData = res.data.data || res.data;
+                setActiveDependency(freshData);
+                setReviewAdminNote(freshData.adminNotes || '');
+            }
+        } catch (err) {
+            console.error('Error opening review modal:', err);
+        }
+    };
+
+    // Copy to clipboard helper
+    const handleCopyValue = (fieldId, value) => {
+        if (!value) return;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(value);
+            setCopiedFieldId(fieldId);
+            setTimeout(() => {
+                setCopiedFieldId(null);
+            }, 2500);
+        }
+    };
+
+    // Toggle reveal password
+    const toggleRevealPassword = (fieldId) => {
+        setRevealedPasswords((prev) => ({
+            ...prev,
+            [fieldId]: !prev[fieldId]
+        }));
+    };
+
+    // Status Update Action
+    const handleUpdateStatus = async (newStatus) => {
+        if (!activeDependency?._id) return;
+        try {
+            setUpdatingStatus(true);
+            const res = await api.update(`/api/v1/admin/client-dependency/${activeDependency._id}/status`, {
+                status: newStatus,
+                adminNotes: reviewAdminNote
+            });
+            if (res && res.status) {
+                triggerToast(`Dependency status updated to "${newStatus.replace('_', ' ')}"!`);
+                setActiveDependency((prev) => ({ ...prev, status: newStatus, adminNotes: reviewAdminNote }));
+                fetchDependencies();
+                fetchStats();
+            } else {
+                triggerToast(res?.message || 'Failed to update status', 'error');
+            }
+        } catch (err) {
+            console.error('Error updating status:', err);
+            triggerToast(err?.message || 'Error updating status', 'error');
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    // Delete Dependency
+    const handleDeleteDependency = async () => {
+        if (!depToDelete?._id) return;
+        try {
+            const res = await api.delete(`/api/v1/admin/client-dependency/${depToDelete._id}`);
+            if (res && res.status) {
+                triggerToast('Dependency deleted successfully.');
+                setShowDeleteModal(false);
+                setDepToDelete(null);
+                if (showReviewModal) setShowReviewModal(false);
+                fetchDependencies();
+                fetchStats();
+            } else {
+                triggerToast(res?.message || 'Failed to delete dependency', 'error');
+            }
+        } catch (err) {
+            console.error('Error deleting dependency:', err);
+            triggerToast(err?.message || 'Error deleting dependency', 'error');
+        }
+    };
+
+    // Days Remaining / Overdue Helper
+    const getDueStatusText = (dueDate) => {
+        if (!dueDate) return null;
+        const now = new Date();
+        const due = new Date(dueDate);
+        const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return {
+                text: `Overdue by ${Math.abs(diffDays)}d`,
+                className: 'overdue'
+            };
+        } else if (diffDays === 0) {
+            return {
+                text: 'Due Today',
+                className: 'urgent'
+            };
+        } else {
+            return {
+                text: `${diffDays} days left`,
+                className: 'normal'
+            };
+        }
+    };
+
+    return (
+        <div className="client-dep-page">
+            {/* Top Toast Banner */}
+            {toastMessage && (
+                <div className={`dep-toast-banner ${toastMessage.type}`}>
+                    <i className={toastMessage.type === 'error' ? 'uil uil-exclamation-triangle' : 'uil uil-check-circle'}></i>
+                    <span>{toastMessage.msg}</span>
+                    <button className="btn-close-toast" onClick={() => setToastMessage(null)}>×</button>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="client-dep-header">
+                <div className="client-dep-title-wrap">
+                    <h3>
+                        <i className="uil uil-layer-group text-primary"></i>
+                        Client Dependencies & Dynamic Requirements
+                    </h3>
+                    <p className="client-dep-subtitle">
+                        Request dynamic API tokens, credentials, documents, and credentials from clients with deadline & priority tracking
+                    </p>
+                </div>
+                <div>
+                    <button
+                        type="button"
+                        className="btn-new-dep"
+                        onClick={handleOpenCreateModal}
+                    >
+                        <i className="uil uil-plus"></i> New Dependency Request
+                    </button>
+                </div>
+            </div>
+
+            {/* KPI Summary Cards */}
+            <div className="client-dep-stats-grid">
+                <div
+                    className={`dep-stat-card ${selectedStatus === 'all' && selectedPriority === 'all' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedStatus('all'); setSelectedPriority('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">Total Requests</div>
+                        <div className="dep-stat-value text-primary">{stats.total || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-total">
+                        <i className="uil uil-layers"></i>
+                    </div>
+                </div>
+
+                <div
+                    className={`dep-stat-card ${selectedStatus === 'pending' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedStatus('pending'); setSelectedPriority('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">Pending Client</div>
+                        <div className="dep-stat-value text-warning">{stats.pending || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-pending">
+                        <i className="uil uil-clock-three"></i>
+                    </div>
+                </div>
+
+                <div
+                    className={`dep-stat-card ${selectedStatus === 'submitted' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedStatus('submitted'); setSelectedPriority('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">Ready for Review</div>
+                        <div className="dep-stat-value" style={{ color: '#7c3aed' }}>{stats.submitted || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-submitted">
+                        <i className="uil uil-envelope-upload"></i>
+                    </div>
+                </div>
+
+                <div
+                    className={`dep-stat-card ${selectedStatus === 'in_review' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedStatus('in_review'); setSelectedPriority('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">In Review</div>
+                        <div className="dep-stat-value text-info">{stats.in_review || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-review">
+                        <i className="uil uil-eye"></i>
+                    </div>
+                </div>
+
+                <div
+                    className={`dep-stat-card ${selectedStatus === 'completed' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedStatus('completed'); setSelectedPriority('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">Completed</div>
+                        <div className="dep-stat-value text-success">{stats.completed || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-completed">
+                        <i className="uil uil-check-circle"></i>
+                    </div>
+                </div>
+
+                <div
+                    className={`dep-stat-card ${selectedPriority === 'urgent' ? 'active-filter' : ''}`}
+                    onClick={() => { setSelectedPriority('urgent'); setSelectedStatus('all'); }}
+                >
+                    <div>
+                        <div className="dep-stat-label">Urgent / High</div>
+                        <div className="dep-stat-value text-danger">{stats.urgent || 0}</div>
+                    </div>
+                    <div className="dep-stat-icon-wrap dep-icon-urgent">
+                        <i className="uil uil-bolt-alt"></i>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filter Controls */}
+            <div className="client-dep-filter-card">
+                <div className="dep-filter-title">
+                    <i className="uil uil-filter text-primary"></i>
+                    Filter Requirements
+                </div>
+
+                <div className="dep-filter-row">
+                    <div className="dep-filter-item">
+                        <label className="dep-filter-label">Select Client</label>
+                        <select
+                            className="dep-filter-select"
+                            value={selectedClient}
+                            onChange={(e) => {
+                                setSelectedClient(e.target.value);
+                                setSelectedProject('all');
+                            }}
+                        >
+                            <option value="all">All Clients ({reduxClients.length})</option>
+                            {reduxClients.map((c) => (
+                                <option key={c._id} value={c._id}>
+                                    {c.name || c.clientName || c.email}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="dep-filter-item">
+                        <label className="dep-filter-label">Select Project</label>
+                        <select
+                            className="dep-filter-select"
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                        >
+                            <option value="all">All Projects</option>
+                            {allProjects
+                                .filter((p) => {
+                                    if (selectedClient === 'all') return true;
+                                    return projectMatchesClient(p, selectedClient);
+                                })
+                                .map((p) => (
+                                    <option key={p._id} value={p._id}>
+                                        {p.name || p.projectName || 'Project'}
+                                    </option>
+                                ))}
+                        </select>
+                    </div>
+
+                    <div className="dep-filter-item">
+                        <label className="dep-filter-label">Status</label>
+                        <select
+                            className="dep-filter-select"
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending Client</option>
+                            <option value="submitted">Submitted</option>
+                            <option value="in_review">In Review</option>
+                            <option value="completed">Completed</option>
+                            <option value="rejected">Rejected / Revision</option>
+                        </select>
+                    </div>
+
+                    <div className="dep-filter-item">
+                        <label className="dep-filter-label">Priority</label>
+                        <select
+                            className="dep-filter-select"
+                            value={selectedPriority}
+                            onChange={(e) => setSelectedPriority(e.target.value)}
+                        >
+                            <option value="all">All Priorities</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+
+                    <div className="dep-filter-item-search">
+                        <label className="dep-filter-label">Search Requirements</label>
+                        <div className="dep-search-input-wrap">
+                            <i className="uil uil-search dep-search-icon"></i>
+                            <input
+                                type="text"
+                                className="dep-filter-input dep-search-input"
+                                placeholder="Search by title, description or code..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <button
+                            type="button"
+                            className="btn-filter-reset"
+                            onClick={() => {
+                                setSelectedClient('all');
+                                setSelectedProject('all');
+                                setSelectedStatus('all');
+                                setSelectedPriority('all');
+                                setSearchTerm('');
+                            }}
+                            title="Reset all filters"
+                        >
+                            <i className="uil uil-redo"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                {/* Active filter tags */}
+                {(selectedClient !== 'all' || selectedProject !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchTerm) && (
+                    <div className="dep-active-tags-bar">
+                        <span className="text-muted fw-bold me-1">Active filters:</span>
+                        {selectedClient !== 'all' && (
+                            <span className="dep-tag-pill">
+                                Client: {reduxClients.find((c) => c._id === selectedClient)?.name || selectedClient}
+                                <span className="dep-tag-remove" onClick={() => setSelectedClient('all')}>&times;</span>
+                            </span>
+                        )}
+                        {selectedProject !== 'all' && (
+                            <span className="dep-tag-pill">
+                                Project: {reduxProjects.find((p) => p._id === selectedProject)?.projectName || selectedProject}
+                                <span className="dep-tag-remove" onClick={() => setSelectedProject('all')}>&times;</span>
+                            </span>
+                        )}
+                        {selectedStatus !== 'all' && (
+                            <span className="dep-tag-pill">
+                                Status: {selectedStatus.replace('_', ' ')}
+                                <span className="dep-tag-remove" onClick={() => setSelectedStatus('all')}>&times;</span>
+                            </span>
+                        )}
+                        {selectedPriority !== 'all' && (
+                            <span className="dep-tag-pill">
+                                Priority: {selectedPriority}
+                                <span className="dep-tag-remove" onClick={() => setSelectedPriority('all')}>&times;</span>
+                            </span>
+                        )}
+                        {searchTerm && (
+                            <span className="dep-tag-pill">
+                                Query: "{searchTerm}"
+                                <span className="dep-tag-remove" onClick={() => setSearchTerm('')}>&times;</span>
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Dependencies Table or Polished Empty State */}
+            {loading ? (
+                <div className="dep-empty-card">
+                    <div className="dep-spinner"></div>
+                    <p className="mb-0">Loading client dependencies...</p>
+                </div>
+            ) : (!Array.isArray(dependencies) || dependencies.length === 0) ? (
+                <div className="dep-empty-card">
+                    <div className="dep-empty-icon-wrap">
+                        <i className="uil uil-clipboard-notes"></i>
+                    </div>
+                    <h4>No Dependency Requirements Found</h4>
+                    <p>
+                        There are no requirements matching your filter criteria. Create a new request to solicit tokens, credentials, or documents from the client.
+                    </p>
+                    <button className="btn-new-dep" onClick={handleOpenCreateModal}>
+                        <i className="uil uil-plus"></i> New Dependency Request
+                    </button>
+                </div>
+            ) : (
+                <div className="dep-table-card">
+                    <table className="dep-table">
+                        <thead>
+                            <tr>
+                                <th>Dependency & Scope</th>
+                                <th>Client & Project</th>
+                                <th>Priority</th>
+                                <th>Timeline & Turnaround</th>
+                                <th>Requirement Fields</th>
+                                <th>Status</th>
+                                <th className="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {(Array.isArray(dependencies) ? dependencies : []).map((dep) => {
+                                const dueMeta = getDueStatusText(dep.dueDate);
+                                const filledCount = dep.dynamicFields?.filter((f) => f.isFilled || f.value || f.fileValue?.url)?.length || 0;
+                                const totalCount = dep.dynamicFields?.length || 0;
+
+                                return (
+                                    <tr key={dep._id} className={dep.priority === 'urgent' ? 'row-urgent' : ''}>
+                                        <td>
+                                            <div className="dep-cell-title">
+                                                <span className="dep-code">
+                                                    DEP-{dep._id.substr(-5).toUpperCase()}
+                                                </span>
+                                                <div className="dep-code-title-row">
+                                                    <span className="dep-title-text" onClick={() => handleOpenReviewModal(dep)}>
+                                                        {dep.title}
+                                                    </span>
+                                                </div>
+                                                {dep.description && (
+                                                    <span className="dep-desc-text">
+                                                        {dep.description}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <div className="dep-cell-client">
+                                                <span className="client-name">
+                                                    <i className="uil uil-user"></i>
+                                                    {dep.client?.name || dep.client?.clientName || 'Assigned Client'}
+                                                </span>
+                                                <span className="project-badge">
+                                                    <i className="uil uil-folder"></i>
+                                                    {dep.project?.projectName || dep.project?.name || 'Assigned Project'}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span className={`dep-priority-pill ${dep.priority}`}>
+                                                <span className="priority-dot"></span>
+                                                {dep.priority?.toUpperCase()}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <div className="dep-cell-timeline">
+                                                <span className="expected-days">
+                                                    {dep.expectedDays} {dep.expectedDays === 1 ? 'day' : 'days'} required
+                                                </span>
+                                                {dueMeta && (
+                                                    <span className={`due-meta-pill ${dueMeta.className}`}>
+                                                        {dueMeta.text}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <div className="dep-cell-fields">
+                                                <span className="fields-count-badge">
+                                                    <i className="uil uil-sliders-v-alt"></i>
+                                                    {filledCount} of {totalCount} filled
+                                                </span>
+                                                <div className="fields-type-chips">
+                                                    {dep.dynamicFields?.slice(0, 3).map((f, i) => (
+                                                        <span key={i} className="field-chip-mini" title={f.label}>
+                                                            {f.fieldType === 'password' && <i className="uil uil-key-skeleton"></i>}
+                                                            {f.fieldType === 'file' && <i className="uil uil-paperclip"></i>}
+                                                            {f.fieldType === 'url' && <i className="uil uil-link-h"></i>}
+                                                            {f.fieldType === 'text' && <i className="uil uil-font"></i>}
+                                                            {f.fieldType === 'textarea' && <i className="uil uil-subject"></i>}
+                                                            {f.label}
+                                                        </span>
+                                                    ))}
+                                                    {dep.dynamicFields?.length > 3 && (
+                                                        <span className="field-chip-more">+{dep.dynamicFields.length - 3}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span className={`dep-status-pill ${dep.status}`}>
+                                                {dep.status === 'pending' && <><i className="uil uil-clock"></i> Pending Client</>}
+                                                {dep.status === 'submitted' && <><i className="uil uil-check"></i> Submitted</>}
+                                                {dep.status === 'in_review' && <><i className="uil uil-eye"></i> In Review</>}
+                                                {dep.status === 'completed' && <><i className="uil uil-check-circle"></i> Completed</>}
+                                                {dep.status === 'rejected' && <><i className="uil uil-times-circle"></i> Revision</>}
+                                            </span>
+                                        </td>
+
+                                        <td className="text-end">
+                                            <div className="dep-actions-row">
+                                                <button
+                                                    className="btn-action-view"
+                                                    onClick={() => handleOpenReviewModal(dep)}
+                                                    title="Review requirements and credentials"
+                                                >
+                                                    <i className="uil uil-eye"></i>
+                                                    <span>Review</span>
+                                                </button>
+                                                <button
+                                                    className="btn-action-delete"
+                                                    onClick={() => {
+                                                        setDepToDelete(dep);
+                                                        setShowDeleteModal(true);
+                                                    }}
+                                                    title="Delete dependency"
+                                                >
+                                                    <i className="uil uil-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {/* </div> */}
+            <Modal
+                show={showCreateModal}
+                onHide={() => setShowCreateModal(false)}
+                size="lg"
+                centered
+                dialogClassName="dep-custom-modal"
+            >
+                <form onSubmit={handleCreateDependencySubmit}>
+                    <div className="dep-modal-header">
+                        <div className="dep-modal-header-left">
+                            <div className="dep-modal-header-icon">
+                                <i className="uil uil-plus-circle"></i>
+                            </div>
+                            <div>
+                                <h5 className="dep-modal-title">Create Dynamic Dependency Requirement</h5>
+                                <p className="dep-modal-subtitle">
+                                    Request dynamic credentials, API tokens, documents or specifications from client
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="dep-modal-close-btn"
+                            onClick={() => setShowCreateModal(false)}
+                            title="Close modal"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div className="dep-modal-body">
+                        <div className="dep-modal-grid">
+                            {/* Client & Project Selection */}
+                            <div className="dep-form-row two-col">
+                                <div className="dep-form-group">
+                                    <label>
+                                        Client <span className="req">*</span>
+                                    </label>
+                                    <select
+                                        className="dep-form-control"
+                                        value={formClient}
+                                        onChange={(e) => {
+                                            setFormClient(e.target.value);
+                                            setFormProject('');
+                                        }}
+                                        required
+                                    >
+                                        <option value="">Select Client</option>
+                                        {reduxClients.map((c) => (
+                                            <option key={c._id} value={c._id}>
+                                                {c.name || c.clientName || c.email}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="dep-form-group">
+                                    <label>
+                                        Project <span className="req">*</span>
+                                    </label>
+                                    <select
+                                        className="dep-form-control"
+                                        value={formProject}
+                                        onChange={(e) => setFormProject(e.target.value)}
+                                        disabled={!formClient}
+                                        required
+                                    >
+                                        <option value="">
+                                            {!formClient
+                                                ? 'Select Client first'
+                                                : clientProjectsForCreate.length === 0
+                                                    ? 'No projects available'
+                                                    : 'Select Project'}
+                                        </option>
+                                        {clientProjectsForCreate.map((p) => (
+                                            <option key={p._id} value={p._id}>
+                                                {p.name || p.projectName || 'Project'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Title & Priority & Turnaround */}
+                            <div className="dep-form-group">
+                                <label>
+                                    Requirement Title <span className="req">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    className="dep-form-control"
+                                    placeholder="e.g. Production Stripe Keys & Webhook Signing Secret"
+                                    value={formTitle}
+                                    onChange={(e) => setFormTitle(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            <div className="dep-form-row three-col">
+                                <div className="dep-form-group">
+                                    <label>Priority</label>
+                                    <select
+                                        className="dep-form-control"
+                                        value={formPriority}
+                                        onChange={(e) => setFormPriority(e.target.value)}
+                                    >
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+
+                                <div className="dep-form-group">
+                                    <label>
+                                        Turnaround Days <span className="req">*</span>
+                                    </label>
+                                    <div className="input-group-days">
+                                        <input
+                                            type="number"
+                                            className="dep-form-control"
+                                            min="1"
+                                            max="60"
+                                            value={formExpectedDays}
+                                            onChange={(e) => setFormExpectedDays(e.target.value)}
+                                            required
+                                        />
+                                        <span className="days-addon">days</span>
+                                    </div>
+                                </div>
+
+                                <div className="dep-form-group">
+                                    <label>Calculated Deadline</label>
+                                    <div className="calculated-due-badge">
+                                        <i className="uil uil-calendar-alt"></i>
+                                        {new Date(Date.now() + (parseInt(formExpectedDays, 10) || 1) * 86400000).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="dep-form-group">
+                                <label>Instructions / Requirement Context</label>
+                                <textarea
+                                    className="dep-form-control"
+                                    rows="2"
+                                    placeholder="Provide clear steps or instructions for the client regarding where to obtain these credentials or details..."
+                                    value={formDescription}
+                                    onChange={(e) => setFormDescription(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Quick Field Templates Section */}
+                            <div className="dep-builder-section">
+                                <div className="dep-builder-header">
+                                    <div>
+                                        <h6>Requirement Fields</h6>
+                                        <p>Build custom input fields the client must provide (passwords, tokens, text, urls, files).</p>
+                                    </div>
+                                </div>
+
+                                <div className="quick-templates-box">
+                                    <span className="quick-tmpl-title">1-Click Templates:</span>
+                                    <div className="quick-tmpl-chips">
+                                        {QUICK_FIELD_TEMPLATES.map((tmpl, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                className="btn-quick-tmpl"
+                                                onClick={() => handleApplyTemplate(tmpl)}
+                                                title={tmpl.desc}
+                                            >
+                                                <i className="uil uil-plus"></i> {tmpl.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Field Items List */}
+                                <div className="dynamic-fields-list">
+                                    {formDynamicFields.map((field, index) => (
+                                        <div key={field.id || index} className="dynamic-field-item">
+                                            <div className="dynamic-field-top">
+                                                <span className="field-seq">#{index + 1}</span>
+                                                <div className="field-inputs-row">
+                                                    <div className="field-label-col">
+                                                        <input
+                                                            type="text"
+                                                            className="dep-form-control field-label-input"
+                                                            placeholder="Field Label (e.g. API Secret Token)"
+                                                            value={field.label}
+                                                            onChange={(e) => handleUpdateField(index, 'label', e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+
+                                                    <div className="field-type-col">
+                                                        <select
+                                                            className="dep-form-control field-type-select"
+                                                            value={field.fieldType}
+                                                            onChange={(e) => handleUpdateField(index, 'fieldType', e.target.value)}
+                                                        >
+                                                            <option value="text">Single-line Text</option>
+                                                            <option value="password">Password / Secret Token</option>
+                                                            <option value="textarea">Multi-line Text</option>
+                                                            <option value="url">URL / Web Link</option>
+                                                            <option value="file">File / Attachment</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="field-req-col">
+                                                        <label className="checkbox-label">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={field.isRequired}
+                                                                onChange={(e) => handleUpdateField(index, 'isRequired', e.target.checked)}
+                                                            />
+                                                            <span>Required</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="field-actions-col">
+                                                    <button
+                                                        type="button"
+                                                        className="btn-field-seq"
+                                                        disabled={index === 0}
+                                                        onClick={() => handleMoveField(index, -1)}
+                                                        title="Move Up"
+                                                    >
+                                                        <i className="uil uil-arrow-up"></i>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-field-seq"
+                                                        disabled={index === formDynamicFields.length - 1}
+                                                        onClick={() => handleMoveField(index, 1)}
+                                                        title="Move Down"
+                                                    >
+                                                        <i className="uil uil-arrow-down"></i>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-field-remove"
+                                                        onClick={() => handleRemoveField(index)}
+                                                        title="Remove Field"
+                                                    >
+                                                        <i className="uil uil-trash-alt"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="dynamic-field-bottom">
+                                                {field.fieldType !== 'file' && (
+                                                    <input
+                                                        type="text"
+                                                        className="dep-form-control field-sub-input"
+                                                        placeholder="Placeholder text (e.g. sk_live_...)"
+                                                        value={field.placeholder || ''}
+                                                        onChange={(e) => handleUpdateField(index, 'placeholder', e.target.value)}
+                                                    />
+                                                )}
+                                                <input
+                                                    type="text"
+                                                    className="dep-form-control field-sub-input"
+                                                    placeholder="Helper guidance note for client (optional)"
+                                                    value={field.helpText || ''}
+                                                    onChange={(e) => handleUpdateField(index, 'helpText', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="btn-add-custom-field"
+                                    onClick={handleAddCustomField}
+                                >
+                                    <i className="uil uil-plus"></i> Add Custom Field
+                                </button>
+                            </div>
+
+                            {/* Internal Admin Note */}
+                            <div className="dep-form-group">
+                                <label>Internal Admin Notes (Optional)</label>
+                                <input
+                                    type="text"
+                                    className="dep-form-control"
+                                    placeholder="Internal memo for project manager or developers..."
+                                    value={formAdminNotes}
+                                    onChange={(e) => setFormAdminNotes(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="dep-modal-footer">
+                        <button
+                            type="button"
+                            className="btn-modal-cancel"
+                            onClick={() => setShowCreateModal(false)}
+                            disabled={saving}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn-modal-submit"
+                            disabled={saving}
+                        >
+                            {saving ? (
+                                <>
+                                    <span className="spinner-border spinner-border-sm me-1"></span>
+                                    Dispatching to Client...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="uil uil-send"></i>
+                                    Send Dependency to Client
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* REVIEW / DETAIL MODAL */}
+            {
+                activeDependency && (
+                    <Modal
+                        show={showReviewModal}
+                        onHide={() => setShowReviewModal(false)}
+                        size="lg"
+                        centered
+                        dialogClassName="dep-custom-modal dep-review-modal"
+                    >
+                        <div className="dep-modal-header">
+                            <div className="dep-modal-header-left">
+                                <div className="dep-modal-header-icon">
+                                    <i className="uil uil-file-alt"></i>
+                                </div>
+                                <div>
+                                    <div className="">
+                                        <span className="review-ticket-tag">
+                                            DEP-{activeDependency._id ? activeDependency._id.substr(-5).toUpperCase() : 'REQ'}
+                                        </span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                                        <h5 className="dep-modal-title mb-0">{activeDependency.title}</h5>
+                                        <span className={`dep-priority-pill ${activeDependency.priority}`}>
+                                            <span className="priority-dot"></span>
+                                            {activeDependency.priority?.toUpperCase()}
+                                        </span>
+                                        <span className={`dep-status-pill ${activeDependency.status}`}>
+                                            {activeDependency.status?.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dep-modal-close-btn"
+                                onClick={() => setShowReviewModal(false)}
+                                title="Close modal"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <div className="dep-modal-body">
+                            <div className="review-meta-bar">
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Client</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-user"></i>
+                                        {activeDependency.client?.name || activeDependency.client?.clientName || 'Client'}
+                                    </span>
+                                </div>
+
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Project</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-folder"></i>
+                                        {activeDependency.project?.projectName || activeDependency.project?.name || 'Project'}
+                                    </span>
+                                </div>
+
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Timeline</span>
+                                    <span className="meta-val">
+                                        <i className="uil uil-hourglass"></i>
+                                        {activeDependency.expectedDays} Days Turnaround
+                                    </span>
+                                </div>
+
+                                <div className="review-meta-item">
+                                    <span className="meta-label">Current Status</span>
+                                    <span className={`dep-status-pill ${activeDependency.status}`}>
+                                        {activeDependency.status?.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {activeDependency.description && (
+                                <div className="review-instructions-box">
+                                    <span className="instr-label">Requirement Instructions:</span>
+                                    <p>{activeDependency.description}</p>
+                                </div>
+                            )}
+
+                            {/* Client Submitted Dynamic Fields */}
+                            <div className="review-fields-section">
+                                <div className="review-fields-heading">
+                                    <h6>Fulfilled Credentials & Requirement Data</h6>
+                                    <span className="fields-stat">
+                                        {activeDependency.dynamicFields?.filter((f) => f.isFilled || f.value || f.fileValue?.url)?.length} of{' '}
+                                        {activeDependency.dynamicFields?.length} provided
+                                    </span>
+                                </div>
+
+                                <div className="review-fields-grid">
+                                    {activeDependency.dynamicFields?.map((field, idx) => {
+                                        const hasValue = field.value || field.fileValue?.url;
+                                        const isPass = field.fieldType === 'password';
+                                        const isRevealed = revealedPasswords[field.id || idx];
+                                        const isCopied = copiedFieldId === (field.id || idx);
+
+                                        return (
+                                            <div key={field.id || idx} className={`review-field-card ${hasValue ? 'filled' : 'unfilled'}`}>
+                                                <div className="review-field-top">
+                                                    <div className="review-field-title">
+                                                        <span className="field-seq-tag">#{idx + 1}</span>
+                                                        <span className="field-label-name">{field.label}</span>
+                                                        {field.isRequired && <span className="field-req-tag">Required</span>}
+                                                        <span className="field-type-tag">{field.fieldType}</span>
+                                                    </div>
+
+                                                    {hasValue && (
+                                                        <div className="review-field-actions">
+                                                            {isPass && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-field-icon"
+                                                                    onClick={() => toggleRevealPassword(field.id || idx)}
+                                                                    title={isRevealed ? 'Mask secret' : 'Reveal secret'}
+                                                                >
+                                                                    <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
+                                                                </button>
+                                                            )}
+
+                                                            {field.fieldType !== 'file' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-field-icon"
+                                                                    onClick={() => handleCopyValue(field.id || idx, field.value)}
+                                                                    title="Copy to clipboard"
+                                                                >
+                                                                    <i className={isCopied ? 'uil uil-check text-success' : 'uil uil-copy'}></i>
+                                                                    {isCopied && <span className="copied-tooltip">Copied!</span>}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="review-field-body">
+                                                    {!hasValue ? (
+                                                        <div className="unfilled-field-badge">
+                                                            <i className="uil uil-clock-three"></i>
+                                                            Waiting for client submission...
+                                                        </div>
+                                                    ) : field.fieldType === 'file' ? (
+                                                        <div className="field-file-display">
+                                                            <div className="file-icon-box">
+                                                                <i className="uil uil-file-download-alt"></i>
+                                                            </div>
+                                                            <div className="file-info-col">
+                                                                <span className="filename-text">
+                                                                    {field.fileValue?.name || 'Attached Requirement Document'}
+                                                                </span>
+                                                                {field.fileValue?.size && (
+                                                                    <span className="filesize-text">
+                                                                        {(field.fileValue.size / 1024).toFixed(1)} KB
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <a
+                                                                href={field.fileValue?.url}
+                                                                download={field.fileValue?.name || 'document'}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="btn-download-field-file"
+                                                            >
+                                                                <i className="uil uil-download-alt"></i> Download
+                                                            </a>
+                                                        </div>
+                                                    ) : isPass ? (
+                                                        <div className="field-pass-display">
+                                                            <span className="secret-text">
+                                                                {isRevealed ? field.value : '••••••••••••••••••••'}
+                                                            </span>
+                                                        </div>
+                                                    ) : field.fieldType === 'textarea' ? (
+                                                        <pre className="field-textarea-display">{field.value}</pre>
+                                                    ) : field.fieldType === 'url' ? (
+                                                        <a
+                                                            href={field.value.startsWith('http') ? field.value : `https://${field.value}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="field-url-display"
+                                                        >
+                                                            {field.value} <i className="uil uil-external-link-alt"></i>
+                                                        </a>
+                                                    ) : (
+                                                        <div className="field-text-display">{field.value}</div>
+                                                    )}
+                                                </div>
+
+                                                {field.helpText && (
+                                                    <div className="field-help-footer">
+                                                        <i className="uil uil-info-circle"></i> {field.helpText}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Client Notes if submitted */}
+                            {activeDependency.clientNotes && (
+                                <div className="review-client-notes-box">
+                                    <span className="notes-heading">
+                                        <i className="uil uil-comment-alt-lines"></i> Client Submission Note:
+                                    </span>
+                                    <p>{activeDependency.clientNotes}</p>
+                                </div>
+                            )}
+
+                            {/* Admin Note / Revision feedback */}
+                            <div className="dep-form-group mt-3">
+                                <label className="fw-semibold">Admin Notes & Revision Instructions (Visible to Client if rejected)</label>
+                                <textarea
+                                    className="dep-form-control"
+                                    rows="2"
+                                    placeholder="Add revision details or notes for client..."
+                                    value={reviewAdminNote}
+                                    onChange={(e) => setReviewAdminNote(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="dep-modal-footer">
+                            <div className="review-modal-footer-flex">
+                                <div className="status-action-btns">
+                                    {activeDependency.status !== 'in_review' && activeDependency.status !== 'completed' && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-primary"
+                                            onClick={() => handleUpdateStatus('in_review')}
+                                            disabled={updatingStatus}
+                                        >
+                                            <i className="uil uil-eye me-1"></i> Mark In Review
+                                        </button>
+                                    )}
+
+                                    {activeDependency.status !== 'rejected' && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-danger"
+                                            onClick={() => handleUpdateStatus('rejected')}
+                                            disabled={updatingStatus}
+                                        >
+                                            <i className="uil uil-exclamation-octagon me-1"></i> Request Revision
+                                        </button>
+                                    )}
+
+                                    {activeDependency.status !== 'completed' && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            onClick={() => handleUpdateStatus('completed')}
+                                            disabled={updatingStatus}
+                                        >
+                                            <i className="uil uil-check-circle me-1"></i> Approve & Complete
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </Modal>
+                )
+            }
+
+            {/* DELETE CONFIRMATION MODAL */}
+            <Modal
+                show={showDeleteModal}
+                onHide={() => setShowDeleteModal(false)}
+                centered
+                dialogClassName="dep-custom-modal dep-delete-modal"
+            >
+                <div className="dep-modal-header" style={{ background: '#b91c1c' }}>
+                    <div className="dep-modal-header-left">
+                        <div className="dep-modal-header-icon" style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff' }}>
+                            <i className="uil uil-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <h5 className="dep-modal-title">Delete Dependency?</h5>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="dep-modal-close-btn"
+                        onClick={() => setShowDeleteModal(false)}
+                        title="Close"
+                    >
+                        &times;
+                    </button>
+                </div>
+                <div className="dep-modal-body" style={{ padding: '20px' }}>
+                    Are you sure you want to delete requirement{' '}
+                    <strong>"{depToDelete?.title}"</strong>? This will remove all dynamic credential fields and cannot be undone.
+                </div>
+                <div className="dep-modal-footer">
+                    <button
+                        type="button"
+                        className="btn-modal-cancel"
+                        onClick={() => setShowDeleteModal(false)}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-danger"
+                        style={{ height: '38px', borderRadius: '8px', padding: '0 18px', fontWeight: 600 }}
+                        onClick={handleDeleteDependency}
+                    >
+                        Delete Permanently
+                    </button>
+                </div>
+            </Modal>
+        </div >
+    );
+};
+
+export default ClientDependency;

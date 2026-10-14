@@ -33,6 +33,8 @@ const clientProjectRoutes = require('./clientProject');
 const clientMilestoneRoutes = require('./clientMilestone');
 const clientTaskRoutes = require('./clientTask');
 const clientDocumentsRoutes = require('./clientDocuments');
+const clientSupportRoutes = require('./clientSupport');
+const clientDependencyRoutes = require('./clientDependency');
 
 // Mount routes
 router.use('/s3', s3Routes);
@@ -65,4 +67,6 @@ router.use('/client-project', clientProjectRoutes);
 router.use('/client-milestone', clientMilestoneRoutes);
 router.use('/client-task', clientTaskRoutes);
 router.use('/documents', clientDocumentsRoutes);
+router.use('/client-support', clientSupportRoutes);
+router.use('/client-dependency', clientDependencyRoutes);
 module.exports = router;

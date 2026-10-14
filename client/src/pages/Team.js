@@ -136,8 +136,8 @@ const Team = () => {
                     : (m.designation?.name || m.role?.name || '')
             ).toLowerCase();
 
-            const matchesSearch = !search.trim() || 
-                name.includes(search.toLowerCase()) || 
+            const matchesSearch = !search.trim() ||
+                name.includes(search.toLowerCase()) ||
                 desig.includes(search.toLowerCase());
 
             const category = getMemberCategory(m);
@@ -249,9 +249,9 @@ const Team = () => {
                             </div>
                         )}
 
-                        <button 
-                            type="button" 
-                            className="btn-team-action" 
+                        <button
+                            type="button"
+                            className="btn-team-action"
                             onClick={() => dispatch(getDashboard(selectedProjectId))}
                             title="Refresh team roster"
                         >

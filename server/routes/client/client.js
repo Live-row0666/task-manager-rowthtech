@@ -81,13 +81,23 @@ router.get('/client-task', verifyClient, async (req, res) => {
 });
 
 const ClientSupportController = require('../../controllers/client/support');
+const ClientDependencyController = require('../../controllers/client/dependency');
 const upload = require('../../middleware/upload');
 
 // Support routes (client scoped with project & screenshot attachments)
+router.get('/support/download', ClientSupportController.downloadFile);
 router.get('/support', verifyClient, ClientSupportController.getTickets);
 router.post('/support', verifyClient, upload.array('screenshots'), ClientSupportController.createTicket);
 router.get('/support/:id', verifyClient, ClientSupportController.getTicketById);
 router.put('/support/:id', verifyClient, upload.array('screenshots'), ClientSupportController.updateTicket);
+router.put('/support/:id/read', verifyClient, ClientSupportController.markAsRead);
 router.delete('/support/:id', verifyClient, ClientSupportController.deleteTicket);
+router.post('/support/:id/response', verifyClient, upload.array('attachments'), ClientSupportController.addResponse);
+
+// Dependency routes (client scoped requirement fulfillment)
+router.get('/dependency/stats', verifyClient, ClientDependencyController.getStats);
+router.get('/dependency', verifyClient, ClientDependencyController.getDependencies);
+router.get('/dependency/:id', verifyClient, ClientDependencyController.getDependencyById);
+router.put('/dependency/:id/submit', verifyClient, upload.any(), ClientDependencyController.submitDependency);
 
 module.exports = router;

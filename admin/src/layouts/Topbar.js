@@ -146,8 +146,9 @@ const Topbar = ({ hideLogo, navCssClasses, openLeftMenuCallBack, topbarDark }: T
             '/dashboard/quick-add': 'Client Panel',
             '/dashboard/client-projects': 'Client Projects',
             '/dashboard/client-task-board': 'Client Task Board',
-             '/dashboard/documents': 'Documents',
-
+            '/dashboard/documents': 'Documents',
+            '/dashboard/client-supports': 'Client Supports',
+            '/dashboard/client-dependencies': 'Client Dependencies',
         };
 
         const matchedEntry = Object.entries(pathToTitle).find(([key]) =>

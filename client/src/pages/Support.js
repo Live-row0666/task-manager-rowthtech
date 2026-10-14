@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Modal } from 'react-bootstrap';
+import { io } from 'socket.io-client';
+import config from '../config';
 import CommonHeader from '../components/commonHeader';
 import CommonSidebar from '../components/commonSidebar';
 import { getDashboard } from '../redux/actions';
@@ -16,8 +18,9 @@ const Support = () => {
     const editFileInputRef = useRef(null);
     const projectDropdownRef = useRef(null);
 
-    const { dashboard } = useSelector((s) => ({
-        dashboard: s.Auth.dashboard
+    const { dashboard, user } = useSelector((s) => ({
+        dashboard: s.Auth.dashboard,
+        user: s.Auth.user
     }));
 
     const [tickets, setTickets] = useState([]);
@@ -31,6 +34,24 @@ const Support = () => {
     const [editingTicket, setEditingTicket] = useState(null);
     const [ticketToDelete, setTicketToDelete] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+
+    // Ticket Chat & Details UI State (Client <-> PM / Admin)
+    const [ticketChats, setTicketChats] = useState({});
+    const [chatInputText, setChatInputText] = useState('');
+    const [chatAttachment, setChatAttachment] = useState(null);
+    const [isPmTyping] = useState(false);
+    const [activeModalTab, setActiveModalTab] = useState('details'); // 'details' | 'chat' for mobile view
+    const [copiedRef, setCopiedRef] = useState(false);
+    const chatMessagesEndRef = useRef(null);
+    const chatFileInputRef = useRef(null);
+
+    const handleCopyTicketRef = (refCode) => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(refCode);
+            setCopiedRef(true);
+            setTimeout(() => setCopiedRef(false), 2000);
+        }
+    };
 
     // Search and Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -130,6 +151,281 @@ const Support = () => {
         return proj ? proj.name : (projects[0]?.name || 'Project Workspace');
     }, [projects, filterProject]);
 
+    const clientName = user?.username || user?.name || 'LegalTech Client';
+    const clientInitials = useMemo(() => {
+        if (!clientName) return 'LC';
+        return (
+            clientName
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2) || 'LC'
+        );
+    }, [clientName]);
+
+    // Quick prompt suggestion chips for ticket chat
+    const quickPrompts = [
+        'Any updates on this ticket?',
+        'Please check the screenshots attached',
+        'Could you verify the turnaround time?',
+        'Thank you, looks good!'
+    ];
+
+    // Helper to get or initialize chat thread for selected ticket
+    const getTicketMessages = (ticket) => {
+        if (!ticket) return [];
+        const ticketId = ticket._id || 'default';
+        if (ticketChats[ticketId]) {
+            return ticketChats[ticketId];
+        }
+
+        // If ticket has stored responses from backend, map them
+        if (ticket.responses && Array.isArray(ticket.responses) && ticket.responses.length > 0) {
+            return ticket.responses.map((r, idx) => ({
+                id: r._id || `resp-${idx}`,
+                sender: r.isAdminResponse ? 'Rowthtech' : 'client',
+                senderName: r.isAdminResponse ? 'Rowthtech' : clientName,
+                senderRole: r.isAdminResponse ? 'Support Team' : 'Client',
+                time: r.respondedAt ? new Date(r.respondedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                text: r.message || '',
+                attachments: r.attachments || [],
+                attachment: (r.attachments && r.attachments.length > 0) ? {
+                    name: r.attachments[0].originalName || 'Attachment',
+                    url: r.attachments[0].url,
+                    size: r.attachments[0].size ? (r.attachments[0].size / 1024).toFixed(1) + ' KB' : ''
+                } : null
+            }));
+        }
+
+        return [];
+    };
+
+    const activeMessages = useMemo(() => {
+        return getTicketMessages(selectedTicket);
+    }, [selectedTicket, ticketChats, clientName]);
+
+    // Send a message in ticket chat to backend API
+    const handleSendChatMessage = async (textOverride) => {
+        const text = textOverride !== undefined ? textOverride : chatInputText;
+        if ((!text || !text.trim()) && !chatAttachment) return;
+        if (!selectedTicket?._id) return;
+
+        const ticketId = selectedTicket._id;
+        const currentAttachment = chatAttachment;
+
+        setChatInputText('');
+        setChatAttachment(null);
+
+        try {
+            let res;
+            if (currentAttachment) {
+                const formData = new FormData();
+                if (text && text.trim()) formData.append('message', text.trim());
+                formData.append('attachments', currentAttachment);
+                res = await api.createWithFormData(`/api/v1/client/support/${ticketId}/response`, formData);
+            } else {
+                res = await api.create(`/api/v1/client/support/${ticketId}/response`, {
+                    message: text.trim()
+                });
+            }
+
+            if (res && res.data && res.data.data) {
+                const updatedTicket = res.data.data;
+                setSelectedTicket(updatedTicket);
+                setTickets(prev => prev.map(t => (t._id === ticketId ? updatedTicket : t)));
+            }
+        } catch (err) {
+            console.error('Error sending client chat message:', err);
+        }
+
+        // Auto-scroll to bottom of chat
+        setTimeout(() => {
+            chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 60);
+    };
+
+    const handleChatFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setChatAttachment(file);
+        }
+    };
+
+    // Helper to download an attachment reliably
+    const handleDownloadAttachment = async (url, filename) => {
+        if (!url) return;
+        const safeFilename = filename || 'attachment.png';
+
+        if (url.startsWith('data:')) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = safeFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return;
+        }
+
+        try {
+            const res = await fetch(url, { mode: 'cors' });
+            if (res.ok) {
+                const blob = await res.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = safeFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+                return;
+            }
+        } catch (err) {
+            // CORS blocked, fallback to server download endpoint
+        }
+
+        const baseUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
+        const proxyUrl = `${baseUrl}/api/v1/client/support/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(safeFilename)}`;
+        const a = document.createElement('a');
+        a.href = proxyUrl;
+        a.download = safeFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
+
+    const socketRef = useRef(null);
+    const selectedTicketRef = useRef(null);
+    const ticketsRef = useRef([]);
+
+    useEffect(() => {
+        selectedTicketRef.current = selectedTicket;
+    }, [selectedTicket]);
+
+    useEffect(() => {
+        ticketsRef.current = tickets;
+    }, [tickets]);
+
+    // Resolved client ID from redux or session storage
+    const effectiveClientId = useMemo(() => {
+        return user?.id || user?._id || api.getLoggedInUser()?.id || api.getLoggedInUser()?._id || '';
+    }, [user]);
+
+    // Handle selecting a ticket and clearing unread count
+    const handleSelectTicket = async (ticket) => {
+        setSelectedTicket(ticket);
+        const unreadCount = ticket.unreadByClient !== undefined && ticket.unreadByClient !== null
+            ? ticket.unreadByClient
+            : (ticket.responses || []).filter(r => r.isAdminResponse && !r.isReadByClient).length;
+
+        if (unreadCount > 0) {
+            setTickets(prev => prev.map(t => t._id === ticket._id ? { ...t, unreadByClient: 0 } : t));
+            setSelectedTicket(prev => prev ? { ...prev, unreadByClient: 0 } : prev);
+            try {
+                await api.update(`/api/v1/client/support/${ticket._id}/read`);
+            } catch (err) {
+                console.error('Error marking client ticket as read:', err);
+            }
+        }
+    };
+
+    // Socket.IO persistent listener on Support page mount
+    useEffect(() => {
+        const socketServerUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
+        const socket = io(socketServerUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+        });
+        socketRef.current = socket;
+
+        const joinAllRooms = () => {
+            if (effectiveClientId) {
+                socket.emit('join_client_channel', effectiveClientId);
+            }
+            if (selectedTicketRef.current?._id) {
+                socket.emit('join_ticket', selectedTicketRef.current._id);
+            }
+            if (Array.isArray(ticketsRef.current)) {
+                ticketsRef.current.forEach(t => {
+                    if (t?._id) socket.emit('join_ticket', t._id);
+                });
+            }
+        };
+
+        joinAllRooms();
+
+        socket.on('connect', () => {
+            console.log('Client Support socket connected successfully:', socket.id);
+            joinAllRooms();
+        });
+
+        socket.on('reconnect', () => {
+            console.log('Client Support socket reconnected:', socket.id);
+            joinAllRooms();
+        });
+
+        socket.on('connect_error', (error) => {
+            console.warn('Client Support socket connection error:', error.message);
+        });
+
+        socket.on('new_client_support_response', (data) => {
+            if (data && data.ticketId && data.ticket) {
+                setTickets(prev => prev.map(t => (t._id === data.ticketId ? data.ticket : t)));
+                if (selectedTicketRef.current && selectedTicketRef.current._id === data.ticketId) {
+                    setSelectedTicket(data.ticket);
+                    setTimeout(() => {
+                        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }, 50);
+                    api.update(`/api/v1/client/support/${data.ticketId}/read`).catch(() => { });
+                }
+            }
+        });
+
+        socket.on('ticket_updated', (data) => {
+            if (data && data.ticketId && data.ticket) {
+                setTickets(prev => prev.map(t => (t._id === data.ticketId ? data.ticket : t)));
+                if (selectedTicketRef.current && selectedTicketRef.current._id === data.ticketId) {
+                    setSelectedTicket(data.ticket);
+                }
+            }
+        });
+
+        return () => {
+            if (effectiveClientId) {
+                socket.emit('leave_client_channel', effectiveClientId);
+            }
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, [effectiveClientId]);
+
+    // Also join ticket room when a ticket modal is selected
+    useEffect(() => {
+        if (!socketRef.current || !selectedTicket?._id) return;
+        socketRef.current.emit('join_ticket', selectedTicket._id);
+        return () => {
+            if (socketRef.current && selectedTicket?._id) {
+                socketRef.current.emit('leave_ticket', selectedTicket._id);
+            }
+        };
+    }, [selectedTicket?._id]);
+
+    // Auto-scroll when selected ticket opens
+    useEffect(() => {
+        if (selectedTicket) {
+            setActiveModalTab('details');
+            setTimeout(() => {
+                chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [selectedTicket]);
+
     const fetchTickets = async () => {
         try {
             setLoading(true);
@@ -137,6 +433,12 @@ const Support = () => {
             const res = await api.get('/api/v1/client/support', queryParams);
             if (res.data?.data) {
                 setTickets(res.data.data);
+                ticketsRef.current = res.data.data;
+                if (socketRef.current) {
+                    res.data.data.forEach(t => {
+                        if (t?._id) socketRef.current.emit('join_ticket', t._id);
+                    });
+                }
             }
         } catch (err) {
             console.error('Fetch support tickets error:', err);
@@ -287,6 +589,7 @@ const Support = () => {
     };
 
     // Open Edit Modal
+    // eslint-disable-next-line no-unused-vars
     const handleOpenEdit = (ticket) => {
         setEditingTicket(ticket);
         setEditTitle(ticket.title || '');
@@ -582,8 +885,8 @@ const Support = () => {
                                                 style={{
                                                     background:
                                                         filterPriority === 'urgent' ? '#dc2626' :
-                                                        filterPriority === 'high' ? '#ea580c' :
-                                                        filterPriority === 'medium' ? '#d97706' : '#16a34a'
+                                                            filterPriority === 'high' ? '#ea580c' :
+                                                                filterPriority === 'medium' ? '#d97706' : '#16a34a'
                                                 }}
                                             />
                                         )}
@@ -638,8 +941,8 @@ const Support = () => {
                                                 style={{
                                                     background:
                                                         filterStatus === 'open' ? '#4f46e5' :
-                                                        filterStatus === 'in_progress' ? '#d97706' :
-                                                        filterStatus === 'resolved' ? '#059669' : '#64748b'
+                                                            filterStatus === 'in_progress' ? '#d97706' :
+                                                                filterStatus === 'resolved' ? '#059669' : '#64748b'
                                                 }}
                                             />
                                         )}
@@ -836,29 +1139,42 @@ const Support = () => {
                                         const statusCls = isResolved
                                             ? 'status-resolved'
                                             : isInProgress
-                                            ? 'status-in_progress'
-                                            : 'status-open';
+                                                ? 'status-in_progress'
+                                                : 'status-open';
 
                                         const isUrgent = t.priority === 'urgent' || t.priority === 'high';
                                         const isMedium = t.priority === 'medium';
                                         const prioCls = isUrgent
                                             ? 'priority-high'
                                             : isMedium
-                                            ? 'priority-medium'
-                                            : 'priority-low';
+                                                ? 'priority-medium'
+                                                : 'priority-low';
 
                                         const hasScreenshots = t.screenshots && t.screenshots.length > 0;
 
+                                        const unreadCount = t.unreadByClient !== undefined && t.unreadByClient !== null
+                                            ? t.unreadByClient
+                                            : (t.responses || []).filter(r => r.isAdminResponse && !r.isReadByClient).length;
+
                                         return (
-                                            <tr key={t._id || idx} onClick={() => setSelectedTicket(t)}>
+                                            <tr
+                                                key={t._id || idx}
+                                                className={unreadCount > 0 ? 'client-row-has-unread' : ''}
+                                                onClick={() => handleSelectTicket(t)}
+                                            >
                                                 <td>
                                                     <span className="cell-index-badge">
                                                         {String(idx + 1).padStart(2, '0')}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div className="ticket-title-link">
-                                                        {t.title}
+                                                    <div className="d-flex align-items-center">
+                                                        {unreadCount > 0 && (
+                                                            <span className="client-unread-dot" title={`${unreadCount} unread response(s)`}></span>
+                                                        )}
+                                                        <div className="ticket-title-link">
+                                                            {t.title}
+                                                        </div>
                                                     </div>
                                                     {t.description && (
                                                         <div className="ticket-desc-snippet" title={t.description}>
@@ -915,14 +1231,16 @@ const Support = () => {
                                                     <div className="action-btn-group">
                                                         <button
                                                             type="button"
-                                                            className="btn-action-icon btn-edit"
-                                                            title="Edit Ticket"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleOpenEdit(t);
-                                                            }}
+                                                            className={`btn-action-view-chat ${unreadCount > 0 ? 'has-unread' : ''}`}
+                                                            title={unreadCount > 0 ? `${unreadCount} unread message(s) from Support` : 'View & Chat'}
+                                                            onClick={() => handleSelectTicket(t)}
                                                         >
-                                                            <i className="bi bi-pencil"></i>
+                                                            <i className="bi bi-chat-dots-fill text-primary"></i>
+                                                            {unreadCount > 0 && (
+                                                                <span className="client-action-unread-badge" title={`${unreadCount} new message${unreadCount > 1 ? 's' : ''}`}>
+                                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                                </span>
+                                                            )}
                                                         </button>
                                                         <button
                                                             type="button"
@@ -1388,107 +1706,584 @@ const Support = () => {
                     </Modal>
                 )}
 
-                {/* View Ticket Details Modal */}
+                {/* View Ticket Details & Chat Modal (Client <-> PM / Admin) */}
                 {selectedTicket && (
                     <Modal
                         show={!!selectedTicket}
-                        onHide={() => setSelectedTicket(null)}
+                        onHide={() => {
+                            setSelectedTicket(null);
+                            setChatInputText('');
+                            setChatAttachment(null);
+                        }}
                         centered
-                        size="lg"
-                        className="custom-support-modal"
+                        dialogClassName="ticket-chat-modal-dialog"
+                        contentClassName="ticket-chat-modal-content"
                     >
-                        <Modal.Header closeButton>
-                            <Modal.Title>
-                                <i className="bi bi-info-circle-fill text-primary me-2"></i>
-                                {selectedTicket.title}
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <div className="ticket-detail-header-meta">
-                                <span className="project-tag-pill">
-                                    <i className="bi bi-folder-fill me-1"></i>
-                                    {selectedTicket.project?.name || currentFilterProjectName}
-                                </span>
-                                <span className="category-tag-pill">
-                                    {selectedTicket.category?.replace(/_/g, ' ')}
-                                </span>
-                                <span className="priority-badge-pill priority-high">
-                                    Priority: {selectedTicket.priority}
-                                </span>
-                                <span className="ticket-status-pill status-open">
-                                    Status: {selectedTicket.status}
-                                </span>
-                            </div>
-
-                            <label className="modal-form-label">Description / Request Details</label>
-                            <div className="ticket-detail-desc">
-                                {selectedTicket.description || 'No description provided.'}
-                            </div>
-
-                            {selectedTicket.screenshots && selectedTicket.screenshots.length > 0 && (
-                                <div className="mt-3">
-                                    <label className="modal-form-label">
-                                        Uploaded Screenshots ({selectedTicket.screenshots.length})
-                                    </label>
-                                    <div className="ticket-detail-screenshots">
-                                        {selectedTicket.screenshots.map((s, idx) => (
-                                            <a
-                                                key={idx}
-                                                href={s.url || '#'}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                onClick={(e) => {
-                                                    if (s.url) {
-                                                        e.preventDefault();
-                                                        setPreviewImage(s.url);
-                                                    }
-                                                }}
+                        {/* CRM-Style Modal Top Bar (Matching Lead Details UI) */}
+                        <div className="crm-modal-top-bar">
+                            <div className="crm-top-bar-left">
+                                <div className="crm-modal-icon-box">
+                                    <i className="bi bi-headset"></i>
+                                </div>
+                                <div className="crm-title-group">
+                                    <div className="crm-title-row">
+                                        <h4 className="crm-modal-title">Ticket Details</h4>
+                                        <div className="crm-ref-badge-wrap">
+                                            <span className="crm-ref-code">
+                                                {`#TICKET-${selectedTicket._id ? selectedTicket._id.slice(-6).toUpperCase() : '01'}`}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="btn-copy-ref"
+                                                title="Copy Ticket Reference"
+                                                onClick={() => handleCopyTicketRef(selectedTicket._id ? `#TICKET${selectedTicket._id.slice(-6).toUpperCase()}` : '#TICK')}
                                             >
-                                                <img
-                                                    src={s.url}
-                                                    alt={s.originalName || `screenshot-${idx}`}
-                                                    className="ticket-detail-img-thumb"
-                                                />
-                                            </a>
+                                                <i className={`bi ${copiedRef ? 'bi-check2 text-success' : 'bi-copy'}`}></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="crm-modal-sub">
+                                        {selectedTicket.project?.name || currentFilterProjectName} • Support Workspace
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="crm-top-bar-right">
+                                <span className={`crm-status-pill status-${selectedTicket.status || 'open'}`}>
+                                    <span className="status-dot"></span>
+                                    {selectedTicket.status ? selectedTicket.status.replace(/_/g, ' ') : 'Open'}
+                                </span>
+
+                                <span className={`crm-priority-pill priority-${selectedTicket.priority || 'medium'}`}>
+                                    {selectedTicket.priority ? (selectedTicket.priority.charAt(0).toUpperCase() + selectedTicket.priority.slice(1)) : 'Normal'} Priority
+                                </span>
+
+                                <button
+                                    type="button"
+                                    className="crm-modal-close-btn"
+                                    onClick={() => setSelectedTicket(null)}
+                                    title="Close"
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* CRM Subnav Navigation Tabs (Overview & Discussion) */}
+                        {/* <div className="crm-modal-subnav">
+                            <button
+                                type="button"
+                                className={`crm-subnav-tab ${activeModalTab === 'details' ? 'active' : ''}`}
+                                onClick={() => setActiveModalTab('details')}
+                            >
+                                <i className="bi bi-file-text me-1"></i> Overview
+                            </button>
+                            <button
+                                type="button"
+                                className={`crm-subnav-tab ${activeModalTab === 'chat' ? 'active' : ''}`}
+                                onClick={() => setActiveModalTab('chat')}
+                            >
+                                <i className="bi bi-chat-dots-fill me-1"></i> Discussion &amp; Chat
+                                <span className="crm-subnav-badge">{activeMessages.length}</span>
+                            </button>
+                        </div> */}
+
+                        {/* Modal Body: Two-Column Split Container (NO line between left & right) */}
+                        <div className="ticket-split-wrapper">
+                            {/* LEFT SIDE: Ticket Information Card */}
+                            <div className={`ticket-details-pane ${activeModalTab === 'chat' ? 'hide-on-mobile' : ''}`}>
+                                <div className="pane-card-title-bar">
+                                    <i className="bi bi-file-earmark-person text-primary me-2"></i>
+                                    <span>Ticket Information</span>
+                                </div>
+
+                                <div className="ticket-details-inner-scroll">
+                                    {/* Subject block */}
+                                    <div className="crm-field-card subject-card">
+                                        <div className="crm-field-label">Subject</div>
+                                        <div className="crm-subject-heading">{selectedTicket.title}</div>
+                                    </div>
+
+                                    {/* Clean key-value grid (like Company, Email, Mobile in Lead details) */}
+                                    <div className="crm-attributes-grid">
+                                        <div className="crm-attr-row">
+                                            <span className="attr-label">
+                                                <i className="bi bi-folder2-open me-2 text-muted"></i>Project
+                                            </span>
+                                            <span className="attr-value">
+                                                {selectedTicket.project?.name || currentFilterProjectName}
+                                            </span>
+                                        </div>
+
+                                        <div className="crm-attr-row">
+                                            <span className="attr-label">
+                                                <i className="bi bi-tag me-2 text-muted"></i>Category
+                                            </span>
+                                            <span className="attr-value">
+                                                {selectedTicket.category ? selectedTicket.category.replace(/_/g, ' ') : 'General'}
+                                            </span>
+                                        </div>
+
+                                        <div className="crm-attr-row">
+                                            <span className="attr-label">
+                                                <i className="bi bi-flag me-2 text-muted"></i>Priority
+                                            </span>
+                                            <span className="attr-value">
+                                                <span className={`crm-mini-pill priority-${selectedTicket.priority || 'medium'}`}>
+                                                    {selectedTicket.priority || 'Normal'}
+                                                </span>
+                                            </span>
+                                        </div>
+
+                                        <div className="crm-attr-row">
+                                            <span className="attr-label">
+                                                <i className="bi bi-calendar3 me-2 text-muted"></i>Created
+                                            </span>
+                                            <span className="attr-value">
+                                                {new Date(selectedTicket.createdAt || Date.now()).toLocaleDateString('en-GB', {
+                                                    day: '2-digit', month: 'short', year: 'numeric'
+                                                })}
+                                            </span>
+                                        </div>
+
+                                        {/* <div className="crm-attr-row">
+                                            <span className="attr-label">
+                                                <i className="bi bi-shield-check me-2 text-muted"></i>Support Team
+                                            </span>
+                                            <span className="attr-value d-flex align-items-center gap-1">
+                                                <span className="meta-avatar-xs rt-badge">
+                                                    {selectedTicket.assignedTo?.name ? selectedTicket.assignedTo.name.substring(0, 2).toUpperCase() : 'RT'}
+                                                </span>{' '}
+                                                {selectedTicket.assignedTo?.name || 'Rowthtech'}
+                                            </span>
+                                        </div> */}
+                                    </div>
+
+                                    {/* Description */}
+                                    <div className="crm-field-card">
+                                        <div className="crm-field-label">
+                                            <i className="bi bi-text-paragraph text-primary me-1"></i>Description
+                                        </div>
+                                        <div className="crm-desc-content">
+                                            {selectedTicket.description ? (
+                                                <p className="crm-desc-text">{selectedTicket.description}</p>
+                                            ) : (
+                                                <p className="crm-desc-empty">
+                                                    <i className="bi bi-info-circle me-1"></i> No description provided.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Attachments */}
+                                    <div className="crm-field-card">
+                                        <div className="crm-field-label d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i className="bi bi-paperclip text-primary me-1"></i>Attachments
+                                            </span>
+                                            <span className="crm-att-count">
+                                                {selectedTicket.screenshots?.length || 0} file{selectedTicket.screenshots?.length === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+                                        {selectedTicket.screenshots && selectedTicket.screenshots.length > 0 ? (
+                                            <div className="ticket-screenshots-grid">
+                                                {selectedTicket.screenshots.map((s, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="ticket-screen-thumb-card"
+                                                        onClick={() => s.url && setPreviewImage(s)}
+                                                        title="Click to preview"
+                                                    >
+                                                        <div className="thumb-img-wrapper">
+                                                            <img src={s.url} alt={s.originalName || `screenshot-${idx + 1}`} className="thumb-actual-img" />
+                                                            <div className="thumb-hover-overlay">
+                                                                <i className="bi bi-zoom-in"></i>
+                                                                <span>Preview</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="thumb-caption">
+                                                            <span className="thumb-name" title={s.originalName}>
+                                                                {s.originalName || `Screenshot_${idx + 1}.png`}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="attachments-empty-card">
+                                                <i className="bi bi-paperclip"></i>
+                                                <span>No files attached to this ticket.</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            {/* RIGHT SIDE: Chat System (Client <-> PM / Admin) */}
+                            <div className={`ticket-chat-pane ${activeModalTab === 'details' ? 'hide-on-mobile' : ''}`}>
+                                {/* Chat Header */}
+                                <div className="ticket-chat-header">
+                                    <div className="chat-header-user">
+                                        <div className="chat-pm-avatar rt-avatar">
+                                            <span>RT</span>
+                                            <span className="chat-online-dot"></span>
+                                        </div>
+                                        <div className="chat-pm-info">
+                                            <div className="chat-pm-title-row">
+                                                <span className="chat-pm-title">Rowthtech</span>
+                                                <span className="chat-badge-admin">Support Team</span>
+                                            </div>
+                                            {/* <div className="chat-pm-status">
+                                                <span className="pulse-dot-sm emerald"></span>
+                                                <span>Online • Direct Support Channel</span>
+                                            </div> */}
+                                        </div>
+                                    </div>
+                                    {/* <div className="chat-header-actions">
+                                        <span className="chat-workspace-badge">
+                                            <i className="bi bi-shield-check me-1"></i> RowthTech Direct
+                                        </span>
+                                    </div> */}
+                                </div>
+                                {/* Chat Messages Thread Container */}
+                                <div className="ticket-chat-messages-wrap">
+                                    {/* Notice / Welcome Banner */}
+                                    <div className="chat-intro-banner">
+                                        <div className="intro-icon">
+                                            <i className="bi bi-chat-quote-fill"></i>
+                                        </div>
+                                        <div className="intro-text">
+                                            <strong>Direct Ticket Discussion</strong>
+                                            <span>
+                                                Communicate in real time with Rowthtech Support regarding issue updates, scope, and fixes.
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="chat-date-separator">
+                                        <span>Today</span>
+                                    </div>
+
+                                    {/* Messages list */}
+                                    <div className="chat-message-list">
+                                        {activeMessages.length === 0 ? (
+                                            <div className="chat-empty-thread">
+                                                <div className="chat-empty-icon-wrap">
+                                                    <i className="bi bi-chat-square-dots"></i>
+                                                </div>
+                                                <div className="chat-empty-title">Direct Channel with Rowthtech</div>
+                                                <p className="chat-empty-desc">
+                                                    No messages yet. Send a message or query below to start a direct discussion with the Rowthtech support team.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            activeMessages.map((msg) => {
+                                                const isClient = msg.sender === 'client';
+                                                return (
+                                                    <div
+                                                        key={msg.id}
+                                                        className={`chat-message-row ${isClient ? 'from-client' : 'from-pm'}`}
+                                                    >
+                                                        {!isClient && (
+                                                            <div className="msg-sender-avatar pm" title={msg.senderName || 'Rowthtech'}>
+                                                                <span>RT</span>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="msg-bubble-container">
+                                                            <div className="msg-meta-row">
+                                                                <span className="msg-sender-label">
+                                                                    {isClient ? 'You' : (msg.senderName || 'Rowthtech')}
+                                                                </span>
+                                                                <span className="msg-time-label">{msg.time}</span>
+                                                            </div>
+
+                                                            <div className={`msg-bubble ${isClient ? 'bubble-client' : 'bubble-pm'}`}>
+                                                                <div className="msg-bubble-text">{msg.text}</div>
+
+                                                                {/* If message has attachments */}
+                                                                {msg.attachments && msg.attachments.length > 0 ? (
+                                                                    msg.attachments.map((att, aIdx) => {
+                                                                        const isImg = att.type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(att.originalName || att.url || '');
+                                                                        return (
+                                                                            <div key={aIdx} className="msg-attachment-card">
+                                                                                <div className="attachment-icon">
+                                                                                    <i className={isImg ? "bi bi-file-earmark-image text-primary" : "bi bi-file-earmark-text text-primary"}></i>
+                                                                                </div>
+                                                                                <div className="attachment-details">
+                                                                                    <span className="attachment-name" title={att.originalName || att.name || 'Attachment'}>
+                                                                                        {att.originalName || att.name || 'Attachment'}
+                                                                                    </span>
+                                                                                    <span className="attachment-size">{att.size ? (att.size / 1024).toFixed(1) + ' KB' : ''}</span>
+                                                                                </div>
+                                                                                <div className="attachment-actions d-flex align-items-center gap-1 ms-auto">
+                                                                                    {att.url && isImg && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="btn-view-att"
+                                                                                            onClick={() => setPreviewImage(att)}
+                                                                                            title="Preview image"
+                                                                                        >
+                                                                                            <i className="bi bi-eye"></i>
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {att.url && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="btn-view-att"
+                                                                                            onClick={() => handleDownloadAttachment(att.url, att.originalName || att.name || 'attachment')}
+                                                                                            title="Download attachment"
+                                                                                        >
+                                                                                            <i className="bi bi-download"></i>
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                ) : msg.attachment && (
+                                                                    <div className="msg-attachment-card">
+                                                                        <div className="attachment-icon">
+                                                                            <i className="bi bi-file-earmark-image text-primary"></i>
+                                                                        </div>
+                                                                        <div className="attachment-details">
+                                                                            <span className="attachment-name" title={msg.attachment.name}>{msg.attachment.name}</span>
+                                                                            <span className="attachment-size">{msg.attachment.size}</span>
+                                                                        </div>
+                                                                        <div className="attachment-actions d-flex align-items-center gap-1 ms-auto">
+                                                                            {msg.attachment.url && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn-view-att"
+                                                                                    onClick={() => setPreviewImage(msg.attachment)}
+                                                                                    title="Preview image"
+                                                                                >
+                                                                                    <i className="bi bi-eye"></i>
+                                                                                </button>
+                                                                            )}
+                                                                            {msg.attachment.url && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn-view-att"
+                                                                                    onClick={() => handleDownloadAttachment(msg.attachment.url, msg.attachment.name || 'attachment')}
+                                                                                    title="Download attachment"
+                                                                                >
+                                                                                    <i className="bi bi-download"></i>
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Screenshots tag if from ticket creation */}
+                                                                {msg.screenshots && msg.screenshots.length > 0 && (
+                                                                    <div className="msg-screenshots-preview">
+                                                                        <span className="msg-sub-note">
+                                                                            <i className="bi bi-paperclip me-1"></i> Attached {msg.screenshots.length} screenshot(s) to ticket
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {isClient && (
+                                                                <div className="msg-status-indicator">
+                                                                    <i className="bi bi-check2-all text-primary"></i>
+                                                                    <span>Sent</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {isClient && (
+                                                            <div className="msg-sender-avatar client" title={clientName}>
+                                                                <span>{clientInitials}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+
+                                        {/* Typing Indicator */}
+                                        {isPmTyping && (
+                                            <div className="chat-message-row from-pm">
+                                                <div className="msg-sender-avatar pm">
+                                                    <span>RT</span>
+                                                </div>
+                                                <div className="msg-bubble-container">
+                                                    <div className="msg-meta-row">
+                                                        <span className="msg-sender-label">Rowthtech</span>
+                                                        <span className="msg-time-label">Typing...</span>
+                                                    </div>
+                                                    <div className="msg-bubble bubble-pm typing-bubble">
+                                                        <span className="typing-dot"></span>
+                                                        <span className="typing-dot"></span>
+                                                        <span className="typing-dot"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div ref={chatMessagesEndRef} />
+                                    </div>
+                                </div>
+                                {/* Quick Suggestions Chips */}
+                                <div className="chat-quick-suggestions">
+                                    <span className="suggestions-label">Quick prompts:</span>
+                                    <div className="suggestions-scroll">
+                                        {quickPrompts.map((prompt, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                className="btn-suggestion-chip"
+                                                onClick={() => handleSendChatMessage(prompt)}
+                                            >
+                                                {prompt}
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
-                            )}
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <button
-                                type="button"
-                                className="btn-modal-cancel"
-                                onClick={() => setSelectedTicket(null)}
-                            >
-                                Close
-                            </button>
-                        </Modal.Footer>
+                                {/* Chat Input Area */}
+                                <div className="ticket-chat-input-area">
+                                    {/* Attachment preview if user selected a file */}
+                                    {chatAttachment && (
+                                        <div className="chat-attachment-pending-bar">
+                                            <div className="pending-att-left">
+                                                <i className="bi bi-paperclip text-primary"></i>
+                                                <span className="pending-att-name">{chatAttachment.name}</span>
+                                                <span className="pending-att-size">
+                                                    ({(chatAttachment.size / 1024).toFixed(1)} KB)
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn-remove-pending-att"
+                                                onClick={() => setChatAttachment(null)}
+                                            >
+                                                <i className="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    )}
+                                    <form
+                                        className="chat-input-form"
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            handleSendChatMessage();
+                                        }}
+                                    >
+                                        <input
+                                            type="file"
+                                            ref={chatFileInputRef}
+                                            style={{ display: 'none' }}
+                                            accept="image/*,.pdf,.doc,.docx"
+                                            onChange={handleChatFileSelect}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn-chat-action-tool"
+                                            title="Attach screenshot or document"
+                                            onClick={() => chatFileInputRef.current && chatFileInputRef.current.click()}
+                                        >
+                                            <i className="bi bi-paperclip"></i>
+                                        </button>
+                                        <input
+                                            type="text"
+                                            className="chat-input-field"
+                                            placeholder="Type a message to Rowthtech..."
+                                            value={chatInputText}
+                                            onChange={(e) => setChatInputText(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSendChatMessage();
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="btn-chat-send-submit"
+                                            disabled={!chatInputText.trim() && !chatAttachment}
+                                            title="Send Message"
+                                        >
+                                            <i className="bi bi-send-fill"></i>
+                                        </button>
+                                    </form>
+                                    <div className="chat-input-helper-note">
+                                        <i className="bi bi-info-circle me-1"></i>
+                                        <span>Direct messaging with project administration. Press Enter to send.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </Modal>
                 )}
 
                 {/* Lightbox / Full Size Image Preview Modal */}
-                {previewImage && (
-                    <Modal
-                        show={!!previewImage}
-                        onHide={() => setPreviewImage(null)}
-                        centered
-                        size="xl"
-                    >
-                        <Modal.Header closeButton>
-                            <Modal.Title>Screenshot Preview</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body className="text-center p-2" style={{ background: '#0f172a' }}>
-                            <img
-                                src={previewImage}
-                                alt="Full preview"
-                                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '6px' }}
-                            />
-                        </Modal.Body>
-                    </Modal>
-                )}
+                {previewImage && (() => {
+                    const previewUrl = typeof previewImage === 'string' ? previewImage : (previewImage?.url || '');
+                    const previewName = typeof previewImage === 'object' ? (previewImage.originalName || previewImage.name || 'screenshot.png') : 'screenshot.png';
+                    return (
+                        <Modal
+                            show={!!previewImage}
+                            onHide={() => setPreviewImage(null)}
+                            centered
+                            dialogClassName="support-img-preview-dialog"
+                            contentClassName="support-img-preview-content"
+                            backdropClassName="support-img-preview-backdrop"
+                            style={{ zIndex: 1070 }}
+                        >
+                            <div className="support-img-preview-header">
+                                <div className="preview-header-left">
+                                    <div className="preview-icon-box">
+                                        <i className="bi bi-image"></i>
+                                    </div>
+                                    <div className="preview-title-group">
+                                        <h5 className="preview-modal-title">{previewName}</h5>
+                                        <span className="preview-modal-subtitle">Ticket attachment preview</span>
+                                    </div>
+                                </div>
+                                <div className="preview-header-right">
+                                    <a
+                                        href={previewUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="btn-preview-tool"
+                                        title="Open image in new tab"
+                                    >
+                                        <i className="bi bi-box-arrow-up-right me-1"></i>
+                                        <span>Open Original</span>
+                                    </a>
+                                    <button
+                                        type="button"
+                                        className="btn-preview-tool"
+                                        title="Download image"
+                                        onClick={() => handleDownloadAttachment(previewUrl, previewName)}
+                                    >
+                                        <i className="bi bi-download me-1"></i>
+                                        <span>Download</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-preview-close"
+                                        title="Close preview"
+                                        onClick={() => setPreviewImage(null)}
+                                    >
+                                        <i className="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="support-img-preview-body">
+                                <div className="preview-img-container">
+                                    <img
+                                        src={previewUrl}
+                                        alt={previewName}
+                                        className="preview-display-img"
+                                    />
+                                </div>
+                            </div>
+                        </Modal>
+                    );
+                })()}
             </main>
-        </div>
+        </div >
     );
 };
 

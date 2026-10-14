@@ -254,7 +254,7 @@ const MilestoneTasks = () => {
                                     return (
                                         <div key={status} className="mst-col">
                                             <div className="mst-col-header">
-                                                <span style={{fontSize:'14px'}}>{status}</span>
+                                                <span style={{ fontSize: '14px' }}>{status}</span>
                                                 <span className="badge bg-primary" style={{ fontSize: '10px' }}>{tasks.length}</span>
                                             </div>
                                             {tasks.length === 0 ? (
@@ -268,7 +268,7 @@ const MilestoneTasks = () => {
                                                     <div
                                                         key={task._id}
                                                         className="mst-card"
-                                                       
+
                                                     >
 
                                                         {/* Top */}
@@ -343,7 +343,7 @@ const MilestoneTasks = () => {
 
                                                             </div>
 
-                                                          
+
 
                                                         </div>
 

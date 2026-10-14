@@ -50,6 +50,20 @@ const clientSupportSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users'
     },
+    unreadByAdmin: {
+        type: Number,
+        default: 0
+    },
+    unreadByClient: {
+        type: Number,
+        default: 0
+    },
+    lastReadByAdminAt: {
+        type: Date
+    },
+    lastReadByClientAt: {
+        type: Date
+    },
     responses: [{
         message: String,
         respondedBy: {
@@ -63,7 +77,22 @@ const clientSupportSchema = new mongoose.Schema({
         isAdminResponse: {
             type: Boolean,
             default: false
-        }
+        },
+        isReadByAdmin: {
+            type: Boolean,
+            default: false
+        },
+        isReadByClient: {
+            type: Boolean,
+            default: false
+        },
+        attachments: [{
+            originalName: String,
+            fileName: String,
+            url: String,
+            size: Number,
+            type: { type: String }
+        }]
     }]
 }, {
     timestamps: true

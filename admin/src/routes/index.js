@@ -94,6 +94,14 @@ const Documents = React.lazy(() =>
     import("../pages/Task-Manager/ClientDocuments/ClientDocuments")
 );
 
+const ClientSupports = React.lazy(() =>
+    import("../pages/Task-Manager/ClientSupport/ClientSupport")
+);
+
+const ClientDependencies = React.lazy(() =>
+    import("../pages/Task-Manager/ClientDependency/ClientDependency")
+);
+
 const loading = () => <div className=""></div>;
 
 type LoadComponentProps = {
@@ -288,6 +296,14 @@ const AllRoutes = () => {
                         {
                             path: "documents",
                             element: <LoadComponent component={Documents} />,
+                        },
+                        {
+                            path: "client-supports",
+                            element: <LoadComponent component={ClientSupports} />,
+                        },
+                        {
+                            path: "client-dependencies",
+                            element: <LoadComponent component={ClientDependencies} />,
                         },
                         // {
                         //     path: "chat",

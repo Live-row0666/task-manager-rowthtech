@@ -2,7 +2,6 @@ const TimeTracking = require('../models/timeTracking');
 const User = require('../models/user');
 const Task = require('../models/task');
 const NotificationService = require('./notificationService');
-
 class TimeTrackingMonitor {
     constructor() {
         this.checkInterval = 60 * 1000; // Check every minute       
@@ -12,14 +11,12 @@ class TimeTrackingMonitor {
         // this.longWorkingHoursThreshold = 1; // 2 minutes
         // this.notifiedSessions = new Set(); // Track already notified sessions
     }
-
     start() {
         console.log('Time tracking monitor started');
         setInterval(() => {
             this.checkLongWorkingSessions();
         }, this.checkInterval);
     }
-
     async checkLongWorkingSessions() {
         try {
             const currentDate = new Date();
@@ -42,7 +39,6 @@ class TimeTrackingMonitor {
                 console.log(new Date(), "Office Hours - Checking for long working sessions...");
 
             }
-            
             let curreptData = await TimeTracking.find({
                 duration: 0,
                 $or: [
@@ -53,7 +49,6 @@ class TimeTrackingMonitor {
             if (curreptData.length === 0) {
                 console.log("No incomplete sessions found");
             }
-
             for (const session of curreptData) {
                 await TimeTracking.deleteOne({ _id: session._id });
                 console.log(`Deleted incomplete session: ${session._id}`);
@@ -62,7 +57,6 @@ class TimeTrackingMonitor {
             console.error('Error checking long working sessions:', error);
         }
     }
-
     // Clean up notified sessions when timer stops
     async cleanupNotifiedSession(userId, taskId, startTime) {
         const sessionKey = `${userId}-${taskId}-${startTime}`;

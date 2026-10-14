@@ -11,6 +11,7 @@ import Documents from './pages/Documents';
 import Reports from './pages/Reports';
 import Team from './pages/Team';
 import Support from './pages/Support';
+import Dependencies from './pages/Dependencies';
 import PrivateRoute from './routes/PrivateRoute';
 import './App.css';
 
@@ -29,6 +30,7 @@ function App() {
         <Route path="/dashboard/milestones" element={<PrivateRoute component={Milestones} />} />
         <Route path="/dashboard/milestone-tasks/:milestoneId" element={<PrivateRoute component={MilestoneTasks} />} />
         <Route path="/dashboard/documents" element={<PrivateRoute component={Documents} />} />
+        <Route path="/dashboard/dependencies" element={<PrivateRoute component={Dependencies} />} />
         <Route path="/dashboard/reports" element={<PrivateRoute component={Reports} />} />
         <Route path="/dashboard/team" element={<PrivateRoute component={Team} />} />
         <Route path="/dashboard/support" element={<PrivateRoute component={Support} />} />

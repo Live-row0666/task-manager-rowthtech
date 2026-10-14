@@ -308,7 +308,7 @@ class ProjectController {
             }
 
             if (projectType && projectType.trim() !== '') {
-                
+
                 searchQuery.projectType = projectType;
             }
 
@@ -327,7 +327,7 @@ class ProjectController {
             }
 
             if (isActive) searchQuery.isActive = isActive === 'true';
-            console.log('Search Query:', searchQuery);
+            // console.log('Search Query:', searchQuery);
 
             const projects = await Project.find(searchQuery)
                 .populate({
