@@ -112,6 +112,12 @@ const MenuItems = () => {
             icon: 'uil-layer-group',
         },
         {
+            key: 'clientCR',
+            label: 'Change Requests',
+            url: 'dashboard/client-cr',
+            icon: 'uil-exchange',
+        },
+        {
             key: 'Settings',
             label: 'Settings',
             icon: 'uil-lock-open-alt',
@@ -146,7 +152,7 @@ const MenuItems = () => {
 
     if (Role !== 'sub-admin' && Role !== 'admin' && Role !== 'Project Manager') {
         MENU_ITEMS = MENU_ITEMS.filter(item =>
-            !['clientProjects', 'clientTaskBoard', 'documents', 'clientSupports', 'clientDependencies'].includes(item.key)
+            !['clientProjects', 'clientTaskBoard', 'documents', 'clientSupports', 'clientDependencies', 'clientCR'].includes(item.key)
         );
     }
 

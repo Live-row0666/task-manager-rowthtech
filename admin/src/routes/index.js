@@ -102,6 +102,10 @@ const ClientDependencies = React.lazy(() =>
     import("../pages/Task-Manager/ClientDependency/ClientDependency")
 );
 
+const ClientCR = React.lazy(() =>
+    import("../pages/Task-Manager/ClientCR/ClientCR")
+);
+
 const loading = () => <div className=""></div>;
 
 type LoadComponentProps = {
@@ -304,6 +308,10 @@ const AllRoutes = () => {
                         {
                             path: "client-dependencies",
                             element: <LoadComponent component={ClientDependencies} />,
+                        },
+                        {
+                            path: "client-cr",
+                            element: <LoadComponent component={ClientCR} />,
                         },
                         // {
                         //     path: "chat",

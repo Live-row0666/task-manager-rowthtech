@@ -138,13 +138,11 @@ class MilestoneController {
                     { title: { $regex: /AMC$/i } }
                 ];
 
-                // Get milestones with pagination
+                // Get all AMC milestones to calculate running balance accurately
                 const milestones = await Milestone.find(searchQuery)
                     .populate('project', 'name amcHours')
                     .populate('assignedTo', 'name')
                     .populate('dependencies', 'title status')
-                    .limit(limit * 1)
-                    .skip((page - 1) * limit)
                     .sort({ startDate: 1 })
                     .lean();
 
@@ -209,15 +207,19 @@ class MilestoneController {
                 } else {
                     milestonesWithHours = nonDeliveredMilestones;
                 }
-                const count = await Milestone.countDocuments(searchQuery);
+                const totalCount = milestonesWithHours.length;
+                const pageNum = parseInt(page) || 1;
+                const limitNum = parseInt(limit) || 10;
+                const startIndex = (pageNum - 1) * limitNum;
+                const paginatedData = milestonesWithHours.slice(startIndex, startIndex + limitNum);
 
                 return res.status(200).json({
                     status: 200,
                     message: 'Milestones retrieved successfully',
-                    data: milestonesWithHours,
-                    totalPages: Math.ceil(count / limit),
-                    currentPage: parseInt(page),
-                    totalMilestones: count
+                    data: paginatedData,
+                    totalPages: Math.ceil(totalCount / limitNum),
+                    currentPage: pageNum,
+                    totalMilestones: totalCount
                 });
 
             } else {

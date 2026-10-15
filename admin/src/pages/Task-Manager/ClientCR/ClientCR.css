@@ -1,0 +1,53 @@
+.client-cr-container {
+    padding: 10px 0;
+}
+
+.cr-stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cr-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.cr-admin-table th {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    padding: 10px 12px;
+}
+
+.cr-admin-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Ensure no close icon appears */
+.taskModal .btn-close,
+.taskModal .close {
+    display: none !important;
+}
+
+/* Uniform Status & Priority Badges */
+.cr-header-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 80px !important;
+    height: 28px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 0 12px !important;
+    border-radius: 6px !important;
+    line-height: 1 !important;
+    text-transform: capitalize !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+}

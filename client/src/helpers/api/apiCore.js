@@ -108,6 +108,21 @@ class APICore {
         });
     };
 
+    createWithFile = (url, data) => {
+        if (typeof FormData !== 'undefined' && data instanceof FormData) {
+            return this.createWithFormData(url, data);
+        }
+        const formData = new FormData();
+        for (const k in data) {
+            formData.append(k, data[k]);
+        }
+        return this.createWithFormData(url, formData);
+    };
+
+    createWithFileDocument = (url, data) => {
+        return this.createWithFormData(url, data);
+    };
+
     updatePatch = (url, data) => {
         return axios.patch(url, data);
     };

@@ -51,9 +51,9 @@ export const getDashboard = (projectId = ""): any => ({
     payload: { projectId },
 });
 
-export const getClientMilestonesAction = (projectId = "", isActive = true): any => ({
+export const getClientMilestonesAction = (projectId = "", isActive = true, type = ""): any => ({
     type: AuthActionTypes.GET_CLIENT_MILESTONES,
-    payload: { projectId, isActive },
+    payload: { projectId, isActive, type },
 });
 
 export const getClientTasksAction = (params: any = ""): any => ({

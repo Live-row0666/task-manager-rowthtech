@@ -53,8 +53,19 @@ router.get('/client-milestone', verifyClient, async (req, res) => {
         }
 
         query.isActive = isActive === 'false' ? false : true;
+        const { type } = req.query;
+        if (type === 'AMC') {
+            query.$or = [
+                { isAmc: true },
+                { title: { $regex: /AMC$/i } }
+            ];
+        } else if (type === 'Ongoing') {
+            query.isAmc = { $ne: true };
+            query.title = { $not: { $regex: /AMC$/i } };
+        }
+
         let milestones = await Milestone.find(query)
-            .populate('project', 'name')
+            .populate('project', 'name amcHours')
             .sort({ startDate: 1 })
             .lean();
 
@@ -65,6 +76,23 @@ router.get('/client-milestone', verifyClient, async (req, res) => {
                 .lean();
         }
 
+        if (type === 'AMC') {
+            const projectDetails = await Project.findById(projectId || clientProjects[0]?._id).lean();
+            let amcHoursAre = projectDetails?.amcHours || 0;
+            const milestonesWithHours = [];
+            for (const milestone of milestones) {
+                const worked = milestone.workedHours || 0;
+                const remaining = Number((amcHoursAre - worked).toFixed(2));
+                amcHoursAre = remaining;
+                milestonesWithHours.push({
+                    ...milestone,
+                    amcHours: Number((Number(amcHoursAre) + worked).toFixed(2)),
+                    workedHours: worked,
+                    remainingHours: remaining
+                });
+            }
+            return res.status(200).json({ status: 200, data: milestonesWithHours });
+        }
         return res.status(200).json({ status: 200, data: milestones });
     } catch (err) {
         return res.status(500).json({ status: 500, message: err.message });
@@ -140,6 +168,7 @@ router.get('/client-task', verifyClient, async (req, res) => {
 const ClientSupportController = require('../../controllers/client/support');
 const ClientDependencyController = require('../../controllers/client/dependency');
 const ClientChatController = require('../../controllers/client/chat');
+const ClientCRController = require('../../controllers/client/clientCR');
 const upload = require('../../middleware/upload');
 
 // Support routes (client scoped with project & screenshot attachments)
@@ -163,5 +192,14 @@ router.put('/dependency/:id/submit', verifyClient, upload.any(), ClientDependenc
 router.get('/chat/messages', verifyClient, ClientChatController.getMessages);
 router.post('/chat/send', verifyClient, upload.array('attachments', 5), ClientChatController.sendMessage);
 router.put('/chat/read', verifyClient, ClientChatController.markAsRead);
+
+
+// Change Request (CR) routes
+router.get('/cr/stats', verifyClient, ClientCRController.getStats);
+router.get('/cr', verifyClient, ClientCRController.getCRs);
+router.get('/cr/:id', verifyClient, ClientCRController.getCRById);
+router.post('/cr', verifyClient, upload.array('attachments'), ClientCRController.createCR);
+router.put('/cr/:id', verifyClient, upload.array('attachments'), ClientCRController.updateCR);
+router.delete('/cr/:id', verifyClient, ClientCRController.deleteCR);
 
 module.exports = router;

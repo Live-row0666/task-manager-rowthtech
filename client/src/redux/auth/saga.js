@@ -193,7 +193,7 @@ export function* watchDashboard() {
 
 function* getClientMilestonesSaga({ payload }) {
     try {
-        const response = yield call(getClientMilestonesApi, payload?.projectId || '', payload?.isActive ?? true);
+        const response = yield call(getClientMilestonesApi, payload?.projectId || '', payload?.isActive ?? true, payload?.type || '');
         yield put(authApiResponseSuccess(AuthActionTypes.GET_CLIENT_MILESTONES, response.data));
     } catch (error) {
         yield put(authApiResponseError(AuthActionTypes.GET_CLIENT_MILESTONES, error?.response?.data?.message || error?.message || 'Something went wrong'));

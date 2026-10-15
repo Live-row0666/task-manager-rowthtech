@@ -33,8 +33,10 @@ function getDashboard(projectId = ""): any {
     return api.get(url);
 }
 
-function getClientMilestones(projectId = "", isActive = true): any {
-    return api.get(`${dashboardBaseUrl}/client-milestone?projectId=${projectId}&isActive=${isActive}`);
+function getClientMilestones(projectId = "", isActive = true, type = ""): any {
+    let url = `${dashboardBaseUrl}/client-milestone?projectId=${projectId}&isActive=${isActive}`;
+    if (type) url += `&type=${type}`;
+    return api.get(url);
 }
 
 function getClientTasks(params: any = {}): any {
@@ -49,5 +51,36 @@ function getClientTasks(params: any = {}): any {
     return api.get(`${dashboardBaseUrl}/client-task?${query.toString()}`);
 }
 
-export { login, logout, signup, forgotPassword, forgotPasswordConfirm, getDashboard, getClientMilestones, getClientTasks };
+
+function getCRStats(projectId = ""): any {
+    return api.get(`${dashboardBaseUrl}/cr/stats${projectId ? `?projectId=${projectId}` : ""}`);
+}
+
+function getCRs(params: any = {}): any {
+    const query = new URLSearchParams();
+    if (params.projectId) query.append("projectId", params.projectId);
+    if (params.status) query.append("status", params.status);
+    if (params.priority) query.append("priority", params.priority);
+    if (params.search) query.append("search", params.search);
+    return api.get(`${dashboardBaseUrl}/cr?${query.toString()}`);
+}
+
+function getCRById(id: string): any {
+    return api.get(`${dashboardBaseUrl}/cr/${id}`);
+}
+
+function createCRApi(formData: any): any {
+    return api.createWithFormData(`${dashboardBaseUrl}/cr`, formData);
+}
+
+function updateCRApi(id: string, data: any): any {
+    return api.update(`${dashboardBaseUrl}/cr/${id}`, data);
+}
+
+function deleteCRApi(id: string): any {
+    return api.delete(`${dashboardBaseUrl}/cr/${id}`);
+}
+
+export { login, logout, signup, forgotPassword, forgotPasswordConfirm, getDashboard, getClientMilestones, getClientTasks, getCRStats, getCRs, getCRById, createCRApi, updateCRApi, deleteCRApi };
+
 

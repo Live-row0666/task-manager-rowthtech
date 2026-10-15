@@ -164,15 +164,16 @@ class ClientDependencyController {
                     let fileUrl = '';
 
                     try {
-                        if (process.env.AWS_BUCKET_NAME) {
+                        const bucket = process.env.AWS_S3_BUCKET || bucket || 'rowthltd';
+                    if (bucket) {
                             const uploadParams = {
-                                Bucket: process.env.AWS_BUCKET_NAME,
+                                Bucket: bucket,
                                 Key: `dependencies/${fileName}`,
                                 Body: file.buffer,
                                 ContentType: file.mimetype
                             };
                             await s3Client.send(new PutObjectCommand(uploadParams));
-                            fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/dependencies/${fileName}`;
+                            fileUrl = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/dependencies/${fileName}`;
                         } else {
                             fileUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
                         }

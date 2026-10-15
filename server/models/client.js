@@ -104,8 +104,5 @@ const clientSchema = new Schema({
 
 // indexinf for client name , email , phone
 clientSchema.index({ name: 1 }, { unique: true });
-
-// clientSchema.index({ name: 1, email: 1, phone: 1 }, { unique: true });
-
 const Client = mongoose.model('Client', clientSchema);
 module.exports = Client;

@@ -57,6 +57,7 @@ const Milestones = () => {
     }));
 
     const [selProject, setSelProject] = useState('');
+    const [milestoneType, setMilestoneType] = useState('Ongoing'); // 'Ongoing' | 'AMC'
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
@@ -76,9 +77,9 @@ const Milestones = () => {
 
     useEffect(() => {
         if (selProject) {
-            dispatch(getClientMilestonesAction(selProject, true));
+            dispatch(getClientMilestonesAction(selProject, true, milestoneType));
         }
-    }, [selProject, dispatch]);
+    }, [selProject, milestoneType, dispatch]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -100,20 +101,38 @@ const Milestones = () => {
                 (m.title || m.name || '').toLowerCase().includes(search.toLowerCase());
 
             let matchesStatus = true;
-            if (statusFilter === 'Completed') matchesStatus = m.status === 'Completed';
-            else if (statusFilter === 'In Progress') matchesStatus = m.status === 'In Progress';
-            else if (statusFilter === 'Not Started') matchesStatus = m.status === 'Not Started' || !m.status;
+            if (milestoneType === 'AMC') {
+                if (statusFilter === 'Completed') matchesStatus = m.isDelivered === true;
+                else if (statusFilter === 'In Progress') matchesStatus = m.isDelivered !== true;
+            } else {
+                if (statusFilter === 'Completed') matchesStatus = m.status === 'Completed';
+                else if (statusFilter === 'In Progress') matchesStatus = m.status === 'In Progress';
+                else if (statusFilter === 'Not Started') matchesStatus = m.status === 'Not Started' || !m.status;
+            }
 
             return matchesSearch && matchesStatus;
         });
-    }, [rawMilestones, search, statusFilter]);
+    }, [rawMilestones, search, statusFilter, milestoneType]);
 
     // Computed Stats
     const totalCount = rawMilestones.length;
-    const completedCount = rawMilestones.filter(m => m.status === 'Completed').length;
-    const inProgressCount = rawMilestones.filter(m => m.status === 'In Progress').length;
-    const notStartedCount = rawMilestones.filter(m => m.status === 'Not Started' || !m.status).length;
+    const completedCount = milestoneType === 'AMC'
+        ? rawMilestones.filter(m => m.isDelivered === true).length
+        : rawMilestones.filter(m => m.status === 'Completed').length;
+    const inProgressCount = milestoneType === 'AMC'
+        ? rawMilestones.filter(m => m.isDelivered !== true).length
+        : rawMilestones.filter(m => m.status === 'In Progress').length;
+    const notStartedCount = milestoneType === 'AMC'
+        ? 0
+        : rawMilestones.filter(m => m.status === 'Not Started' || !m.status).length;
     const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+    // AMC Specific Stats
+    const totalAllocatedAmcHours = currentProject?.amcHours || (rawMilestones[0]?.amcHours) || 0;
+    const totalWorkedHours = rawMilestones.reduce((acc, m) => acc + (Number(m.workedHours) || 0), 0);
+    const latestRemainingHours = rawMilestones.length > 0 
+        ? (rawMilestones[rawMilestones.length - 1]?.remainingHours ?? (totalAllocatedAmcHours - totalWorkedHours))
+        : 0;
 
     const nextTarget = rawMilestones.find(m => m.status === 'In Progress') || rawMilestones[0];
 
@@ -152,18 +171,22 @@ const Milestones = () => {
             <CommonSidebar active="milestones" />
 
             <main className="dash-main">
-                <CommonHeader title="Milestones" />
+                <CommonHeader title={milestoneType === 'AMC' ? "AMC Milestones" : "Milestones"} />
 
                 {/* Hero Header Section */}
                 <div className="milestones-hero-bar">
                     <div className="milestones-hero-left">
                         <div className="milestones-badge-tag">
-                            <i className="bi bi-flag-fill"></i>
-                            Roadmap & Delivery Phases
+                            <i className={milestoneType === 'AMC' ? "bi bi-shield-check" : "bi bi-flag-fill"}></i>
+                            {milestoneType === 'AMC' ? "Annual Maintenance Contract" : "Roadmap & Delivery Phases"}
                         </div>
-                        <h2 className="milestones-hero-title">Project Milestones & Roadmap</h2>
+                        <h2 className="milestones-hero-title">
+                            {milestoneType === 'AMC' ? "Project AMC Milestones" : "Project Milestones & Roadmap"}
+                        </h2>
                         <p className="milestones-hero-subtitle">
-                            Track development deliverables, milestone timelines, delivery velocity, and subtask execution.
+                            {milestoneType === 'AMC' 
+                                ? "Track monthly AMC maintenance cycles, allocated support quota, consumed team hours, and remaining balance."
+                                : "Track development deliverables, milestone timelines, delivery velocity, and subtask execution."}
                         </p>
 
                         <div className="milestones-meta-chips">
@@ -173,16 +196,42 @@ const Milestones = () => {
                             </div>
                             <div className="ms-meta-chip ms-chip-live">
                                 <span className="pulse-dot-green"></span>
-                                <span>Live Delivery Tracker</span>
+                                <span>{milestoneType === 'AMC' ? "AMC Active" : "Live Delivery Tracker"}</span>
                             </div>
                             <div className="ms-meta-chip">
                                 <i className="bi bi-layers"></i>
-                                <span>{totalCount} Total Phases</span>
+                                <span>{totalCount} {milestoneType === 'AMC' ? "Cycles" : "Total Phases"}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="milestones-hero-actions">
+                        {/* Dual Type Switcher Pill */}
+                        <div className="ms-type-pill-group">
+                            <button
+                                type="button"
+                                className={`ms-type-btn ${milestoneType === 'Ongoing' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setMilestoneType('Ongoing');
+                                    setStatusFilter('all');
+                                }}
+                            >
+                                <i className="bi bi-layers-fill"></i>
+                                <span>Ongoing</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`ms-type-btn ${milestoneType === 'AMC' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setMilestoneType('AMC');
+                                    setStatusFilter('all');
+                                }}
+                            >
+                                <i className="bi bi-shield-check"></i>
+                                <span>AMC</span>
+                            </button>
+                        </div>
+
                         {/* Project Switcher Dropdown */}
                         {projects.length > 0 && (
                             <div className="project-dropdown-wrapper" ref={projectDropdownRef}>
@@ -236,7 +285,7 @@ const Milestones = () => {
                             type="button" 
                             className="btn-ms-action" 
                             onClick={() => {
-                                if (selProject) dispatch(getClientMilestonesAction(selProject, true));
+                                if (selProject) dispatch(getClientMilestonesAction(selProject, true, milestoneType));
                             }}
                             title="Refresh milestones"
                         >
@@ -248,104 +297,202 @@ const Milestones = () => {
 
                 {/* 4 Executive KPI Stat Cards */}
                 <div className="ms-kpi-grid">
-                    {/* Card 1: Total Milestones */}
-                    <div className="ms-kpi-card">
-                        <div className="ms-kpi-top">
-                            <span className="ms-kpi-label">Total Milestones</span>
-                            <div className="ms-kpi-icon ms-icon-purple">
-                                <i className="bi bi-layers-fill"></i>
+                    {milestoneType === 'AMC' ? (
+                        <>
+                            {/* Card 1: Total AMC Months */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Total AMC Cycles</span>
+                                    <div className="ms-kpi-icon ms-icon-purple">
+                                        <i className="bi bi-shield-check"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-primary">
+                                        <CountUp end={totalCount} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-purple">Months</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-purple" style={{ width: '100%' }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Total planned AMC support duration
+                                </span>
                             </div>
-                        </div>
-                        <div className="ms-kpi-main">
-                            <span className="ms-kpi-val text-primary">
-                                <CountUp end={totalCount} />
-                            </span>
-                            <span className="ms-kpi-tag tag-purple">Phases</span>
-                        </div>
-                        <div className="ms-kpi-progress">
-                            <div className="ms-kpi-progress-bar bg-bar-purple" style={{ width: '100%' }}></div>
-                        </div>
-                        <span className="ms-kpi-sub">
-                            Full scope of active project
-                        </span>
-                    </div>
 
-                    {/* Card 2: Completed Milestones */}
-                    <div className="ms-kpi-card">
-                        <div className="ms-kpi-top">
-                            <span className="ms-kpi-label">Delivered</span>
-                            <div className="ms-kpi-icon ms-icon-emerald">
-                                <i className="bi bi-check2-circle"></i>
+                            {/* Card 2: Allocated AMC Hours */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Allocated Hours</span>
+                                    <div className="ms-kpi-icon ms-icon-sky">
+                                        <i className="bi bi-clock-history"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-dark">
+                                        <CountUp end={totalAllocatedAmcHours} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-sky">Hours</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-sky" style={{ width: '100%' }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Total contracted AMC support capacity
+                                </span>
                             </div>
-                        </div>
-                        <div className="ms-kpi-main">
-                            <span className="ms-kpi-val text-success">
-                                <CountUp end={completedCount} />
-                            </span>
-                            <span className="ms-kpi-tag tag-emerald">
-                                <CountUp end={completionRate} decimals={0} />% Done
-                            </span>
-                        </div>
-                        <div className="ms-kpi-progress">
-                            <div className="ms-kpi-progress-bar bg-bar-emerald" style={{ width: `${completionRate}%` }}></div>
-                        </div>
-                        <span className="ms-kpi-sub">
-                            {completedCount} of {totalCount} phases delivered
-                        </span>
-                    </div>
 
-                    {/* Card 3: In Progress */}
-                    <div className="ms-kpi-card">
-                        <div className="ms-kpi-top">
-                            <span className="ms-kpi-label">In Progress</span>
-                            <div className="ms-kpi-icon ms-icon-amber">
-                                <i className="bi bi-hourglass-split"></i>
+                            {/* Card 3: Worked Hours */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Consumed Hours</span>
+                                    <div className="ms-kpi-icon ms-icon-amber">
+                                        <i className="bi bi-stopwatch-fill"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-amber">
+                                        <CountUp end={totalWorkedHours} decimals={1} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-amber">Hours</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-amber" style={{ width: `${totalAllocatedAmcHours > 0 ? Math.min(100, (totalWorkedHours / totalAllocatedAmcHours) * 100) : 0}%` }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Hours delivered by engineering team
+                                </span>
                             </div>
-                        </div>
-                        <div className="ms-kpi-main">
-                            <span className="ms-kpi-val text-amber">
-                                <CountUp end={inProgressCount} />
-                            </span>
-                            <span className="ms-kpi-tag tag-amber">Active</span>
-                        </div>
-                        <div className="ms-kpi-progress">
-                            <div className="ms-kpi-progress-bar bg-bar-amber" style={{ width: `${totalCount > 0 ? (inProgressCount / totalCount) * 100 : 0}%` }}></div>
-                        </div>
-                        <span className="ms-kpi-sub">
-                            Currently undergoing development
-                        </span>
-                    </div>
 
-                    {/* Card 4: Current Target */}
-                    <div className="ms-kpi-card">
-                        <div className="ms-kpi-top">
-                            <span className="ms-kpi-label">Current Target</span>
-                            <div className="ms-kpi-icon ms-icon-sky">
-                                <i className="bi bi-flag-fill"></i>
+                            {/* Card 4: Remaining Hours */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Remaining Balance</span>
+                                    <div className="ms-kpi-icon ms-icon-emerald">
+                                        <i className="bi bi-hourglass"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className={`ms-kpi-val ${Number(latestRemainingHours) < 0 ? 'text-danger' : 'text-success'}`}>
+                                        <CountUp end={latestRemainingHours} decimals={1} />
+                                    </span>
+                                    <span className={`ms-kpi-tag ${Number(latestRemainingHours) < 0 ? 'tag-amber' : 'tag-emerald'}`}>
+                                        Hours Left
+                                    </span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className={`ms-kpi-progress-bar ${Number(latestRemainingHours) < 0 ? 'bg-bar-amber' : 'bg-bar-emerald'}`} style={{ width: `${totalAllocatedAmcHours > 0 ? Math.max(0, Math.min(100, (latestRemainingHours / totalAllocatedAmcHours) * 100)) : 100}%` }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Current available AMC balance
+                                </span>
                             </div>
-                        </div>
-                        <div className="ms-kpi-main">
-                            <span className="ms-kpi-val text-dark" style={{ fontSize: '18px' }} title={nextTarget?.title || nextTarget?.name}>
-                                {nextTarget?.title || nextTarget?.name || "None queued"}
-                            </span>
-                            <span className="ms-kpi-tag tag-sky">Active</span>
-                        </div>
-                        <div className="ms-kpi-progress">
-                            <div className="ms-kpi-progress-bar bg-bar-sky" style={{ width: `${nextTarget?.progress || 30}%` }}></div>
-                        </div>
-                        <span className="ms-kpi-sub">
-                            Due: {nextTarget?.completionDate ? moment.utc(nextTarget.completionDate).format('DD MMM YYYY') : 'Pending'}
-                        </span>
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* Card 1: Total Milestones */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Total Milestones</span>
+                                    <div className="ms-kpi-icon ms-icon-purple">
+                                        <i className="bi bi-layers-fill"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-primary">
+                                        <CountUp end={totalCount} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-purple">Phases</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-purple" style={{ width: '100%' }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Full scope of active project
+                                </span>
+                            </div>
+
+                            {/* Card 2: Completed Milestones */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Delivered</span>
+                                    <div className="ms-kpi-icon ms-icon-emerald">
+                                        <i className="bi bi-check2-circle"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-success">
+                                        <CountUp end={completedCount} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-emerald">
+                                        <CountUp end={completionRate} decimals={0} />% Done
+                                    </span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-emerald" style={{ width: `${completionRate}%` }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    {completedCount} of {totalCount} phases delivered
+                                </span>
+                            </div>
+
+                            {/* Card 3: In Progress */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">In Progress</span>
+                                    <div className="ms-kpi-icon ms-icon-amber">
+                                        <i className="bi bi-hourglass-split"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-amber">
+                                        <CountUp end={inProgressCount} />
+                                    </span>
+                                    <span className="ms-kpi-tag tag-amber">Active</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-amber" style={{ width: `${totalCount > 0 ? (inProgressCount / totalCount) * 100 : 0}%` }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Currently undergoing development
+                                </span>
+                            </div>
+
+                            {/* Card 4: Current Target */}
+                            <div className="ms-kpi-card">
+                                <div className="ms-kpi-top">
+                                    <span className="ms-kpi-label">Current Target</span>
+                                    <div className="ms-kpi-icon ms-icon-sky">
+                                        <i className="bi bi-flag-fill"></i>
+                                    </div>
+                                </div>
+                                <div className="ms-kpi-main">
+                                    <span className="ms-kpi-val text-dark" style={{ fontSize: '18px' }} title={nextTarget?.title || nextTarget?.name}>
+                                        {nextTarget?.title || nextTarget?.name || "None queued"}
+                                    </span>
+                                    <span className="ms-kpi-tag tag-sky">Active</span>
+                                </div>
+                                <div className="ms-kpi-progress">
+                                    <div className="ms-kpi-progress-bar bg-bar-sky" style={{ width: `${nextTarget?.progress || 30}%` }}></div>
+                                </div>
+                                <span className="ms-kpi-sub">
+                                    Due: {nextTarget?.completionDate ? moment.utc(nextTarget.completionDate).format('DD MMM YYYY') : 'Pending'}
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Main Milestones Directory Card */}
                 <div className="ms-main-card">
                     <div className="ms-toolbar">
                         <div className="ms-toolbar-left">
-                            <h3 className="ms-toolbar-title">Milestones Detailed Status</h3>
+                            <h3 className="ms-toolbar-title">
+                                {milestoneType === 'AMC' ? "AMC Milestones Status" : "Milestones Detailed Status"}
+                            </h3>
                             <span className="ms-count-badge">
-                                {filtered.length} of {totalCount} Phases
+                                {filtered.length} of {totalCount} {milestoneType === 'AMC' ? "Cycles" : "Phases"}
                             </span>
                         </div>
 
@@ -373,17 +520,19 @@ const Milestones = () => {
                                     className={`ms-filter-btn ${statusFilter === 'Completed' ? 'active' : ''}`}
                                     onClick={() => setStatusFilter('Completed')}
                                 >
-                                    <span>Completed</span>
+                                    <span>{milestoneType === 'AMC' ? "Delivered" : "Completed"}</span>
                                     <span className="ms-filter-count">{completedCount}</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    className={`ms-filter-btn ${statusFilter === 'Not Started' ? 'active' : ''}`}
-                                    onClick={() => setStatusFilter('Not Started')}
-                                >
-                                    <span>Not Started</span>
-                                    <span className="ms-filter-count">{notStartedCount}</span>
-                                </button>
+                                {milestoneType !== 'AMC' && (
+                                    <button
+                                        type="button"
+                                        className={`ms-filter-btn ${statusFilter === 'Not Started' ? 'active' : ''}`}
+                                        onClick={() => setStatusFilter('Not Started')}
+                                    >
+                                        <span>Not Started</span>
+                                        <span className="ms-filter-count">{notStartedCount}</span>
+                                    </button>
+                                )}
                             </div>
 
                             {/* Search Box */}
@@ -392,7 +541,7 @@ const Milestones = () => {
                                 <input
                                     type="text"
                                     className="ms-search-input"
-                                    placeholder="Search milestones..."
+                                    placeholder={milestoneType === 'AMC' ? "Search AMC cycles..." : "Search milestones..."}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
@@ -413,18 +562,22 @@ const Milestones = () => {
                     {clientMilestonesLoading ? (
                         <div className="ms-loading-wrap">
                             <div className="ms-spinner"></div>
-                            <div>Loading project milestones...</div>
+                            <div>Loading {milestoneType === 'AMC' ? "AMC cycles" : "project milestones"}...</div>
                         </div>
                     ) : filtered.length === 0 ? (
                         <div className="ms-empty-state">
                             <div className="ms-empty-icon-wrap">
-                                <i className="bi bi-flag"></i>
+                                <i className={milestoneType === 'AMC' ? "bi bi-shield-check" : "bi bi-flag"}></i>
                             </div>
-                            <h4 className="ms-empty-title">No Milestones Found</h4>
+                            <h4 className="ms-empty-title">
+                                {milestoneType === 'AMC' ? "No AMC Milestones Found" : "No Milestones Found"}
+                            </h4>
                             <p className="ms-empty-desc">
                                 {search || statusFilter !== 'all'
                                     ? "No milestones matched your active search query or filter."
-                                    : "No milestones have been configured for this project yet."}
+                                    : milestoneType === 'AMC'
+                                        ? "No AMC cycles have been set up for this project."
+                                        : "No milestones have been configured for this project yet."}
                             </p>
                             {(search || statusFilter !== 'all') && (
                                 <button
@@ -440,7 +593,102 @@ const Milestones = () => {
                                 </button>
                             )}
                         </div>
+                    ) : milestoneType === 'AMC' ? (
+                        /* AMC Table View */
+                        <div className="table-responsive">
+                            <table className="table-ms-custom table-ms-amc">
+                                <thead>
+                                    <tr>
+                                        <th className="ms-col-idx">#</th>
+                                        <th>AMC Cycle</th>
+                                        <th>Description</th>
+                                        <th className="text-center">Allocated Hours</th>
+                                        <th className="text-center">Worked Hours</th>
+                                        <th className="text-center">Remaining Hours</th>
+                                        <th className="text-center">Status</th>
+                                        <th style={{ textAlign: 'right' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((m, idx) => {
+                                        const taskUrl = `/dashboard/milestone-tasks/${m._id}?projectId=${selProject}&mName=${encodeURIComponent(
+                                            m.title || 'AMC'
+                                        )}&pName=${encodeURIComponent(
+                                            projects.find(p => p._id === selProject)?.name || ""
+                                        )}`;
+
+                                        return (
+                                            <tr
+                                                key={m._id || idx}
+                                                onClick={() => navigate(taskUrl)}
+                                                title="Click to view tasks"
+                                            >
+                                                <td className="ms-col-idx">{idx + 1}</td>
+                                                <td>
+                                                    <div className="ms-title-cell">
+                                                        <div className="ms-icon-avatar amc-icon-avatar">
+                                                            <i className="bi bi-shield-check"></i>
+                                                        </div>
+                                                        <div className="ms-title-text fw-bold text-dark">
+                                                            {m.title || m.name}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className="text-muted small">
+                                                        {m.description ? m.description.replace(/<[^>]+>/g, '').substring(0, 35) + '...' : 'Default AMC Cycle'}
+                                                    </span>
+                                                </td>
+                                                <td className="text-center">
+                                                    <span className="ms-hours-pill hours-allocated">
+                                                        <i className="bi bi-clock me-1"></i>
+                                                        {m.amcHours ?? 0} hrs
+                                                    </span>
+                                                </td>
+                                                <td className="text-center">
+                                                    <span className="ms-hours-pill hours-worked">
+                                                        <i className="bi bi-stopwatch me-1"></i>
+                                                        {m.workedHours ?? 0} hrs
+                                                    </span>
+                                                </td>
+                                                <td className="text-center">
+                                                    <span className={`ms-hours-pill ${Number(m.remainingHours) < 0 ? 'hours-negative' : 'hours-remaining'}`}>
+                                                        <i className="bi bi-hourglass me-1"></i>
+                                                        {m.remainingHours ?? 0} hrs
+                                                    </span>
+                                                </td>
+                                                <td className="text-center">
+                                                    {m.isDelivered ? (
+                                                        <span className="ms-status-pill status-completed">
+                                                            <i className="bi bi-check-circle-fill"></i> Delivered
+                                                        </span>
+                                                    ) : (
+                                                        <span className="ms-status-pill status-inprogress">
+                                                            <i className="bi bi-hourglass-split"></i> In Progress
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-view-tasks"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(taskUrl);
+                                                        }}
+                                                    >
+                                                        <span>Tasks</span>
+                                                        <i className="bi bi-arrow-right-short"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : (
+                        /* Ongoing Milestones Table View */
                         <div className="table-responsive">
                             <table className="table-ms-custom">
                                 <thead>

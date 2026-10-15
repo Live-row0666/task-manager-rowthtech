@@ -157,6 +157,17 @@ const CommonSidebar = ({ active }) => {
                     </li>
                     <li>
                         <Link
+                            to="/dashboard/change-requests"
+                            className={`menu-item-link ${active === "change-requests" ? "active" : ""}`}
+                            onClick={closeMobileSidebar}
+                        >
+                            <i className="bi bi-file-earmark-diff"></i>
+                            <span>Change Requests</span>
+                        </Link>
+                    </li>
+
+                    <li>
+                        <Link
                             to="/dashboard/dependencies"
                             className={`menu-item-link ${active === "dependencies" ? "active" : ""}`}
                             onClick={closeMobileSidebar}

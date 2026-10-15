@@ -198,8 +198,8 @@ const Milestone = () => {
     return (
         <>
             <div>
-                <Card style={{ height: '87vh', display: 'flex', flexDirection: 'column' }}>
-                    <Card.Body className='p-2' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Card style={{ height: 'calc(100vh - 145px)', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
+                    <Card.Body className='p-2' style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                         <div className="row">
                             <div className="col-12 mb-2">
                                 <ProjectPreview />
@@ -263,7 +263,7 @@ const Milestone = () => {
                                 )}
                             </div>
                         </div>
-                        <div style={{ flex: 1, overflow: 'auto' }}>
+                        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                             {loaderhandel.loading ? (
                                 <MainLoader />
                             ) : GetSinglemilstonesData?.length === 0 ? (
@@ -271,7 +271,7 @@ const Milestone = () => {
                                     <h5 className="text-muted">No Milestones Found</h5>
                                 </div>
                             ) : (
-                                <div className="table-responsive scroll-container" style={{ height: '90%' }}>
+                                <div className="table-responsive scroll-container">
                                     <Table className="mb-0 add_Color_font table-hover table-sm" style={{ fontSize: '11px', overflow: 'hidden' }}>
                                         <thead className="table-dark">
                                             {projectType === "AMC" ?
@@ -491,7 +491,7 @@ const Milestone = () => {
                             )}
                         </div>
                         {store?.getSigleMileStone?.data?.totalPages > 0 && (
-                            <div className="d-flex justify-content-end mt-3 pt-2 border-top">
+                            <div className="d-flex justify-content-end mt-auto pt-2 border-top">
                                 <Pagination
                                     page={skip}
                                     count={store?.getSigleMileStone?.data?.totalPages}
