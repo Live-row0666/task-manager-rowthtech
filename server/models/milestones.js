@@ -70,6 +70,10 @@ const milestoneModel = new Schema({
         type: Boolean,
         default: false
     },
+    isAmc: {
+        type: Boolean,
+        default: false
+    },
     workedHours: { type: Number, default: 0 },
 },
     {

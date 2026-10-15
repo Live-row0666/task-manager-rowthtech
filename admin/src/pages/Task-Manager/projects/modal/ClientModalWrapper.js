@@ -1,30 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Row, Col, Button } from 'react-bootstrap';
+import { Modal, Form, Row, Col, Button, Spinner } from 'react-bootstrap';
 import { useDispatch } from 'react-redux';
-import { createClient, getClients } from '../../../../redux/client/action';
+import { getClients } from '../../../../redux/client/action';
+import { clientAPI } from '../../../../redux/client/api';
+import { CLIENT_CONSTANTS } from '../../../../redux/client/constant';
 import ToastHandle from '../../../../constants/toaster/toaster';
 import 'react-quill/dist/quill.snow.css';
 
 const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
     const dispatch = useDispatch();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         companyName: '',
         email: [''],
         contact: [''],
-        // address: {
-        //     street: '',
-        //     city: '',
-        //     state: '',
-        //     zipCode: '',
-        //     country: ''
-        // },
-        // contactPerson: {
-        //     name: '',
-        //     position: '',
-        //     phone: '',
-        //     email: ''
-        // },
+        password: '',
         notes: '',
         status: 'active'
     });
@@ -36,6 +28,7 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
         companyName: '',
         email: [''],
         contact: [''],
+        password: '',
         notes: '',
         status: 'active'
     };
@@ -43,6 +36,8 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
     useEffect(() => {
         if (!show) {
             setFormData(emptyForm);
+            setIsSubmitting(false);
+            setShowPassword(false);
         }
     }, [show]);
 
@@ -72,14 +67,26 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Check if client name contains only spaces
-        if (!formData.name.trim()) {
+        if (!formData.name || !formData.name.trim()) {
             ToastHandle('error', 'Client Name cannot be empty or contain only spaces');
             return;
         }
+
+        const emailValue = formData.email && formData.email[0] ? formData.email[0].trim() : '';
+        if (!emailValue) {
+            ToastHandle('error', 'Email is required');
+            return;
+        }
+
+        if (!formData.password || !formData.password.trim()) {
+            ToastHandle('error', 'Password is required');
+            return;
+        }
+
+        setIsSubmitting(true);
 
         const removeEmpty = (obj) => {
             const newObj = {};
@@ -100,13 +107,43 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
             return newObj;
         };
 
-        const cleanedData = removeEmpty(formData);
-        cleanedData.projectType = selectedDepartment;
-        dispatch(createClient(cleanedData));
-        if (typeof onClientAdded === 'function') {
-            onClientAdded(cleanedData);
+        try {
+            const cleanedData = removeEmpty(formData);
+            cleanedData.projectType = selectedDepartment;
+            cleanedData.loginEmail = emailValue.toLowerCase();
+            cleanedData.loginPassword = formData.password.trim();
+            cleanedData.password = formData.password.trim();
+
+            const res = await clientAPI.createClient(cleanedData);
+            const createdClient = res?.data?.client || res?.data;
+
+            ToastHandle('success', res?.data?.message || 'Client created successfully');
+
+            // Instantly update redux store with new client so dropdowns update with zero delay
+            if (createdClient && createdClient._id) {
+                dispatch({
+                    type: CLIENT_CONSTANTS.CREATE_CLIENT_SUCCESS,
+                    payload: { client: createdClient }
+                });
+            }
+
+            // Sync with backend in background
+            dispatch(getClients({ projectType: selectedDepartment }));
+
+            if (typeof onClientAdded === 'function') {
+                onClientAdded(createdClient);
+            }
+            onHide();
+        } catch (error) {
+            const errorMsg =
+                error?.response?.data?.error ||
+                error?.response?.data?.message ||
+                error?.message ||
+                'Failed to create client';
+            ToastHandle('error', errorMsg);
+        } finally {
+            setIsSubmitting(false);
         }
-        onHide();
     };
 
     return (
@@ -128,7 +165,7 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
                         <Row>
                             <Col lg={6}>
                                 <Form.Group className="mb-2">
-                                    <Form.Label className='mb-0'>
+                                    <Form.Label className='mb-0 small fw-semibold'>
                                         Client Name <span className='text-danger'>*</span>
                                     </Form.Label>
                                     <Form.Control
@@ -138,12 +175,13 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
                                         onChange={handleInputChange}
                                         placeholder="Enter client name"
                                         required
+                                        autoFocus
                                     />
                                 </Form.Group>
                             </Col>
                             <Col lg={6}>
                                 <Form.Group className="mb-2">
-                                    <Form.Label className='mb-0'>Company Name</Form.Label>
+                                    <Form.Label className='mb-0 small fw-semibold'>Company Name</Form.Label>
                                     <Form.Control
                                         type="text"
                                         name="companyName"
@@ -155,18 +193,21 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
                             </Col>
                             <Col lg={6}>
                                 <Form.Group className="mb-2">
-                                    <Form.Label className='mb-0'>Email</Form.Label>
+                                    <Form.Label className='mb-0 small fw-semibold'>
+                                        Email <span className='text-danger'>*</span>
+                                    </Form.Label>
                                     <Form.Control
                                         type="email"
                                         value={formData.email[0]}
                                         onChange={(e) => handleArrayChange('email', 0, e.target.value)}
                                         placeholder="Enter email"
+                                        required
                                     />
                                 </Form.Group>
                             </Col>
                             <Col lg={6}>
                                 <Form.Group className="mb-2">
-                                    <Form.Label className='mb-0'>Contact</Form.Label>
+                                    <Form.Label className='mb-0 small fw-semibold'>Contact</Form.Label>
                                     <Form.Control
                                         type="tel"
                                         value={formData.contact[0]}
@@ -176,15 +217,49 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
                                     />
                                 </Form.Group>
                             </Col>
+                            <Col lg={6}>
+                                <Form.Group className="mb-2">
+                                    <Form.Label className='mb-0 small fw-semibold'>
+                                        Password <span className='text-danger'>*</span>
+                                    </Form.Label>
+                                    <div className="position-relative">
+                                        <Form.Control
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={formData.password}
+                                            onChange={handleInputChange}
+                                            placeholder="Enter password"
+                                            required
+                                            style={{ paddingRight: '36px' }}
+                                        />
+                                        <span
+                                            className="position-absolute"
+                                            style={{
+                                                right: '10px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                cursor: 'pointer',
+                                                zIndex: 10
+                                            }}
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            role="button"
+                                            tabIndex={-1}
+                                        >
+                                            <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'} text-secondary`}></i>
+                                        </span>
+                                    </div>
+                                </Form.Group>
+                            </Col>
                         </Row>
                     </div>
                 </Modal.Body>
-                <Modal.Footer>
+                <Modal.Footer className="py-2">
                     <Button
                         variant="outline-secondary"
                         className="fw-semibold"
                         style={{ padding: '4px 16px', fontSize: '11px' }}
                         onClick={onHide}
+                        disabled={isSubmitting}
                     >
                         Cancel
                     </Button>
@@ -193,8 +268,16 @@ const ClientModalWrapper = ({ show, onHide, onClientAdded }) => {
                         variant="dark"
                         className="fw-semibold"
                         style={{ padding: '4px 16px', fontSize: '11px' }}
+                        disabled={isSubmitting}
                     >
-                        Create
+                        {isSubmitting ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="me-1" />
+                                Creating...
+                            </>
+                        ) : (
+                            'Create'
+                        )}
                     </Button>
                 </Modal.Footer>
             </Form>

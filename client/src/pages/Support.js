@@ -91,6 +91,7 @@ const Support = () => {
 
     // Create Form state
     const [title, setTitle] = useState('');
+    const [createProjectId, setCreateProjectId] = useState('');
     const [category, setCategory] = useState('general_inquiry');
     const [priority, setPriority] = useState('medium');
     const [description, setDescription] = useState('');
@@ -623,7 +624,7 @@ const Support = () => {
         e.preventDefault();
         if (!title.trim()) return;
 
-        const resolvedProjectId = filterProject || (projects.length > 0 ? projects[0]._id : '');
+        const resolvedProjectId = createProjectId || filterProject || (projects.length > 0 ? projects[0]._id : '');
 
         try {
             setSubmitting(true);
@@ -1301,15 +1302,32 @@ const Support = () => {
 
                     <form onSubmit={handleSubmitTicket}>
                         <Modal.Body>
-                            {/* Project Badge Indicator */}
-                            <div className="mb-3 d-flex align-items-center gap-2">
-                                <span className="text-muted" style={{ fontSize: '11.5px', fontWeight: 600 }}>
-                                    Active Project:
-                                </span>
-                                <span className="project-tag-pill">
-                                    <i className="bi bi-folder-fill me-1" style={{ fontSize: '10px' }}></i>
-                                    {currentFilterProjectName}
-                                </span>
+                            {/* Project Selector */}
+                            <div className="mb-3">
+                                <label className="modal-form-label">
+                                    Project <span className="text-danger">*</span>
+                                </label>
+                                {projects.length <= 1 ? (
+                                    <div className="d-flex align-items-center gap-2 p-2 border rounded" style={{ backgroundColor: '#f8fafc' }}>
+                                        <i className="bi bi-folder-fill text-primary" style={{ fontSize: '13px' }}></i>
+                                        <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                                            {projects[0]?.name || currentFilterProjectName || 'Main Project'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <select
+                                        className="modal-form-select"
+                                        value={createProjectId || filterProject || (projects[0]?._id || '')}
+                                        onChange={(e) => setCreateProjectId(e.target.value)}
+                                        required
+                                    >
+                                        {projects.map((p) => (
+                                            <option key={p._id} value={p._id}>
+                                                {p.name || 'Project'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             <div className="mb-3">

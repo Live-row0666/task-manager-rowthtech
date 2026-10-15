@@ -3,6 +3,10 @@ const router = express.Router();
 const authRoutes = require('./auth');
 const dashboardRoutes = require('./dashboard');
 const Users = require('../../models/user');
+const Project = require('../../models/project');
+const Milestone = require('../../models/milestones');
+const Task = require('../../models/task');
+const Client = require('../../models/client');
 const ClientProject = require('../../models/clientProject');
 const ClientMilestone = require('../../models/clientMilestone');
 const ClientDocumentsController = require('../../controllers/client/documents')
@@ -18,8 +22,22 @@ router.get("/client-documents", verifyClient, ClientDocumentsController.getDocum
 router.get('/client-milestone', verifyClient, async (req, res) => {
     try {
         const { projectId, isActive } = req.query;
-        const clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
-        const clientProjectIds = clientProjects.map(p => p._id.toString());
+        const clientDoc = await Client.findById(req.client._id).select('projects').lean();
+        const clientProjectIdsFromDoc = Array.isArray(clientDoc?.projects) ? clientDoc.projects.map(p => p.toString()) : [];
+
+        let clientProjects = await Project.find({
+            $or: [
+                { client: req.client._id },
+                { _id: { $in: clientProjectIdsFromDoc } }
+            ],
+            isActive: true
+        }).select('_id').lean();
+
+        if (!clientProjects.length) {
+            clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
+        }
+
+        const clientProjectIds = [...clientProjects.map(p => p._id.toString()), ...clientProjectIdsFromDoc];
 
         const query = {};
         if (projectId) {
@@ -35,10 +53,18 @@ router.get('/client-milestone', verifyClient, async (req, res) => {
         }
 
         query.isActive = isActive === 'false' ? false : true;
-        const milestones = await ClientMilestone.find(query)
+        let milestones = await Milestone.find(query)
             .populate('project', 'name')
             .sort({ startDate: 1 })
             .lean();
+
+        if (!milestones.length) {
+            milestones = await ClientMilestone.find(query)
+                .populate('project', 'name')
+                .sort({ startDate: 1 })
+                .lean();
+        }
+
         return res.status(200).json({ status: 200, data: milestones });
     } catch (err) {
         return res.status(500).json({ status: 500, message: err.message });
@@ -49,8 +75,22 @@ router.get('/client-milestone', verifyClient, async (req, res) => {
 router.get('/client-task', verifyClient, async (req, res) => {
     try {
         const { milestoneId, projectId, limit = 500 } = req.query;
-        const clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
-        const clientProjectIds = clientProjects.map(p => p._id.toString());
+        const clientDoc = await Client.findById(req.client._id).select('projects').lean();
+        const clientProjectIdsFromDoc = Array.isArray(clientDoc?.projects) ? clientDoc.projects.map(p => p.toString()) : [];
+
+        let clientProjects = await Project.find({
+            $or: [
+                { client: req.client._id },
+                { _id: { $in: clientProjectIdsFromDoc } }
+            ],
+            isActive: true
+        }).select('_id').lean();
+
+        if (!clientProjects.length) {
+            clientProjects = await ClientProject.find({ client: req.client._id, isActive: true }).select('_id').lean();
+        }
+
+        const clientProjectIds = [...clientProjects.map(p => p._id.toString()), ...clientProjectIdsFromDoc];
 
         const query = { isActive: true };
         if (projectId) {
@@ -67,13 +107,30 @@ router.get('/client-task', verifyClient, async (req, res) => {
 
         if (milestoneId) query.milestone = milestoneId;
 
-        const tasks = await ClientTask.find(query)
+        let tasks = await Task.find(query)
             .populate('assignee', 'name email designation role profilePicture')
             .populate('milestone', 'title status startDate completionDate')
             .populate('project', 'name projectStatus projectType')
             .limit(Number(limit))
             .sort({ createdAt: -1 })
             .lean();
+
+        if (!tasks.length) {
+            tasks = await ClientTask.find(query)
+                .populate('assignee', 'name email designation role profilePicture')
+                .populate('milestone', 'title status startDate completionDate')
+                .populate('project', 'name projectStatus projectType')
+                .limit(Number(limit))
+                .sort({ createdAt: -1 })
+                .lean();
+        } else {
+            // Normalize task summary to title for client UI
+            tasks = tasks.map(t => ({
+                ...t,
+                title: t.summary || t.title
+            }));
+        }
+
         return res.status(200).json({ status: 200, data: tasks });
     } catch (err) {
         return res.status(500).json({ status: 500, message: err.message });

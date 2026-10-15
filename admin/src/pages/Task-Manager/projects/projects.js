@@ -323,11 +323,13 @@ const Projects = () => {
                                                                 {userRole === 'Marketing' || userRole === 'Sales' || userRole === 'Freelancers' ? (
                                                                     <span className="namelink text-primary fw-semibold text-capitalize">
                                                                         {ele?.name}
+                                                                        {ele?.hasAmc && <span className="badge bg-soft-info text-primary border border-primary ms-1" style={{ fontSize: '9px' }} title="AMC Contract Active">AMC</span>}
                                                                     </span>
                                                                 ) : (
                                                                     <Link to={`/dashboard/milestone/${ele?._id}`} className="text-decoration-none">
                                                                         <span className="namelink text-primary fw-semibold text-capitalize">
                                                                             {ele?.name}
+                                                                            {ele?.hasAmc && <span className="badge bg-soft-info text-primary border border-primary ms-1" style={{ fontSize: '9px' }} title="AMC Contract Active">AMC</span>}
                                                                         </span>
                                                                     </Link>
                                                                 )}

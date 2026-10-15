@@ -1,5 +1,5 @@
 const ClientDependency = require('../../models/clientDependency');
-const ClientProject = require('../../models/clientProject');
+const Project = require('../../models/project');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const s3Client = new S3Client({

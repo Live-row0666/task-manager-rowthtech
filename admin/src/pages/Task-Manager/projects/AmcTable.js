@@ -54,6 +54,9 @@ const AmcTable = ({
                                 <Link to={`/dashboard/milestone/${project?._id}?type=AMC`} className="text-decoration-none">
                                     {project?.name}
                                 </Link>
+                                {project?.projectStatus === 'Ongoing' && (
+                                    <span className="badge bg-soft-success text-success border border-success ms-1" style={{ fontSize: '9px' }} title="Also active in Ongoing Development">Ongoing</span>
+                                )}
                             </div>
                         </td>
                         <td className="text-center" style={{ fontSize: '12px' }}>

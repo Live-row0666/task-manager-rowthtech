@@ -7,7 +7,29 @@ export function addProjectApi(data): any {
     return api.create(URL.AddProject, data.payload)
 }
 export function getProjectApi(data): any {
-    return api.get(`${URL.AddProject}?${data.payload.projectStatus !== '' && `status=${data.payload.projectStatus}`}&isActive=${data.payload.status}&page=${data.payload.skip}&search=${data.payload.search || ''}&limit=${data?.payload?.limit || 50}${data?.payload?.userId ? `&user=${data?.payload?.userId}` : ''}&projectType=${data?.payload?.projectType}`)
+    const p = data?.payload || {};
+    const queryParts = [];
+    if (p.projectStatus && p.projectStatus !== 'undefined' && p.projectStatus !== 'null') {
+        queryParts.push(`status=${encodeURIComponent(p.projectStatus)}`);
+    }
+    if (p.status !== undefined && p.status !== null && p.status !== 'undefined') {
+        queryParts.push(`isActive=${p.status}`);
+    }
+    if (p.skip !== undefined && p.skip !== null) {
+        queryParts.push(`page=${p.skip}`);
+    }
+    if (p.search) {
+        queryParts.push(`search=${encodeURIComponent(p.search)}`);
+    }
+    queryParts.push(`limit=${p.limit || 200}`);
+    if (p.userId) {
+        queryParts.push(`user=${encodeURIComponent(p.userId)}`);
+    }
+    if (p.projectType && p.projectType !== 'undefined' && p.projectType !== 'null') {
+        queryParts.push(`projectType=${encodeURIComponent(p.projectType)}`);
+    }
+    const queryStr = queryParts.length ? `?${queryParts.join('&')}` : '';
+    return api.get(`${URL.AddProject}${queryStr}`);
 }
 export function updateProjectApi(data): any {
     return api.update(`${URL.AddProject}/${data?.payload?.projectId}`, data?.payload?.body)

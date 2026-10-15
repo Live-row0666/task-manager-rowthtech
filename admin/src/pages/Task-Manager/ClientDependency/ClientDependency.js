@@ -178,24 +178,108 @@ const ClientDependency = () => {
 
     const [directProjects, setDirectProjects] = useState([]);
 
-    // Redux clients and projects
+    // Redux clients
     const reduxClients = useMemo(() => {
         const raw = store?.clientReducer?.clients || store?.getClientsReducer?.data?.data || [];
         return Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
     }, [store]);
 
-    const reduxProjects = useMemo(() => {
-        const list = store?.getClientProjectsReducer?.data?.data || store?.getProjectsReducer?.data?.data || [];
-        return Array.isArray(list) ? list : [];
-    }, [store]);
-
+    // Projects loaded from Project model
     const allProjects = useMemo(() => {
-        if (reduxProjects && reduxProjects.length > 0) return reduxProjects;
         if (directProjects && directProjects.length > 0) return directProjects;
-        return [];
-    }, [reduxProjects, directProjects]);
+        const list = store?.getProjectsReducer?.data?.data || [];
+        return Array.isArray(list) ? list : [];
+    }, [directProjects, store]);
 
-    // Check if project belongs to selected client (handles arrays of clients and single objects/IDs)
+    // Filter only Ongoing and AMC (Support) projects (exclude Delivered, Hold, etc.)
+    const ongoingOrAmcProjects = useMemo(() => {
+        return allProjects.filter((p) => {
+            if (!p) return false;
+            const status = String(p.projectStatus || p.status || '').trim().toLowerCase();
+            return status === 'ongoing' || status === 'support' || status === 'amc';
+        });
+    }, [allProjects]);
+
+    // Resolve client(s) attached to a given project
+    const getProjectClients = useCallback((project) => {
+        if (!project) return [];
+        const result = [];
+
+        const resolveClientObj = (c) => {
+            if (!c) return null;
+            if (typeof c === 'object' && c._id) {
+                const full = reduxClients.find((rc) => String(rc._id) === String(c._id));
+                return full || c;
+            }
+            const cId = String(c);
+            const found = reduxClients.find((rc) => String(rc._id) === cId);
+            return found || { _id: cId, name: 'Client' };
+        };
+
+        if (Array.isArray(project.client)) {
+            project.client.forEach((c) => {
+                const resolved = resolveClientObj(c);
+                if (resolved && !result.some((item) => String(item._id) === String(resolved._id))) {
+                    result.push(resolved);
+                }
+            });
+        } else if (project.client) {
+            const resolved = resolveClientObj(project.client);
+            if (resolved && !result.some((item) => String(item._id) === String(resolved._id))) {
+                result.push(resolved);
+            }
+        }
+
+        if (project.clientId) {
+            const resolved = resolveClientObj(project.clientId);
+            if (resolved && !result.some((item) => String(item._id) === String(resolved._id))) {
+                result.push(resolved);
+            }
+        }
+
+        // Also check if any client has this project in client.projects
+        if (result.length === 0 && project._id) {
+            const pId = String(project._id);
+            reduxClients.forEach((rc) => {
+                if (Array.isArray(rc.projects)) {
+                    const match = rc.projects.some((pr) => {
+                        const id = typeof pr === 'object' ? (pr._id || pr.id) : pr;
+                        return String(id) === pId;
+                    });
+                    if (match && !result.some((item) => String(item._id) === String(rc._id))) {
+                        result.push(rc);
+                    }
+                }
+            });
+        }
+
+        return result;
+    }, [reduxClients]);
+
+    // Current project's attached clients
+    const currentProjectClients = useMemo(() => {
+        if (!formProject) return [];
+        const proj = ongoingOrAmcProjects.find((p) => String(p._id) === String(formProject));
+        return getProjectClients(proj);
+    }, [formProject, ongoingOrAmcProjects, getProjectClients]);
+
+    // Handle project selection in Create Modal
+    const handleProjectChange = (projectId) => {
+        setFormProject(projectId);
+        if (!projectId) {
+            setFormClient('');
+            return;
+        }
+        const proj = ongoingOrAmcProjects.find((p) => String(p._id) === String(projectId));
+        const clients = getProjectClients(proj);
+        if (clients.length > 0) {
+            setFormClient(clients[0]._id || clients[0].id);
+        } else {
+            setFormClient('');
+        }
+    };
+
+    // Check if project belongs to selected client (for table filters)
     const projectMatchesClient = useCallback((p, clientId) => {
         if (!p || !clientId) return false;
         if (clientId === 'all') return true;
@@ -222,20 +306,6 @@ const ClientDependency = () => {
         return false;
     }, []);
 
-    // Filtered projects for create modal based on selected client
-    const clientProjectsForCreate = useMemo(() => {
-        if (!formClient) return [];
-        const matched = allProjects.filter((p) => projectMatchesClient(p, formClient));
-        return matched.length > 0 ? matched : allProjects;
-    }, [allProjects, formClient, projectMatchesClient]);
-
-    // Auto-select project if only one project is associated with the selected client
-    useEffect(() => {
-        if (formClient && clientProjectsForCreate.length === 1 && !formProject) {
-            setFormProject(clientProjectsForCreate[0]._id);
-        }
-    }, [formClient, clientProjectsForCreate, formProject]);
-
     // Show temporary toast notification
     const triggerToast = (msg, type = 'success') => {
         setToastMessage({ msg, type });
@@ -244,12 +314,11 @@ const ClientDependency = () => {
         }, 4000);
     };
 
-    // Load clients & projects into Redux & direct state on mount
+    // Load clients & projects from Project model on mount
     useEffect(() => {
-        dispatch(getClientProjects({ page: 1, limit: 500 }));
         dispatch(getClients({ page: 1, limit: 500 }));
 
-        api.get('/api/v1/admin/client-project?page=1&limit=500')
+        api.get('/api/v1/admin/project?page=1&limit=500')
             .then((res) => {
                 const list = res?.data?.data || res?.data?.projects || res?.data || [];
                 if (Array.isArray(list) && list.length > 0) {
@@ -357,8 +426,8 @@ const ClientDependency = () => {
 
     // Reset Create Modal Form
     const handleOpenCreateModal = () => {
-        setFormClient(reduxClients.length > 0 ? reduxClients[0]._id : '');
         setFormProject('');
+        setFormClient('');
         setFormTitle('');
         setFormDescription('');
         setFormPriority('medium');
@@ -432,12 +501,12 @@ const ClientDependency = () => {
     // Save New Dependency
     const handleCreateDependencySubmit = async (e) => {
         e.preventDefault();
-        if (!formClient) {
-            triggerToast('Please select a client.', 'error');
+        if (!formProject) {
+            triggerToast('Please select a project.', 'error');
             return;
         }
-        if (!formProject) {
-            triggerToast('Please select a project for this client.', 'error');
+        if (!formClient) {
+            triggerToast('This project does not have an attached client. Please link a client in project settings first.', 'error');
             return;
         }
         if (!formTitle.trim()) {
@@ -808,25 +877,6 @@ const ClientDependency = () => {
 
                 <div className="dep-filter-row">
                     <div className="dep-filter-item">
-                        <label className="dep-filter-label">Select Client</label>
-                        <select
-                            className="dep-filter-select"
-                            value={selectedClient}
-                            onChange={(e) => {
-                                setSelectedClient(e.target.value);
-                                setSelectedProject('all');
-                            }}
-                        >
-                            <option value="all">All Clients ({reduxClients.length})</option>
-                            {reduxClients.map((c) => (
-                                <option key={c._id} value={c._id}>
-                                    {c.name || c.clientName || c.email}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="dep-filter-item">
                         <label className="dep-filter-label">Select Project</label>
                         <select
                             className="dep-filter-select"
@@ -834,16 +884,11 @@ const ClientDependency = () => {
                             onChange={(e) => setSelectedProject(e.target.value)}
                         >
                             <option value="all">All Projects</option>
-                            {allProjects
-                                .filter((p) => {
-                                    if (selectedClient === 'all') return true;
-                                    return projectMatchesClient(p, selectedClient);
-                                })
-                                .map((p) => (
-                                    <option key={p._id} value={p._id}>
-                                        {p.name || p.projectName || 'Project'}
-                                    </option>
-                                ))}
+                            {allProjects.map((p) => (
+                                <option key={p._id} value={p._id}>
+                                    {p.name || p.projectName || 'Project'}
+                                </option>
+                            ))}
                         </select>
                     </div>
 
@@ -911,18 +956,12 @@ const ClientDependency = () => {
                 </div>
 
                 {/* Active filter tags */}
-                {(selectedClient !== 'all' || selectedProject !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchTerm) && (
+                {(selectedProject !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchTerm) && (
                     <div className="dep-active-tags-bar">
                         <span className="text-muted fw-bold me-1">Active filters:</span>
-                        {selectedClient !== 'all' && (
-                            <span className="dep-tag-pill">
-                                Client: {reduxClients.find((c) => c._id === selectedClient)?.name || selectedClient}
-                                <span className="dep-tag-remove" onClick={() => setSelectedClient('all')}>&times;</span>
-                            </span>
-                        )}
                         {selectedProject !== 'all' && (
                             <span className="dep-tag-pill">
-                                Project: {reduxProjects.find((p) => p._id === selectedProject)?.projectName || selectedProject}
+                                Project: {allProjects.find((p) => String(p._id) === String(selectedProject))?.name || allProjects.find((p) => String(p._id) === String(selectedProject))?.projectName || selectedProject}
                                 <span className="dep-tag-remove" onClick={() => setSelectedProject('all')}>&times;</span>
                             </span>
                         )}
@@ -1015,7 +1054,7 @@ const ClientDependency = () => {
                                                 </span>
                                                 <span className="project-badge">
                                                     <i className="uil uil-folder"></i>
-                                                    {dep.project?.projectName || dep.project?.name || 'Assigned Project'}
+                                                    {dep.project?.name || dep.project?.projectName || (typeof dep.project === 'string' ? (allProjects.find(p => String(p._id) === String(dep.project))?.name || allProjects.find(p => String(p._id) === String(dep.project))?.projectName) : '') || 'Assigned Project'}
                                                 </span>
                                             </div>
                                         </td>
@@ -1142,269 +1181,856 @@ const ClientDependency = () => {
 
                     <div className="dep-modal-body">
                         <div className="dep-modal-grid">
-                            {/* Client & Project Selection */}
-                            <div className="dep-form-row two-col">
-                                <div className="dep-form-group">
-                                    <label>
-                                        Client <span className="req">*</span>
-                                    </label>
-                                    <select
-                                        className="dep-form-control"
-                                        value={formClient}
-                                        onChange={(e) => {
-                                            setFormClient(e.target.value);
-                                            setFormProject('');
-                                        }}
-                                        required
-                                    >
-                                        <option value="">Select Client</option>
-                                        {reduxClients.map((c) => (
-                                            <option key={c._id} value={c._id}>
-                                                {c.name || c.clientName || c.email}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="dep-form-group">
-                                    <label>
-                                        Project <span className="req">*</span>
-                                    </label>
-                                    <select
-                                        className="dep-form-control"
-                                        value={formProject}
-                                        onChange={(e) => setFormProject(e.target.value)}
-                                        disabled={!formClient}
-                                        required
-                                    >
-                                        <option value="">
-                                            {!formClient
-                                                ? 'Select Client first'
-                                                : clientProjectsForCreate.length === 0
-                                                    ? 'No projects available'
-                                                    : 'Select Project'}
+                            {/* Project Selection (Ongoing & AMC Only) */}
+                        <div className="dep-form-group">
+                            <label className="d-flex justify-content-between align-items-center mb-1">
+                                <span>
+                                    Select Project <span className="req">*</span>
+                                </span>
+                                <span className="badge bg-soft-primary text-primary" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                    {ongoingOrAmcProjects.length} Ongoing &amp; AMC Projects
+                                </span>
+                            </label>
+                            <select
+                                className="dep-form-control"
+                                value={formProject}
+                                onChange={(e) => handleProjectChange(e.target.value)}
+                                required
+                            >
+                                <option value="">-- Choose Ongoing or AMC Project --</option>
+                                {ongoingOrAmcProjects.map((p) => {
+                                    const pClients = getProjectClients(p);
+                                    const clientName = pClients.map((c) => c.name || c.loginEmail).filter(Boolean).join(', ');
+                                    const status = (p.projectStatus === 'Support' || p.projectStatus?.toLowerCase() === 'amc') ? 'AMC' : (p.projectStatus || 'Ongoing');
+                                    return (
+                                        <option key={p._id} value={p._id}>
+                                            {p.name || p.projectName || 'Project'} ({status}){clientName ? ` — Client: ${clientName}` : ' — (No client)'}
                                         </option>
-                                        {clientProjectsForCreate.map((p) => (
-                                            <option key={p._id} value={p._id}>
-                                                {p.name || p.projectName || 'Project'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
+                        {/* Client Detection & Status */}
+                        {formProject && (
+                            <div className="dep-form-group" style={{ marginTop: '-4px', marginBottom: '14px' }}>
+                                {currentProjectClients.length === 0 ? (
+                                    <div className="p-2 rounded border text-warning d-flex align-items-center" style={{ backgroundColor: 'rgba(255, 193, 7, 0.08)', borderColor: '#ffc107', fontSize: '13px' }}>
+                                        <i className="uil uil-exclamation-triangle me-2" style={{ fontSize: '18px' }}></i>
+                                        <span>
+                                            <strong>Notice:</strong> No client is currently linked to this project. Please link a client in Project settings so the dependency can reach their portal.
+                                        </span>
+                                    </div>
+                                ) : currentProjectClients.length === 1 ? (
+                                    <div className="p-2 rounded border d-flex align-items-center justify-content-between" style={{ backgroundColor: 'rgba(25, 135, 84, 0.08)', borderColor: '#198754', color: '#198754', fontSize: '13px' }}>
+                                        <div className="d-flex align-items-center">
+                                            <i className="uil uil-user-check me-2" style={{ fontSize: '18px' }}></i>
+                                            <span>
+                                                Linked Client: <strong>{currentProjectClients[0].name || currentProjectClients[0].loginEmail || 'Client'}</strong>
+                                                {currentProjectClients[0].loginEmail ? ` (${currentProjectClients[0].loginEmail})` : ''}
+                                            </span>
+                                        </div>
+                                        <span className="badge bg-success text-white" style={{ fontSize: '11px', padding: '4px 8px' }}>
+                                            Direct to Client Portal
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="mb-1" style={{ fontSize: '12px', fontWeight: 600 }}>
+                                            Project has multiple clients — select recipient <span className="req">*</span>:
+                                        </label>
+                                        <select
+                                            className="dep-form-control"
+                                            value={formClient}
+                                            onChange={(e) => setFormClient(e.target.value)}
+                                            required
+                                        >
+                                            {currentProjectClients.map((c) => (
+                                                <option key={c._id} value={c._id}>
+                                                    {c.name || c.loginEmail || c.email} {c.companyName ? `(${c.companyName})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Title & Priority & Turnaround */}
+                        <div className="dep-form-group">
+                            <label>
+                                Requirement Title <span className="req">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                className="dep-form-control"
+                                placeholder="e.g. Production Stripe Keys & Webhook Signing Secret"
+                                value={formTitle}
+                                onChange={(e) => setFormTitle(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <div className="dep-form-row three-col">
+                            <div className="dep-form-group">
+                                <label>Priority</label>
+                                <select
+                                    className="dep-form-control"
+                                    value={formPriority}
+                                    onChange={(e) => setFormPriority(e.target.value)}
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
                             </div>
 
-                            {/* Title & Priority & Turnaround */}
                             <div className="dep-form-group">
                                 <label>
-                                    Requirement Title <span className="req">*</span>
+                                    Turnaround Days <span className="req">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    className="dep-form-control"
-                                    placeholder="e.g. Production Stripe Keys & Webhook Signing Secret"
-                                    value={formTitle}
-                                    onChange={(e) => setFormTitle(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            <div className="dep-form-row three-col">
-                                <div className="dep-form-group">
-                                    <label>Priority</label>
-                                    <select
+                                <div className="input-group-days">
+                                    <input
+                                        type="number"
                                         className="dep-form-control"
-                                        value={formPriority}
-                                        onChange={(e) => setFormPriority(e.target.value)}
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
-                                    </select>
-                                </div>
-
-                                <div className="dep-form-group">
-                                    <label>
-                                        Turnaround Days <span className="req">*</span>
-                                    </label>
-                                    <div className="input-group-days">
-                                        <input
-                                            type="number"
-                                            className="dep-form-control"
-                                            min="1"
-                                            max="60"
-                                            value={formExpectedDays}
-                                            onChange={(e) => setFormExpectedDays(e.target.value)}
-                                            required
-                                        />
-                                        <span className="days-addon">days</span>
-                                    </div>
-                                </div>
-
-                                <div className="dep-form-group">
-                                    <label>Calculated Deadline</label>
-                                    <div className="calculated-due-badge">
-                                        <i className="uil uil-calendar-alt"></i>
-                                        {new Date(Date.now() + (parseInt(formExpectedDays, 10) || 1) * 86400000).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            year: 'numeric'
-                                        })}
-                                    </div>
+                                        min="1"
+                                        max="60"
+                                        value={formExpectedDays}
+                                        onChange={(e) => setFormExpectedDays(e.target.value)}
+                                        required
+                                    />
+                                    <span className="days-addon">days</span>
                                 </div>
                             </div>
 
                             <div className="dep-form-group">
-                                <label>Instructions / Requirement Context</label>
-                                <textarea
-                                    className="dep-form-control"
-                                    rows="2"
-                                    placeholder="Provide clear steps or instructions for the client regarding where to obtain these credentials or details..."
-                                    value={formDescription}
-                                    onChange={(e) => setFormDescription(e.target.value)}
-                                />
+                                <label>Calculated Deadline</label>
+                                <div className="calculated-due-badge">
+                                    <i className="uil uil-calendar-alt"></i>
+                                    {new Date(Date.now() + (parseInt(formExpectedDays, 10) || 1) * 86400000).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="dep-form-group">
+                            <label>Instructions / Requirement Context</label>
+                            <textarea
+                                className="dep-form-control"
+                                rows="2"
+                                placeholder="Provide clear steps or instructions for the client regarding where to obtain these credentials or details..."
+                                value={formDescription}
+                                onChange={(e) => setFormDescription(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Quick Field Templates Section */}
+                        <div className="dep-builder-section">
+                            <div className="dep-builder-header">
+                                <div>
+                                    <h6>Requirement Fields</h6>
+                                    <p>Build custom input fields the client must provide (passwords, tokens, text, urls, files).</p>
+                                </div>
                             </div>
 
-                            {/* Quick Field Templates Section */}
-                            <div className="dep-builder-section">
-                                <div className="dep-builder-header">
-                                    <div>
-                                        <h6>Requirement Fields</h6>
-                                        <p>Build custom input fields the client must provide (passwords, tokens, text, urls, files).</p>
-                                    </div>
+                            <div className="quick-templates-box">
+                                <span className="quick-tmpl-title">1-Click Templates:</span>
+                                <div className="quick-tmpl-chips">
+                                    {QUICK_FIELD_TEMPLATES.map((tmpl, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            className="btn-quick-tmpl"
+                                            onClick={() => handleApplyTemplate(tmpl)}
+                                            title={tmpl.desc}
+                                        >
+                                            <i className="uil uil-plus"></i> {tmpl.title}
+                                        </button>
+                                    ))}
                                 </div>
+                            </div>
 
-                                <div className="quick-templates-box">
-                                    <span className="quick-tmpl-title">1-Click Templates:</span>
-                                    <div className="quick-tmpl-chips">
-                                        {QUICK_FIELD_TEMPLATES.map((tmpl, idx) => (
-                                            <button
-                                                key={idx}
-                                                type="button"
-                                                className="btn-quick-tmpl"
-                                                onClick={() => handleApplyTemplate(tmpl)}
-                                                title={tmpl.desc}
-                                            >
-                                                <i className="uil uil-plus"></i> {tmpl.title}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Dynamic Field Items List */}
-                                <div className="dynamic-fields-list">
-                                    {formDynamicFields.map((field, index) => (
-                                        <div key={field.id || index} className="dynamic-field-item">
-                                            <div className="dynamic-field-top">
-                                                <span className="field-seq">#{index + 1}</span>
-                                                <div className="field-inputs-row">
-                                                    <div className="field-label-col">
-                                                        <input
-                                                            type="text"
-                                                            className="dep-form-control field-label-input"
-                                                            placeholder="Field Label (e.g. API Secret Token)"
-                                                            value={field.label}
-                                                            onChange={(e) => handleUpdateField(index, 'label', e.target.value)}
-                                                            required
-                                                        />
-                                                    </div>
-
-                                                    <div className="field-type-col">
-                                                        <select
-                                                            className="dep-form-control field-type-select"
-                                                            value={field.fieldType}
-                                                            onChange={(e) => handleUpdateField(index, 'fieldType', e.target.value)}
-                                                        >
-                                                            <option value="text">Single-line Text</option>
-                                                            <option value="password">Password / Secret Token</option>
-                                                            <option value="textarea">Multi-line Text</option>
-                                                            <option value="url">URL / Web Link</option>
-                                                            <option value="file">File / Attachment</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div className="field-req-col">
-                                                        <label className="checkbox-label">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={field.isRequired}
-                                                                onChange={(e) => handleUpdateField(index, 'isRequired', e.target.checked)}
-                                                            />
-                                                            <span>Required</span>
-                                                        </label>
-                                                    </div>
+                            {/* Dynamic Field Items List */}
+                            <div className="dynamic-fields-list">
+                                {formDynamicFields.map((field, index) => (
+                                    <div key={field.id || index} className="dynamic-field-item">
+                                        <div className="dynamic-field-top">
+                                            <span className="field-seq">#{index + 1}</span>
+                                            <div className="field-inputs-row">
+                                                <div className="field-label-col">
+                                                    <input
+                                                        type="text"
+                                                        className="dep-form-control field-label-input"
+                                                        placeholder="Field Label (e.g. API Secret Token)"
+                                                        value={field.label}
+                                                        onChange={(e) => handleUpdateField(index, 'label', e.target.value)}
+                                                        required
+                                                    />
                                                 </div>
 
-                                                <div className="field-actions-col">
-                                                    <button
-                                                        type="button"
-                                                        className="btn-field-seq"
-                                                        disabled={index === 0}
-                                                        onClick={() => handleMoveField(index, -1)}
-                                                        title="Move Up"
+                                                <div className="field-type-col">
+                                                    <select
+                                                        className="dep-form-control field-type-select"
+                                                        value={field.fieldType}
+                                                        onChange={(e) => handleUpdateField(index, 'fieldType', e.target.value)}
                                                     >
-                                                        <i className="uil uil-arrow-up"></i>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn-field-seq"
-                                                        disabled={index === formDynamicFields.length - 1}
-                                                        onClick={() => handleMoveField(index, 1)}
-                                                        title="Move Down"
-                                                    >
-                                                        <i className="uil uil-arrow-down"></i>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn-field-remove"
-                                                        onClick={() => handleRemoveField(index)}
-                                                        title="Remove Field"
-                                                    >
-                                                        <i className="uil uil-trash-alt"></i>
-                                                    </button>
+                                                        <option value="text">Single-line Text</option>
+                                                        <option value="password">Password / Secret Token</option>
+                                                        <option value="textarea">Multi-line Text</option>
+                                                        <option value="url">URL / Web Link</option>
+                                                        <option value="file">File / Attachment</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="field-req-col">
+                                                    <label className="checkbox-label">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={field.isRequired}
+                                                            onChange={(e) => handleUpdateField(index, 'isRequired', e.target.checked)}
+                                                        />
+                                                        <span>Required</span>
+                                                    </label>
                                                 </div>
                                             </div>
 
-                                            <div className="dynamic-field-bottom">
-                                                {field.fieldType !== 'file' && (
-                                                    <input
-                                                        type="text"
-                                                        className="dep-form-control field-sub-input"
-                                                        placeholder="Placeholder text (e.g. sk_live_...)"
-                                                        value={field.placeholder || ''}
-                                                        onChange={(e) => handleUpdateField(index, 'placeholder', e.target.value)}
-                                                    />
-                                                )}
+                                            <div className="field-actions-col">
+                                                <button
+                                                    type="button"
+                                                    className="btn-field-seq"
+                                                    disabled={index === 0}
+                                                    onClick={() => handleMoveField(index, -1)}
+                                                    title="Move Up"
+                                                >
+                                                    <i className="uil uil-arrow-up"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn-field-seq"
+                                                    disabled={index === formDynamicFields.length - 1}
+                                                    onClick={() => handleMoveField(index, 1)}
+                                                    title="Move Down"
+                                                >
+                                                    <i className="uil uil-arrow-down"></i>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn-field-remove"
+                                                    onClick={() => handleRemoveField(index)}
+                                                    title="Remove Field"
+                                                >
+                                                    <i className="uil uil-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="dynamic-field-bottom">
+                                            {field.fieldType !== 'file' && (
                                                 <input
                                                     type="text"
                                                     className="dep-form-control field-sub-input"
-                                                    placeholder="Helper guidance note for client (optional)"
-                                                    value={field.helpText || ''}
-                                                    onChange={(e) => handleUpdateField(index, 'helpText', e.target.value)}
+                                                    placeholder="Placeholder text (e.g. sk_live_...)"
+                                                    value={field.placeholder || ''}
+                                                    onChange={(e) => handleUpdateField(index, 'placeholder', e.target.value)}
                                                 />
-                                            </div>
+                                            )}
+                                            <input
+                                                type="text"
+                                                className="dep-form-control field-sub-input"
+                                                placeholder="Helper guidance note for client (optional)"
+                                                value={field.helpText || ''}
+                                                onChange={(e) => handleUpdateField(index, 'helpText', e.target.value)}
+                                            />
                                         </div>
-                                    ))}
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="btn-add-custom-field"
-                                    onClick={handleAddCustomField}
-                                >
-                                    <i className="uil uil-plus"></i> Add Custom Field
-                                </button>
+                                    </div>
+                                ))}
                             </div>
 
-                            {/* Internal Admin Note */}
-                            <div className="dep-form-group">
-                                <label>Internal Admin Notes (Optional)</label>
+                            <button
+                                type="button"
+                                className="btn-add-custom-field"
+                                onClick={handleAddCustomField}
+                            >
+                                <i className="uil uil-plus"></i> Add Custom Field
+                            </button>
+                        </div>
+
+                        {/* Internal Admin Note */}
+                        <div className="dep-form-group">
+                            <label>Internal Admin Notes (Optional)</label>
+                            <input
+                                type="text"
+                                className="dep-form-control"
+                                placeholder="Internal memo for project manager or developers..."
+                                value={formAdminNotes}
+                                onChange={(e) => setFormAdminNotes(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="dep-modal-footer">
+                    <button
+                        type="button"
+                        className="btn-modal-cancel"
+                        onClick={() => setShowCreateModal(false)}
+                        disabled={saving}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="btn-modal-submit"
+                        disabled={saving}
+                    >
+                        {saving ? (
+                            <>
+                                <span className="spinner-border spinner-border-sm me-1"></span>
+                                Dispatching to Client...
+                            </>
+                        ) : (
+                            <>
+                                <i className="uil uil-send"></i>
+                                Send Dependency to Client
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+
+            {/* REVIEW / DETAIL MODAL */ }
+    {
+        activeDependency && (
+            <Modal
+                show={showReviewModal}
+                onHide={() => setShowReviewModal(false)}
+                size="lg"
+                centered
+                dialogClassName="dep-custom-modal dep-review-modal"
+            >
+                <div className="dep-modal-header">
+                    <div className="dep-modal-header-left">
+                        <div className="dep-modal-header-icon">
+                            <i className="uil uil-file-alt"></i>
+                        </div>
+                        <div>
+                            <div className="">
+                                <span className="review-ticket-tag">
+                                    DEP-{activeDependency._id ? activeDependency._id.substr(-5).toUpperCase() : 'REQ'}
+                                </span>
+                            </div>
+                            <div className="d-flex align-items-center gap-2 flex-wrap">
+                                <h5 className="dep-modal-title mb-0">{activeDependency.title}</h5>
+                                <span className={`dep-priority-pill ${activeDependency.priority}`}>
+                                    <span className="priority-dot"></span>
+                                    {activeDependency.priority?.toUpperCase()}
+                                </span>
+                                <span className={`dep-status-pill ${activeDependency.status}`}>
+                                    {activeDependency.status?.replace('_', ' ').toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="dep-modal-close-btn"
+                        onClick={() => setShowReviewModal(false)}
+                        title="Close modal"
+                    >
+                        &times;
+                    </button>
+                </div>
+
+                <div className="dep-modal-body">
+                    <div className="review-meta-bar">
+                        <div className="review-meta-item">
+                            <span className="meta-label">Client</span>
+                            <span className="meta-val">
+                                <i className="uil uil-user"></i>
+                                {activeDependency.client?.name || activeDependency.client?.clientName || 'Client'}
+                            </span>
+                        </div>
+
+                        <div className="review-meta-item">
+                            <span className="meta-label">Project</span>
+                            <span className="meta-val">
+                                <i className="uil uil-folder"></i>
+                                {activeDependency.project?.name || activeDependency.project?.projectName || (typeof activeDependency.project === 'string' ? (allProjects.find(p => String(p._id) === String(activeDependency.project))?.name) : '') || 'Project'}
+                            </span>
+                        </div>
+
+                        <div className="review-meta-item">
+                            <span className="meta-label">Timeline</span>
+                            <span className="meta-val">
+                                <i className="uil uil-hourglass"></i>
+                                {activeDependency.expectedDays} Days Turnaround
+                            </span>
+                        </div>
+
+                        <div className="review-meta-item">
+                            <span className="meta-label">Current Status</span>
+                            <span className={`dep-status-pill ${activeDependency.status}`}>
+                                {activeDependency.status?.replace('_', ' ').toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+
+                    {activeDependency.description && (
+                        <div className="review-instructions-box">
+                            <span className="instr-label">Requirement Instructions:</span>
+                            <p>{activeDependency.description}</p>
+                        </div>
+                    )}
+
+                    {/* Client Submitted Dynamic Fields */}
+                    <div className="review-fields-section">
+                        <div className="review-fields-heading">
+                            <h6>Fulfilled Credentials & Requirement Data</h6>
+                            <span className="fields-stat">
+                                {activeDependency.dynamicFields?.filter((f) => f.isFilled || f.value || f.fileValue?.url)?.length} of{' '}
+                                {activeDependency.dynamicFields?.length} provided
+                            </span>
+                        </div>
+
+                        <div className="review-fields-grid">
+                            {activeDependency.dynamicFields?.map((field, idx) => {
+                                const hasValue = field.value || field.fileValue?.url;
+                                const isPass = field.fieldType === 'password';
+                                const isRevealed = revealedPasswords[field.id || idx];
+                                const isCopied = copiedFieldId === (field.id || idx);
+
+                                return (
+                                    <div key={field.id || idx} className={`review-field-card ${hasValue ? 'filled' : 'unfilled'}`}>
+                                        <div className="review-field-top">
+                                            <div className="review-field-title">
+                                                <span className="field-seq-tag">#{idx + 1}</span>
+                                                <span className="field-label-name">{field.label}</span>
+                                                {field.isRequired && <span className="field-req-tag">Required</span>}
+                                                <span className="field-type-tag">{field.fieldType}</span>
+                                            </div>
+
+                                            {hasValue && (
+                                                <div className="review-field-actions">
+                                                    {isPass && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-field-icon"
+                                                            onClick={() => toggleRevealPassword(field.id || idx)}
+                                                            title={isRevealed ? 'Mask secret' : 'Reveal secret'}
+                                                        >
+                                                            <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
+                                                        </button>
+                                                    )}
+
+                                                    {field.fieldType !== 'file' && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-field-icon"
+                                                            onClick={() => handleCopyValue(field.id || idx, field.value)}
+                                                            title="Copy to clipboard"
+                                                        >
+                                                            <i className={isCopied ? 'uil uil-check text-success' : 'uil uil-copy'}></i>
+                                                            {isCopied && <span className="copied-tooltip">Copied!</span>}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="review-field-body">
+                                            {!hasValue ? (
+                                                <div className="unfilled-field-badge">
+                                                    <i className="uil uil-clock-three"></i>
+                                                    Waiting for client submission...
+                                                </div>
+                                            ) : field.fieldType === 'file' ? (
+                                                <div className="field-file-display">
+                                                    <div className="file-icon-box">
+                                                        <i className="uil uil-file-download-alt"></i>
+                                                    </div>
+                                                    <div className="file-info-col">
+                                                        <span className="filename-text">
+                                                            {field.fileValue?.name || 'Attached Requirement Document'}
+                                                        </span>
+                                                        {field.fileValue?.size && (
+                                                            <span className="filesize-text">
+                                                                {(field.fileValue.size / 1024).toFixed(1)} KB
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <a
+                                                        href={field.fileValue?.url}
+                                                        download={field.fileValue?.name || 'document'}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="btn-download-field-file"
+                                                    >
+                                                        <i className="uil uil-download-alt"></i> Download
+                                                    </a>
+                                                </div>
+                                            ) : isPass ? (
+                                                <div className="field-pass-display">
+                                                    <span className="secret-text">
+                                                        {isRevealed ? field.value : '••••••••••••••••••••'}
+                                                    </span>
+                                                </div>
+                                            ) : field.fieldType === 'textarea' ? (
+                                                <pre className="field-textarea-display">{field.value}</pre>
+                                            ) : field.fieldType === 'url' ? (
+                                                <a
+                                                    href={field.value.startsWith('http') ? field.value : `https://${field.value}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="field-url-display"
+                                                >
+                                                    {field.value} <i className="uil uil-external-link-alt"></i>
+                                                </a>
+                                            ) : (
+                                                <div className="field-text-display">{field.value}</div>
+                                            )}
+                                        </div>
+
+                                        {field.helpText && (
+                                            <div className="field-help-footer">
+                                                <i className="uil uil-info-circle"></i> {field.helpText}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Client Notes if submitted */}
+                    {activeDependency.clientNotes && (
+                        <div className="review-client-notes-box">
+                            <span className="notes-heading">
+                                <i className="uil uil-comment-alt-lines"></i> Client Submission Note:
+                            </span>
+                            <p>{activeDependency.clientNotes}</p>
+                        </div>
+                    )}
+
+                    {/* Admin Note / Revision feedback */}
+                    <div className="dep-form-group mt-3">
+                        <label className="fw-semibold">Admin Notes & Revision Instructions (Visible to Client if rejected)</label>
+                        <textarea
+                            className="dep-form-control"
+                            rows="2"
+                            placeholder="Add revision details or notes for client..."
+                            value={reviewAdminNote}
+                            onChange={(e) => setReviewAdminNote(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <div className="dep-modal-footer">
+                    <div className="review-modal-footer-flex">
+                        <div className="status-action-btns">
+                            {activeDependency.status !== 'in_review' && activeDependency.status !== 'completed' && (
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary"
+                                    onClick={() => handleUpdateStatus('in_review')}
+                                    disabled={updatingStatus}
+                                >
+                                    <i className="uil uil-eye me-1"></i> Mark In Review
+                                </button>
+                            )}
+
+                            {activeDependency.status !== 'rejected' && (
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-danger"
+                                    onClick={() => handleUpdateStatus('rejected')}
+                                    disabled={updatingStatus}
+                                >
+                                    <i className="uil uil-exclamation-octagon me-1"></i> Request Revision
+                                </button>
+                            )}
+
+                            {activeDependency.status !== 'completed' && (
+                                <button
+                                    type="button"
+                                    className="btn btn-success"
+                                    onClick={() => handleUpdateStatus('completed')}
+                                    disabled={updatingStatus}
+                                >
+                                    <i className="uil uil-check-circle me-1"></i> Approve & Complete
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                className="btn btn-outline-success"
+                                onClick={() => {
+                                    setShowReviewModal(false);
+                                    handleOpenFillModal(activeDependency);
+                                }}
+                            >
+                                <i className="uil uil-edit-alt me-1"></i> Fill / Edit Values
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+        )
+    }
+
+    {/* ADMIN FILL / FULFILL MODAL */ }
+    {
+        fillDep && (
+            <Modal
+                show={showFillModal}
+                onHide={() => setShowFillModal(false)}
+                size="lg"
+                centered
+                dialogClassName="dep-custom-modal dep-fill-modal"
+            >
+                <form onSubmit={handleSubmitAdminFill}>
+                    <div className="dep-modal-header">
+                        <div className="dep-modal-header-left">
+                            <div className="dep-modal-header-icon fill-header-icon">
+                                <i className="uil uil-edit-alt"></i>
+                            </div>
+                            <div>
+                                <div className="d-flex align-items-center gap-2 mb-1">
+                                    <span className="review-ticket-tag">
+                                        DEP-{fillDep._id ? fillDep._id.substr(-5).toUpperCase() : 'REQ'}
+                                    </span>
+                                    <span className={`dep-priority-pill ${fillDep.priority}`}>
+                                        <span className="priority-dot"></span>
+                                        {fillDep.priority?.toUpperCase()}
+                                    </span>
+                                    <span className={`dep-status-pill ${fillDep.status}`}>
+                                        {fillDep.status?.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                </div>
+                                <h5 className="dep-modal-title mb-0">Fill Dependency: {fillDep.title}</h5>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="dep-modal-close-btn"
+                            onClick={() => setShowFillModal(false)}
+                            title="Close modal"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div className="dep-modal-body">
+                        {/* Meta details bar */}
+                        <div className="review-meta-bar mb-3">
+                            <div className="review-meta-item">
+                                <span className="meta-label">Client</span>
+                                <span className="meta-val">
+                                    <i className="uil uil-user"></i>
+                                    {fillDep.client?.name || fillDep.client?.clientName || 'Assigned Client'}
+                                </span>
+                            </div>
+                            <div className="review-meta-item">
+                                <span className="meta-label">Project</span>
+                                <span className="meta-val">
+                                    <i className="uil uil-folder"></i>
+                                    {fillDep.project?.projectName || fillDep.project?.name || 'Assigned Project'}
+                                </span>
+                            </div>
+                            <div className="review-meta-item">
+                                <span className="meta-label">Timeline</span>
+                                <span className="meta-val">
+                                    <i className="uil uil-hourglass"></i>
+                                    {fillDep.expectedDays} Days Required
+                                </span>
+                            </div>
+                        </div>
+
+                        {fillDep.description && (
+                            <div className="review-instructions-box mb-3">
+                                <span className="instr-label">Requirement Instructions:</span>
+                                <p>{fillDep.description}</p>
+                            </div>
+                        )}
+
+                        {/* Dynamic Input Fields to Fill */}
+                        <div className="fill-fields-section">
+                            <div className="fill-fields-heading">
+                                <h6>
+                                    <i className="uil uil-sliders-v-alt text-primary me-1"></i>
+                                    Requirement Details ({fillDep.dynamicFields?.length || 0})
+                                </h6>
+                                <span className="text-muted small">Fill credentials, API keys, documents or assets</span>
+                            </div>
+
+                            <div className="fill-fields-list">
+                                {fillDep.dynamicFields?.map((field, idx) => {
+                                    const isSecret = field.fieldType === 'password';
+                                    const isRevealed = fillRevealedSecrets[field.id || idx];
+                                    const currentVal = fillValues[field.id] || '';
+                                    const currentFile = fillFiles[field.id];
+
+                                    return (
+                                        <div key={field.id || idx} className="fill-field-card">
+                                            <div className="fill-field-header">
+                                                <label className="fill-field-label">
+                                                    <span className="field-seq-tag me-1">#{idx + 1}</span>
+                                                    {field.label}
+                                                    {field.isRequired && <span className="req ms-1">*</span>}
+                                                </label>
+                                                <span className={`field-type-pill ${field.fieldType}`}>
+                                                    {field.fieldType === 'password' && <><i className="uil uil-key-skeleton me-1"></i>Secret Token</>}
+                                                    {field.fieldType === 'file' && <><i className="uil uil-paperclip me-1"></i>File / Document</>}
+                                                    {field.fieldType === 'url' && <><i className="uil uil-link-h me-1"></i>URL / Link</>}
+                                                    {field.fieldType === 'textarea' && <><i className="uil uil-subject me-1"></i>Multi-line Text</>}
+                                                    {field.fieldType === 'text' && <><i className="uil uil-font me-1"></i>Text</>}
+                                                </span>
+                                            </div>
+
+                                            {/* Field input switch */}
+                                            {field.fieldType === 'password' ? (
+                                                <div className="fill-input-group">
+                                                    <input
+                                                        type={isRevealed ? 'text' : 'password'}
+                                                        className="dep-form-control fill-input"
+                                                        placeholder={field.placeholder || 'Enter secret key / token / password'}
+                                                        value={currentVal}
+                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn-fill-toggle-pass"
+                                                        onClick={() => toggleFillSecretReveal(field.id || idx)}
+                                                        title={isRevealed ? 'Hide secret' : 'Show secret'}
+                                                    >
+                                                        <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
+                                                    </button>
+                                                </div>
+                                            ) : field.fieldType === 'textarea' ? (
+                                                <textarea
+                                                    className="dep-form-control fill-textarea"
+                                                    rows="3"
+                                                    placeholder={field.placeholder || 'Enter details / config...'}
+                                                    value={currentVal}
+                                                    onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                />
+                                            ) : field.fieldType === 'url' ? (
+                                                <input
+                                                    type="url"
+                                                    className="dep-form-control fill-input"
+                                                    placeholder={field.placeholder || 'https://api.example.com/...'}
+                                                    value={currentVal}
+                                                    onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                />
+                                            ) : field.fieldType === 'file' ? (
+                                                <div>
+                                                    <input
+                                                        type="file"
+                                                        style={{ display: 'none' }}
+                                                        ref={(el) => (fillFileInputRefs.current[field.id] = el)}
+                                                        onChange={(e) => handleFillFileSelect(field.id, e.target.files?.[0])}
+                                                    />
+                                                    {currentFile instanceof File ? (
+                                                        <div className="fill-selected-file-pill">
+                                                            <i className="uil uil-file-check-alt text-success fs-5"></i>
+                                                            <div className="file-info-text">
+                                                                <span className="fw-semibold">{currentFile.name}</span>
+                                                                <span className="text-muted small ms-2">({(currentFile.size / 1024).toFixed(1)} KB)</span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-remove-fill-file ms-auto"
+                                                                onClick={() => handleFillRemoveFile(field.id)}
+                                                                title="Remove selected file"
+                                                            >
+                                                                <i className="uil uil-times"></i>
+                                                            </button>
+                                                        </div>
+                                                    ) : (currentFile?.url || field.fileValue?.url) ? (
+                                                        <div className="fill-selected-file-pill">
+                                                            <i className="uil uil-paperclip text-primary fs-5"></i>
+                                                            <div className="file-info-text">
+                                                                <span className="fw-semibold">{currentFile?.name || field.fileValue?.name || 'Attached File'}</span>
+                                                                <a
+                                                                    href={currentFile?.url || field.fileValue?.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="ms-2 small text-primary text-decoration-underline"
+                                                                >
+                                                                    View Current
+                                                                </a>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline-secondary ms-auto"
+                                                                onClick={() => fillFileInputRefs.current[field.id]?.click()}
+                                                            >
+                                                                <i className="uil uil-sync me-1"></i> Replace
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            className="fill-file-dropzone"
+                                                            onClick={() => fillFileInputRefs.current[field.id]?.click()}
+                                                        >
+                                                            <i className="uil uil-cloud-upload dropzone-icon"></i>
+                                                            <p className="dropzone-text mb-0">Click to upload document or asset</p>
+                                                            <span className="dropzone-sub">PDF, PNG, JPG, ZIP, JSON, or TXT</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    className="dep-form-control fill-input"
+                                                    placeholder={field.placeholder || 'Enter value...'}
+                                                    value={currentVal}
+                                                    onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
+                                                />
+                                            )}
+
+                                            {field.helpText && (
+                                                <div className="fill-field-help">
+                                                    <i className="uil uil-info-circle me-1"></i>
+                                                    {field.helpText}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Status Selection & Admin Notes */}
+                        <div className="row g-3 mt-2">
+                            <div className="col-md-6">
+                                <label className="fw-semibold mb-1">Set Status upon Fulfilling</label>
+                                <select
+                                    className="dep-form-control"
+                                    value={fillStatus}
+                                    onChange={(e) => setFillStatus(e.target.value)}
+                                >
+                                    <option value="completed">Approve & Complete (Default)</option>
+                                    <option value="submitted">Submitted (Ready for PM Review)</option>
+                                    <option value="in_review">In Review</option>
+                                </select>
+                                <small className="text-muted d-block mt-1">
+                                    Choose status to reflect on this dependency request
+                                </small>
+                            </div>
+
+                            <div className="col-md-6">
+                                <label className="fw-semibold mb-1">Admin Notes / Remarks (Optional)</label>
                                 <input
                                     type="text"
                                     className="dep-form-control"
-                                    placeholder="Internal memo for project manager or developers..."
-                                    value={formAdminNotes}
-                                    onChange={(e) => setFormAdminNotes(e.target.value)}
+                                    placeholder="Add memo or fulfillment notes..."
+                                    value={fillAdminNotes}
+                                    onChange={(e) => setFillAdminNotes(e.target.value)}
                                 />
                             </div>
                         </div>
@@ -1414,642 +2040,81 @@ const ClientDependency = () => {
                         <button
                             type="button"
                             className="btn-modal-cancel"
-                            onClick={() => setShowCreateModal(false)}
-                            disabled={saving}
+                            onClick={() => setShowFillModal(false)}
+                            disabled={submittingFill}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="btn-modal-submit"
-                            disabled={saving}
+                            className="btn-modal-submit btn-save-fill"
+                            disabled={submittingFill}
                         >
-                            {saving ? (
+                            {submittingFill ? (
                                 <>
                                     <span className="spinner-border spinner-border-sm me-1"></span>
-                                    Dispatching to Client...
+                                    Saving Fulfillment...
                                 </>
                             ) : (
                                 <>
-                                    <i className="uil uil-send"></i>
-                                    Send Dependency to Client
+                                    <i className="uil uil-check-circle me-1"></i>
+                                    Save & Fulfill Requirements
                                 </>
                             )}
                         </button>
                     </div>
                 </form>
             </Modal>
+        )
+    }
 
-            {/* REVIEW / DETAIL MODAL */}
-            {
-                activeDependency && (
-                    <Modal
-                        show={showReviewModal}
-                        onHide={() => setShowReviewModal(false)}
-                        size="lg"
-                        centered
-                        dialogClassName="dep-custom-modal dep-review-modal"
-                    >
-                        <div className="dep-modal-header">
-                            <div className="dep-modal-header-left">
-                                <div className="dep-modal-header-icon">
-                                    <i className="uil uil-file-alt"></i>
-                                </div>
-                                <div>
-                                    <div className="">
-                                        <span className="review-ticket-tag">
-                                            DEP-{activeDependency._id ? activeDependency._id.substr(-5).toUpperCase() : 'REQ'}
-                                        </span>
-                                    </div>
-                                    <div className="d-flex align-items-center gap-2 flex-wrap">
-                                        <h5 className="dep-modal-title mb-0">{activeDependency.title}</h5>
-                                        <span className={`dep-priority-pill ${activeDependency.priority}`}>
-                                            <span className="priority-dot"></span>
-                                            {activeDependency.priority?.toUpperCase()}
-                                        </span>
-                                        <span className={`dep-status-pill ${activeDependency.status}`}>
-                                            {activeDependency.status?.replace('_', ' ').toUpperCase()}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                className="dep-modal-close-btn"
-                                onClick={() => setShowReviewModal(false)}
-                                title="Close modal"
-                            >
-                                &times;
-                            </button>
-                        </div>
-
-                        <div className="dep-modal-body">
-                            <div className="review-meta-bar">
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Client</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-user"></i>
-                                        {activeDependency.client?.name || activeDependency.client?.clientName || 'Client'}
-                                    </span>
-                                </div>
-
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Project</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-folder"></i>
-                                        {activeDependency.project?.projectName || activeDependency.project?.name || 'Project'}
-                                    </span>
-                                </div>
-
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Timeline</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-hourglass"></i>
-                                        {activeDependency.expectedDays} Days Turnaround
-                                    </span>
-                                </div>
-
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Current Status</span>
-                                    <span className={`dep-status-pill ${activeDependency.status}`}>
-                                        {activeDependency.status?.replace('_', ' ').toUpperCase()}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {activeDependency.description && (
-                                <div className="review-instructions-box">
-                                    <span className="instr-label">Requirement Instructions:</span>
-                                    <p>{activeDependency.description}</p>
-                                </div>
-                            )}
-
-                            {/* Client Submitted Dynamic Fields */}
-                            <div className="review-fields-section">
-                                <div className="review-fields-heading">
-                                    <h6>Fulfilled Credentials & Requirement Data</h6>
-                                    <span className="fields-stat">
-                                        {activeDependency.dynamicFields?.filter((f) => f.isFilled || f.value || f.fileValue?.url)?.length} of{' '}
-                                        {activeDependency.dynamicFields?.length} provided
-                                    </span>
-                                </div>
-
-                                <div className="review-fields-grid">
-                                    {activeDependency.dynamicFields?.map((field, idx) => {
-                                        const hasValue = field.value || field.fileValue?.url;
-                                        const isPass = field.fieldType === 'password';
-                                        const isRevealed = revealedPasswords[field.id || idx];
-                                        const isCopied = copiedFieldId === (field.id || idx);
-
-                                        return (
-                                            <div key={field.id || idx} className={`review-field-card ${hasValue ? 'filled' : 'unfilled'}`}>
-                                                <div className="review-field-top">
-                                                    <div className="review-field-title">
-                                                        <span className="field-seq-tag">#{idx + 1}</span>
-                                                        <span className="field-label-name">{field.label}</span>
-                                                        {field.isRequired && <span className="field-req-tag">Required</span>}
-                                                        <span className="field-type-tag">{field.fieldType}</span>
-                                                    </div>
-
-                                                    {hasValue && (
-                                                        <div className="review-field-actions">
-                                                            {isPass && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn-field-icon"
-                                                                    onClick={() => toggleRevealPassword(field.id || idx)}
-                                                                    title={isRevealed ? 'Mask secret' : 'Reveal secret'}
-                                                                >
-                                                                    <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
-                                                                </button>
-                                                            )}
-
-                                                            {field.fieldType !== 'file' && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn-field-icon"
-                                                                    onClick={() => handleCopyValue(field.id || idx, field.value)}
-                                                                    title="Copy to clipboard"
-                                                                >
-                                                                    <i className={isCopied ? 'uil uil-check text-success' : 'uil uil-copy'}></i>
-                                                                    {isCopied && <span className="copied-tooltip">Copied!</span>}
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="review-field-body">
-                                                    {!hasValue ? (
-                                                        <div className="unfilled-field-badge">
-                                                            <i className="uil uil-clock-three"></i>
-                                                            Waiting for client submission...
-                                                        </div>
-                                                    ) : field.fieldType === 'file' ? (
-                                                        <div className="field-file-display">
-                                                            <div className="file-icon-box">
-                                                                <i className="uil uil-file-download-alt"></i>
-                                                            </div>
-                                                            <div className="file-info-col">
-                                                                <span className="filename-text">
-                                                                    {field.fileValue?.name || 'Attached Requirement Document'}
-                                                                </span>
-                                                                {field.fileValue?.size && (
-                                                                    <span className="filesize-text">
-                                                                        {(field.fileValue.size / 1024).toFixed(1)} KB
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <a
-                                                                href={field.fileValue?.url}
-                                                                download={field.fileValue?.name || 'document'}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="btn-download-field-file"
-                                                            >
-                                                                <i className="uil uil-download-alt"></i> Download
-                                                            </a>
-                                                        </div>
-                                                    ) : isPass ? (
-                                                        <div className="field-pass-display">
-                                                            <span className="secret-text">
-                                                                {isRevealed ? field.value : '••••••••••••••••••••'}
-                                                            </span>
-                                                        </div>
-                                                    ) : field.fieldType === 'textarea' ? (
-                                                        <pre className="field-textarea-display">{field.value}</pre>
-                                                    ) : field.fieldType === 'url' ? (
-                                                        <a
-                                                            href={field.value.startsWith('http') ? field.value : `https://${field.value}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="field-url-display"
-                                                        >
-                                                            {field.value} <i className="uil uil-external-link-alt"></i>
-                                                        </a>
-                                                    ) : (
-                                                        <div className="field-text-display">{field.value}</div>
-                                                    )}
-                                                </div>
-
-                                                {field.helpText && (
-                                                    <div className="field-help-footer">
-                                                        <i className="uil uil-info-circle"></i> {field.helpText}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Client Notes if submitted */}
-                            {activeDependency.clientNotes && (
-                                <div className="review-client-notes-box">
-                                    <span className="notes-heading">
-                                        <i className="uil uil-comment-alt-lines"></i> Client Submission Note:
-                                    </span>
-                                    <p>{activeDependency.clientNotes}</p>
-                                </div>
-                            )}
-
-                            {/* Admin Note / Revision feedback */}
-                            <div className="dep-form-group mt-3">
-                                <label className="fw-semibold">Admin Notes & Revision Instructions (Visible to Client if rejected)</label>
-                                <textarea
-                                    className="dep-form-control"
-                                    rows="2"
-                                    placeholder="Add revision details or notes for client..."
-                                    value={reviewAdminNote}
-                                    onChange={(e) => setReviewAdminNote(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="dep-modal-footer">
-                            <div className="review-modal-footer-flex">
-                                <div className="status-action-btns">
-                                    {activeDependency.status !== 'in_review' && activeDependency.status !== 'completed' && (
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-primary"
-                                            onClick={() => handleUpdateStatus('in_review')}
-                                            disabled={updatingStatus}
-                                        >
-                                            <i className="uil uil-eye me-1"></i> Mark In Review
-                                        </button>
-                                    )}
-
-                                    {activeDependency.status !== 'rejected' && (
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-danger"
-                                            onClick={() => handleUpdateStatus('rejected')}
-                                            disabled={updatingStatus}
-                                        >
-                                            <i className="uil uil-exclamation-octagon me-1"></i> Request Revision
-                                        </button>
-                                    )}
-
-                                    {activeDependency.status !== 'completed' && (
-                                        <button
-                                            type="button"
-                                            className="btn btn-success"
-                                            onClick={() => handleUpdateStatus('completed')}
-                                            disabled={updatingStatus}
-                                        >
-                                            <i className="uil uil-check-circle me-1"></i> Approve & Complete
-                                        </button>
-                                    )}
-
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline-success"
-                                        onClick={() => {
-                                            setShowReviewModal(false);
-                                            handleOpenFillModal(activeDependency);
-                                        }}
-                                    >
-                                        <i className="uil uil-edit-alt me-1"></i> Fill / Edit Values
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </Modal>
-                )
-            }
-
-            {/* ADMIN FILL / FULFILL MODAL */}
-            {fillDep && (
-                <Modal
-                    show={showFillModal}
-                    onHide={() => setShowFillModal(false)}
-                    size="lg"
-                    centered
-                    dialogClassName="dep-custom-modal dep-fill-modal"
-                >
-                    <form onSubmit={handleSubmitAdminFill}>
-                        <div className="dep-modal-header">
-                            <div className="dep-modal-header-left">
-                                <div className="dep-modal-header-icon fill-header-icon">
-                                    <i className="uil uil-edit-alt"></i>
-                                </div>
-                                <div>
-                                    <div className="d-flex align-items-center gap-2 mb-1">
-                                        <span className="review-ticket-tag">
-                                            DEP-{fillDep._id ? fillDep._id.substr(-5).toUpperCase() : 'REQ'}
-                                        </span>
-                                        <span className={`dep-priority-pill ${fillDep.priority}`}>
-                                            <span className="priority-dot"></span>
-                                            {fillDep.priority?.toUpperCase()}
-                                        </span>
-                                        <span className={`dep-status-pill ${fillDep.status}`}>
-                                            {fillDep.status?.replace('_', ' ').toUpperCase()}
-                                        </span>
-                                    </div>
-                                    <h5 className="dep-modal-title mb-0">Fill Dependency: {fillDep.title}</h5>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                className="dep-modal-close-btn"
-                                onClick={() => setShowFillModal(false)}
-                                title="Close modal"
-                            >
-                                &times;
-                            </button>
-                        </div>
-
-                        <div className="dep-modal-body">
-                            {/* Meta details bar */}
-                            <div className="review-meta-bar mb-3">
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Client</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-user"></i>
-                                        {fillDep.client?.name || fillDep.client?.clientName || 'Assigned Client'}
-                                    </span>
-                                </div>
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Project</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-folder"></i>
-                                        {fillDep.project?.projectName || fillDep.project?.name || 'Assigned Project'}
-                                    </span>
-                                </div>
-                                <div className="review-meta-item">
-                                    <span className="meta-label">Timeline</span>
-                                    <span className="meta-val">
-                                        <i className="uil uil-hourglass"></i>
-                                        {fillDep.expectedDays} Days Required
-                                    </span>
-                                </div>
-                            </div>
-
-                            {fillDep.description && (
-                                <div className="review-instructions-box mb-3">
-                                    <span className="instr-label">Requirement Instructions:</span>
-                                    <p>{fillDep.description}</p>
-                                </div>
-                            )}
-
-                            {/* Dynamic Input Fields to Fill */}
-                            <div className="fill-fields-section">
-                                <div className="fill-fields-heading">
-                                    <h6>
-                                        <i className="uil uil-sliders-v-alt text-primary me-1"></i>
-                                        Requirement Details ({fillDep.dynamicFields?.length || 0})
-                                    </h6>
-                                    <span className="text-muted small">Fill credentials, API keys, documents or assets</span>
-                                </div>
-
-                                <div className="fill-fields-list">
-                                    {fillDep.dynamicFields?.map((field, idx) => {
-                                        const isSecret = field.fieldType === 'password';
-                                        const isRevealed = fillRevealedSecrets[field.id || idx];
-                                        const currentVal = fillValues[field.id] || '';
-                                        const currentFile = fillFiles[field.id];
-
-                                        return (
-                                            <div key={field.id || idx} className="fill-field-card">
-                                                <div className="fill-field-header">
-                                                    <label className="fill-field-label">
-                                                        <span className="field-seq-tag me-1">#{idx + 1}</span>
-                                                        {field.label}
-                                                        {field.isRequired && <span className="req ms-1">*</span>}
-                                                    </label>
-                                                    <span className={`field-type-pill ${field.fieldType}`}>
-                                                        {field.fieldType === 'password' && <><i className="uil uil-key-skeleton me-1"></i>Secret Token</>}
-                                                        {field.fieldType === 'file' && <><i className="uil uil-paperclip me-1"></i>File / Document</>}
-                                                        {field.fieldType === 'url' && <><i className="uil uil-link-h me-1"></i>URL / Link</>}
-                                                        {field.fieldType === 'textarea' && <><i className="uil uil-subject me-1"></i>Multi-line Text</>}
-                                                        {field.fieldType === 'text' && <><i className="uil uil-font me-1"></i>Text</>}
-                                                    </span>
-                                                </div>
-
-                                                {/* Field input switch */}
-                                                {field.fieldType === 'password' ? (
-                                                    <div className="fill-input-group">
-                                                        <input
-                                                            type={isRevealed ? 'text' : 'password'}
-                                                            className="dep-form-control fill-input"
-                                                            placeholder={field.placeholder || 'Enter secret key / token / password'}
-                                                            value={currentVal}
-                                                            onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            className="btn-fill-toggle-pass"
-                                                            onClick={() => toggleFillSecretReveal(field.id || idx)}
-                                                            title={isRevealed ? 'Hide secret' : 'Show secret'}
-                                                        >
-                                                            <i className={isRevealed ? 'uil uil-eye-slash' : 'uil uil-eye'}></i>
-                                                        </button>
-                                                    </div>
-                                                ) : field.fieldType === 'textarea' ? (
-                                                    <textarea
-                                                        className="dep-form-control fill-textarea"
-                                                        rows="3"
-                                                        placeholder={field.placeholder || 'Enter details / config...'}
-                                                        value={currentVal}
-                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
-                                                    />
-                                                ) : field.fieldType === 'url' ? (
-                                                    <input
-                                                        type="url"
-                                                        className="dep-form-control fill-input"
-                                                        placeholder={field.placeholder || 'https://api.example.com/...'}
-                                                        value={currentVal}
-                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
-                                                    />
-                                                ) : field.fieldType === 'file' ? (
-                                                    <div>
-                                                        <input
-                                                            type="file"
-                                                            style={{ display: 'none' }}
-                                                            ref={(el) => (fillFileInputRefs.current[field.id] = el)}
-                                                            onChange={(e) => handleFillFileSelect(field.id, e.target.files?.[0])}
-                                                        />
-                                                        {currentFile instanceof File ? (
-                                                            <div className="fill-selected-file-pill">
-                                                                <i className="uil uil-file-check-alt text-success fs-5"></i>
-                                                                <div className="file-info-text">
-                                                                    <span className="fw-semibold">{currentFile.name}</span>
-                                                                    <span className="text-muted small ms-2">({(currentFile.size / 1024).toFixed(1)} KB)</span>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn-remove-fill-file ms-auto"
-                                                                    onClick={() => handleFillRemoveFile(field.id)}
-                                                                    title="Remove selected file"
-                                                                >
-                                                                    <i className="uil uil-times"></i>
-                                                                </button>
-                                                            </div>
-                                                        ) : (currentFile?.url || field.fileValue?.url) ? (
-                                                            <div className="fill-selected-file-pill">
-                                                                <i className="uil uil-paperclip text-primary fs-5"></i>
-                                                                <div className="file-info-text">
-                                                                    <span className="fw-semibold">{currentFile?.name || field.fileValue?.name || 'Attached File'}</span>
-                                                                    <a
-                                                                        href={currentFile?.url || field.fileValue?.url}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="ms-2 small text-primary text-decoration-underline"
-                                                                    >
-                                                                        View Current
-                                                                    </a>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-sm btn-outline-secondary ms-auto"
-                                                                    onClick={() => fillFileInputRefs.current[field.id]?.click()}
-                                                                >
-                                                                    <i className="uil uil-sync me-1"></i> Replace
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div
-                                                                className="fill-file-dropzone"
-                                                                onClick={() => fillFileInputRefs.current[field.id]?.click()}
-                                                            >
-                                                                <i className="uil uil-cloud-upload dropzone-icon"></i>
-                                                                <p className="dropzone-text mb-0">Click to upload document or asset</p>
-                                                                <span className="dropzone-sub">PDF, PNG, JPG, ZIP, JSON, or TXT</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <input
-                                                        type="text"
-                                                        className="dep-form-control fill-input"
-                                                        placeholder={field.placeholder || 'Enter value...'}
-                                                        value={currentVal}
-                                                        onChange={(e) => handleFillFieldChange(field.id, e.target.value)}
-                                                    />
-                                                )}
-
-                                                {field.helpText && (
-                                                    <div className="fill-field-help">
-                                                        <i className="uil uil-info-circle me-1"></i>
-                                                        {field.helpText}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Status Selection & Admin Notes */}
-                            <div className="row g-3 mt-2">
-                                <div className="col-md-6">
-                                    <label className="fw-semibold mb-1">Set Status upon Fulfilling</label>
-                                    <select
-                                        className="dep-form-control"
-                                        value={fillStatus}
-                                        onChange={(e) => setFillStatus(e.target.value)}
-                                    >
-                                        <option value="completed">Approve & Complete (Default)</option>
-                                        <option value="submitted">Submitted (Ready for PM Review)</option>
-                                        <option value="in_review">In Review</option>
-                                    </select>
-                                    <small className="text-muted d-block mt-1">
-                                        Choose status to reflect on this dependency request
-                                    </small>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="fw-semibold mb-1">Admin Notes / Remarks (Optional)</label>
-                                    <input
-                                        type="text"
-                                        className="dep-form-control"
-                                        placeholder="Add memo or fulfillment notes..."
-                                        value={fillAdminNotes}
-                                        onChange={(e) => setFillAdminNotes(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="dep-modal-footer">
-                            <button
-                                type="button"
-                                className="btn-modal-cancel"
-                                onClick={() => setShowFillModal(false)}
-                                disabled={submittingFill}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn-modal-submit btn-save-fill"
-                                disabled={submittingFill}
-                            >
-                                {submittingFill ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm me-1"></span>
-                                        Saving Fulfillment...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="uil uil-check-circle me-1"></i>
-                                        Save & Fulfill Requirements
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
-
-            {/* DELETE CONFIRMATION MODAL */}
-            <Modal
-                show={showDeleteModal}
-                onHide={() => setShowDeleteModal(false)}
-                centered
-                dialogClassName="dep-custom-modal dep-delete-modal"
+    {/* DELETE CONFIRMATION MODAL */ }
+    <Modal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        centered
+        dialogClassName="dep-custom-modal dep-delete-modal"
+    >
+        <div className="dep-modal-header" style={{ background: '#b91c1c' }}>
+            <div className="dep-modal-header-left">
+                <div className="dep-modal-header-icon" style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff' }}>
+                    <i className="uil uil-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <h5 className="dep-modal-title">Delete Dependency?</h5>
+                </div>
+            </div>
+            <button
+                type="button"
+                className="dep-modal-close-btn"
+                onClick={() => setShowDeleteModal(false)}
+                title="Close"
             >
-                <div className="dep-modal-header" style={{ background: '#b91c1c' }}>
-                    <div className="dep-modal-header-left">
-                        <div className="dep-modal-header-icon" style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff' }}>
-                            <i className="uil uil-exclamation-triangle"></i>
-                        </div>
-                        <div>
-                            <h5 className="dep-modal-title">Delete Dependency?</h5>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        className="dep-modal-close-btn"
-                        onClick={() => setShowDeleteModal(false)}
-                        title="Close"
-                    >
-                        &times;
-                    </button>
-                </div>
-                <div className="dep-modal-body" style={{ padding: '20px' }}>
-                    Are you sure you want to delete requirement{' '}
-                    <strong>"{depToDelete?.title}"</strong>? This will remove all dynamic credential fields and cannot be undone.
-                </div>
-                <div className="dep-modal-footer">
-                    <button
-                        type="button"
-                        className="btn-modal-cancel"
-                        onClick={() => setShowDeleteModal(false)}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-danger"
-                        style={{ height: '38px', borderRadius: '8px', padding: '0 18px', fontWeight: 600 }}
-                        onClick={handleDeleteDependency}
-                    >
-                        Delete Permanently
-                    </button>
-                </div>
-            </Modal>
+                &times;
+            </button>
+        </div>
+        <div className="dep-modal-body" style={{ padding: '20px' }}>
+            Are you sure you want to delete requirement{' '}
+            <strong>"{depToDelete?.title}"</strong>? This will remove all dynamic credential fields and cannot be undone.
+        </div>
+        <div className="dep-modal-footer">
+            <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setShowDeleteModal(false)}
+            >
+                Cancel
+            </button>
+            <button
+                type="button"
+                className="btn btn-danger"
+                style={{ height: '38px', borderRadius: '8px', padding: '0 18px', fontWeight: 600 }}
+                onClick={handleDeleteDependency}
+            >
+                Delete Permanently
+            </button>
+        </div>
+    </Modal>
         </div >
     );
 };

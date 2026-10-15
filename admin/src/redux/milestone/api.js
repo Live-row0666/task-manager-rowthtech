@@ -29,7 +29,7 @@ export function UpdateMileStonesApi(data): any {
 
 export function getSinleMileStoneApi(data): any {
     // return api.get(URL.SingleMilestone + data?.payload)
-    return api.get(`${URL.SingleMilestone}${data?.payload?.id}&isActive=${data?.payload?.isActive === undefined ? true : data?.payload?.isActive}&page=${data.payload.skip}&limit=100&milestoneId=${data.payload.mileStoneId || ''}&search=${data?.payload?.search || ''}${data?.payload?.isDelivered === true ? `&isDelivered=true` : `&isDelivered=false`}`)
+    return api.get(`${URL.SingleMilestone}${data?.payload?.id}&isActive=${data?.payload?.isActive === undefined ? true : data?.payload?.isActive}&page=${data.payload.skip}&limit=100&milestoneId=${data.payload.mileStoneId || ''}&search=${data?.payload?.search || ''}${data?.payload?.isDelivered === true ? `&isDelivered=true` : `&isDelivered=false`}${data?.payload?.type ? `&type=${data?.payload?.type}` : ''}`)
 }
 
 export function getProjectTasksApi(data): any {

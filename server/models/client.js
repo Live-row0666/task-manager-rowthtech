@@ -16,22 +16,22 @@ const clientSchema = new Schema({
         type: String,
         lowercase: true,
     }],
-     loginEmail: {
+    loginEmail: {
         type: String,
         required: true,
         lowercase: true,
         unique: true,
         index: true
     },
-       password: {
+    password: {
         type: String,
         required: true
     },
-        role: {
-               type: mongoose.Schema.Types.ObjectId,
-               ref: 'Role',
-               required: true
-           },
+    role: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Role',
+        required: true
+    },
     contact: [{
         type: String,
     }],
@@ -90,7 +90,7 @@ const clientSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users'
     },
-     resetPasswordToken: {
+    resetPasswordToken: {
         type: String,
         default: null
     },

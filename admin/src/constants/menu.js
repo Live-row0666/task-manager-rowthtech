@@ -21,7 +21,7 @@ const MenuItems = () => {
         },
         {
             key: 'projectsss',
-            label: 'Projects',  
+            label: 'Projects',
             url: 'dashboard/projects',
             icon: 'uil-home',
         },
@@ -80,20 +80,20 @@ const MenuItems = () => {
         //     url: 'dashboard/quick-add',
         //     icon: 'uil-plus-circle',
         // },
-        {
-            key: 'clientProjects',
-            label: 'Client Projects',
-            url: 'dashboard/client-projects',
-            icon: 'uil-briefcase',
-        },
-       
+        // {
+        //     key: 'clientProjects',
+        //     label: 'Client Projects',
+        //     url: 'dashboard/client-projects',
+        //     icon: 'uil-briefcase',
+        // },
+
         {
             key: 'clientTaskBoard',
             label: 'Client Task Board',
             url: 'dashboard/client-task-board',
             icon: 'uil-columns',
         },
-         {
+        {
             key: 'documents',
             label: 'Documents',
             url: 'dashboard/documents',
@@ -115,7 +115,7 @@ const MenuItems = () => {
             key: 'Settings',
             label: 'Settings',
             icon: 'uil-lock-open-alt',
-            children: [ 
+            children: [
                 {
                     label: 'Category',
                     parentKey: 'Settings',
@@ -143,7 +143,7 @@ const MenuItems = () => {
 
     // 🧼 Role based access
 
-   
+
     if (Role !== 'sub-admin' && Role !== 'admin' && Role !== 'Project Manager') {
         MENU_ITEMS = MENU_ITEMS.filter(item =>
             !['clientProjects', 'clientTaskBoard', 'documents', 'clientSupports', 'clientDependencies'].includes(item.key)

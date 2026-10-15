@@ -10,7 +10,7 @@ const documentSchema = new mongoose.Schema(
 
         projectId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "ClientProject",
+            ref: "Project",
             required: true,
         },
 

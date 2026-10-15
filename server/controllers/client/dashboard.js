@@ -1,6 +1,10 @@
+const Project = require("../../models/project");
 const ClientProject = require("../../models/clientProject");
+const Milestone = require("../../models/milestones");
 const ClientMilestone = require("../../models/clientMilestone");
+const Task = require("../../models/task");
 const ClientTask = require("../../models/clientTask");
+const Client = require("../../models/client");
 
 class ClientDashboardController {
     async getDashboard(req, res) {
@@ -8,8 +12,15 @@ class ClientDashboardController {
             const clientId = req.client._id;
             const { projectId } = req.query;
 
-            const projects = await ClientProject.find({
-                client: clientId,
+            // Check client's projects array
+            const clientDoc = await Client.findById(clientId).select('projects').lean();
+            const clientProjectIds = Array.isArray(clientDoc?.projects) ? clientDoc.projects : [];
+
+            let projects = await Project.find({
+                $or: [
+                    { client: clientId },
+                    { _id: { $in: clientProjectIds } }
+                ],
                 isActive: true,
             })
                 .populate("technology")
@@ -17,6 +28,19 @@ class ClientDashboardController {
                     path: "team",
                     select: "name email designation role"
                 });
+
+            // Fallback to ClientProject if none found in Project model
+            if (!projects.length) {
+                projects = await ClientProject.find({
+                    client: clientId,
+                    isActive: true,
+                })
+                    .populate("technology")
+                    .populate({
+                        path: "team",
+                        select: "name email designation role"
+                    });
+            }
 
             if (!projects.length) {
                 return res.status(404).json({
@@ -29,9 +53,12 @@ class ClientDashboardController {
             let project;
 
             if (projectId) {
-                project = await ClientProject.findOne({
+                project = await Project.findOne({
                     _id: projectId,
-                    client: clientId,
+                    $or: [
+                        { client: clientId },
+                        { _id: { $in: clientProjectIds } }
+                    ],
                     isActive: true,
                 })
                     .populate("technology")
@@ -43,6 +70,23 @@ class ClientDashboardController {
                             { path: "role", select: "name" }
                         ]
                     });
+
+                if (!project) {
+                    project = await ClientProject.findOne({
+                        _id: projectId,
+                        client: clientId,
+                        isActive: true,
+                    })
+                        .populate("technology")
+                        .populate({
+                            path: "team",
+                            select: "name email designation role",
+                            populate: [
+                                { path: "designation", select: "name" },
+                                { path: "role", select: "name" }
+                            ]
+                        });
+                }
             } else {
                 project = projects[0];
             }
@@ -54,22 +98,36 @@ class ClientDashboardController {
                 });
             }
 
-            // ── Get Milestones ────────────────────────────────────────────────
-            const milestones = await ClientMilestone.find({
+            // ── Get Milestones (Milestone model with ClientMilestone fallback) ──
+            let milestones = await Milestone.find({
                 project: project._id,
                 isActive: true,
             }).sort({ startDate: 1 });
 
-            const totalMilestones = milestones.length;
-            const completedMilestones = milestones.filter((m) => m.status === "Completed").length;
-            const inProgressMilestones = milestones.filter((m) => m.status === "In Progress").length;
-            const pendingMilestones = milestones.filter((m) => m.status === "Not Started").length;
+            if (!milestones.length) {
+                milestones = await ClientMilestone.find({
+                    project: project._id,
+                    isActive: true,
+                }).sort({ startDate: 1 });
+            }
 
-            // ── Get Tasks ─────────────────────────────────────────────────────
-            const tasks = await ClientTask.find({
+            const totalMilestones = milestones.length;
+            const completedMilestones = milestones.filter((m) => m.status === "Completed" || m.status === "Done").length;
+            const inProgressMilestones = milestones.filter((m) => m.status === "In Progress" || m.status === "Ongoing").length;
+            const pendingMilestones = milestones.filter((m) => m.status === "Not Started" || m.status === "To Do").length;
+
+            // ── Get Tasks (Task model with ClientTask fallback) ───────────────
+            let tasks = await Task.find({
                 project: project._id,
                 isActive: true,
             });
+
+            if (!tasks.length) {
+                tasks = await ClientTask.find({
+                    project: project._id,
+                    isActive: true,
+                });
+            }
 
             const totalTasks = tasks.length;
             const completedTasks = tasks.filter(
@@ -101,7 +159,7 @@ class ClientDashboardController {
                     : 0;
 
                 return {
-                    ...milestone.toObject(),
+                    ...(typeof milestone.toObject === 'function' ? milestone.toObject() : milestone),
                     totalTasks: milestoneTotalTasks,
                     completedTasks: milestoneCompletedTasks,
                     remainingTasks: milestoneRemainingTasks,
@@ -111,16 +169,16 @@ class ClientDashboardController {
 
             // ── Current Milestone ─────────────────────────────────────────────
             const currentMilestone =
-                milestonesWithProgress.find((m) => m.status === "In Progress") || null;
+                milestonesWithProgress.find((m) => m.status === "In Progress" || m.status === "Ongoing") || milestonesWithProgress[0] || null;
 
             // ── Upcoming Deliverables ─────────────────────────────────────────
             const upcomingDeliverables = milestonesWithProgress
-                .filter((m) => m.status !== "Completed")
+                .filter((m) => m.status !== "Completed" && m.status !== "Done")
                 .sort((a, b) => new Date(a.completionDate) - new Date(b.completionDate))
                 .slice(0, 3);
 
             // ── Recent Activities ─────────────────────────────────────────────
-            const recentTasks = await ClientTask.find({
+            let recentTasks = await Task.find({
                 project: project._id,
                 isActive: true,
             })
@@ -128,19 +186,30 @@ class ClientDashboardController {
                 .limit(6)
                 .populate("assignee", "name email");
 
+            if (!recentTasks.length) {
+                recentTasks = await ClientTask.find({
+                    project: project._id,
+                    isActive: true,
+                })
+                    .sort({ updatedAt: -1 })
+                    .limit(6)
+                    .populate("assignee", "name email");
+            }
+
             const recentActivities = recentTasks.map((t) => ({
                 id: t._id,
-                title: t.title,
+                title: t.summary || t.title,
                 status: t.status,
                 assigneeName: t.assignee ? t.assignee.name : "Team Member",
                 updatedAt: t.updatedAt || t.createdAt,
             }));
 
             // Normalize project dates for backwards compatibility
+            const rawProj = typeof project.toObject === 'function' ? project.toObject() : project;
             const projectData = {
-                ...project.toObject(),
-                start: project.startDate || project.createdAt,
-                end: project.estimatedCompletion || project.startDate,
+                ...rawProj,
+                start: rawProj.start || rawProj.startDate || rawProj.createdAt,
+                end: rawProj.end || rawProj.estimatedCompletion || rawProj.startDate,
             };
 
             // ── Response ──────────────────────────────────────────────────────

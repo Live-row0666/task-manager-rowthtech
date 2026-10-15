@@ -102,7 +102,7 @@ const AdminChatTab = ({
             if (onMarkAsRead) {
                 onMarkAsRead(client._id);
             } else {
-                api.update(`/api/v1/admin/client-chat/read/${client._id}`, {}).catch(() => {});
+                api.update(`/api/v1/admin/client-chat/read/${client._id}`, {}).catch(() => { });
             }
         }
     }, [isMinimized, client?._id, onMarkAsRead]);
@@ -129,7 +129,7 @@ const AdminChatTab = ({
                             if (onMarkAsRead) {
                                 onMarkAsRead(client._id);
                             } else {
-                                api.update(`/api/v1/admin/client-chat/read/${client._id}`, {}).catch(() => {});
+                                api.update(`/api/v1/admin/client-chat/read/${client._id}`, {}).catch(() => { });
                             }
                         }
                     }
@@ -462,11 +462,9 @@ const LinkedInChat = () => {
             fetchConversations();
         }
     }, [fetchConversations]);
-
     // Socket.io real-time connection
     useEffect(() => {
         if (!api.isUserAuthenticated()) return;
-
         const socketServerUrl = config.API_URL || (window.location.protocol + '//' + window.location.hostname + ':9100');
         const socket = io(socketServerUrl, {
             transports: ['websocket', 'polling'],
@@ -475,14 +473,11 @@ const LinkedInChat = () => {
             timeout: 20000
         });
         socketRef.current = socket;
-
         const joinAdmin = () => {
             socket.emit('join_admin_support');
         };
-
         joinAdmin();
         socket.on('connect', joinAdmin);
-
         socket.on('new_client_chat_message', (payload) => {
             if (payload?.message) {
                 const newMsg = payload.message;
@@ -669,70 +664,70 @@ const LinkedInChat = () => {
 
                     {/* Search Input */}
                     <div className="admin-li-search-box">
-                            <i className="uil uil-search"></i>
-                            <input
-                                type="text"
-                                className="admin-li-search-input"
-                                placeholder="Search clients..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
+                        <i className="uil uil-search"></i>
+                        <input
+                            type="text"
+                            className="admin-li-search-input"
+                            placeholder="Search clients..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
 
-                        {/* Clients Conversation List */}
-                        <div className="admin-li-conv-list">
-                            {filteredConversations.length === 0 ? (
-                                <div className="admin-li-empty-convs">
-                                    No clients found.
-                                </div>
-                            ) : (
-                                filteredConversations.map((item) => {
-                                    const cl = item.client;
-                                    const isSelected = openTabs.some(
-                                        (t) => t.client._id === cl._id && !t.isMinimized
-                                    );
-                                    const hasUnread = item.unreadCount > 0;
+                    {/* Clients Conversation List */}
+                    <div className="admin-li-conv-list">
+                        {filteredConversations.length === 0 ? (
+                            <div className="admin-li-empty-convs">
+                                No clients found.
+                            </div>
+                        ) : (
+                            filteredConversations.map((item) => {
+                                const cl = item.client;
+                                const isSelected = openTabs.some(
+                                    (t) => t.client._id === cl._id && !t.isMinimized
+                                );
+                                const hasUnread = item.unreadCount > 0;
 
-                                    return (
-                                        <div
-                                            key={cl._id}
-                                            className={`admin-li-conv-item ${isSelected ? 'active' : ''}`}
-                                            onClick={() => handleSelectClient(cl)}
-                                        >
-                                            <div className="admin-li-conv-avatar-wrap">
-                                                <div className="admin-li-conv-avatar">
-                                                    {cl.name ? cl.name.substr(0, 2).toUpperCase() : 'CL'}
-                                                </div>
-                                            </div>
-
-                                            <div className="admin-li-conv-info">
-                                                <div className="admin-li-conv-top-row">
-                                                    <span className="admin-li-client-name">{cl.name || 'Client'}</span>
-                                                    {item.lastMessage && (
-                                                        <span className="admin-li-conv-time">
-                                                            {formatTime(item.lastMessage.createdAt)}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <div className="admin-li-conv-sub-row">
-                                                    <p className={`admin-li-snippet ${hasUnread ? 'unread-bold' : ''}`}>
-                                                        {item.lastMessage
-                                                            ? (item.lastMessage.senderType === 'admin' ? 'You: ' : '') + (item.lastMessage.message || 'Sent an attachment')
-                                                            : (cl.companyName || 'Start conversation...')}
-                                                    </p>
-                                                    {hasUnread && (
-                                                        <span className="admin-li-conv-unread-pill">
-                                                            {item.unreadCount}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                return (
+                                    <div
+                                        key={cl._id}
+                                        className={`admin-li-conv-item ${isSelected ? 'active' : ''}`}
+                                        onClick={() => handleSelectClient(cl)}
+                                    >
+                                        <div className="admin-li-conv-avatar-wrap">
+                                            <div className="admin-li-conv-avatar">
+                                                {cl.name ? cl.name.substr(0, 2).toUpperCase() : 'CL'}
                                             </div>
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
+
+                                        <div className="admin-li-conv-info">
+                                            <div className="admin-li-conv-top-row">
+                                                <span className="admin-li-client-name">{cl.name || 'Client'}</span>
+                                                {item.lastMessage && (
+                                                    <span className="admin-li-conv-time">
+                                                        {formatTime(item.lastMessage.createdAt)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="admin-li-conv-sub-row">
+                                                <p className={`admin-li-snippet ${hasUnread ? 'unread-bold' : ''}`}>
+                                                    {item.lastMessage
+                                                        ? (item.lastMessage.senderType === 'admin' ? 'You: ' : '') + (item.lastMessage.message || 'Sent an attachment')
+                                                        : (cl.companyName || 'Start conversation...')}
+                                                </p>
+                                                {hasUnread && (
+                                                    <span className="admin-li-conv-unread-pill">
+                                                        {item.unreadCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
             )}
         </div>

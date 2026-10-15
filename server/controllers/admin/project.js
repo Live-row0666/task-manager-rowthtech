@@ -1,4 +1,5 @@
 const Project = require('../../models/project');
+const Client = require('../../models/client');
 const CommentMention = require('../../models/commentMention');
 const NotificationService = require('../../utils/notificationService');
 const TaskStatus = require('../../models/taskStatus');
@@ -41,11 +42,13 @@ class ProjectController {
                 });
             }
 
-            if (data.projectStatus === 'Support') {
+            const isAmcActive = data.projectStatus === 'Support' || data.hasAmc === true || data.hasAmc === 'true';
+            if (isAmcActive) {
+                data.hasAmc = true;
                 if (!data.amcType || !data.amcStartDate || !data.amcHours) {
                     return res.status(400).json({
                         status: 400,
-                        message: 'AMC Type, Start Date and Hours are required for Support projects'
+                        message: 'AMC Type, Start Date and Hours are required when AMC is enabled'
                     });
                 }
                 let endDate = new Date(data.amcStartDate);
@@ -74,8 +77,15 @@ class ProjectController {
 
             const project = await Project.create(data);
 
-            // Create AMC milestones if Support project
-            if (data.projectStatus === 'Support') {
+            if (data.client && Array.isArray(data.client) && data.client.length > 0) {
+                await Client.updateMany(
+                    { _id: { $in: data.client } },
+                    { $addToSet: { projects: project._id } }
+                );
+            }
+
+            // Create AMC milestones if Support or hasAmc
+            if (isAmcActive) {
                 const startDate = new Date(data.amcStartDate);
                 const months = data.amcType.type === 'Monthly' ? data.amcType.value : data.amcType.value * 12;
                 // const hoursPerMonth = data.amcHours / months;
@@ -98,7 +108,7 @@ class ProjectController {
                         priority: 'Medium',
                         isActive: true,
                         createdBy: req.user._id,
-                        // amcHours: hoursPerMonth.toFixed(2)
+                        isAmc: true
                     });
                 }
             }
@@ -155,11 +165,13 @@ class ProjectController {
             const data = req.body;
 
             const oldProject = await Project.findById(id).populate('team', 'name email');
-            if (data.projectStatus === 'Support') {
+            const isAmcActive = data.projectStatus === 'Support' || data.hasAmc === true || data.hasAmc === 'true';
+            if (isAmcActive) {
+                data.hasAmc = true;
                 if (!data.amcType || !data.amcStartDate || !data.amcHours) {
                     return res.status(400).json({
                         status: 400,
-                        message: 'AMC Type, Start Date and Hours are required for Support projects'
+                        message: 'AMC Type, Start Date and Hours are required when AMC is enabled'
                     });
                 }
                 let endDate;
@@ -172,6 +184,8 @@ class ProjectController {
                     endDate.setFullYear(endDate.getFullYear() + data.amcType.value);
                     data.amcEndDate = endDate;
                 }
+            } else if (data.hasAmc === false) {
+                data.hasAmc = false;
             }
             const project = await Project.findByIdAndUpdate(id, data, { new: true })
                 .populate('team', 'name email');
@@ -183,7 +197,19 @@ class ProjectController {
                 });
             }
 
-            if (data.projectStatus === 'Support') {
+            if (data.client !== undefined) {
+                const prevClients = (oldProject?.client || []).map(c => c.toString());
+                const newClients = Array.isArray(data.client) ? data.client.map(c => c.toString()) : [];
+                const removedClients = prevClients.filter(c => !newClients.includes(c));
+                if (removedClients.length > 0) {
+                    await Client.updateMany({ _id: { $in: removedClients } }, { $pull: { projects: id } });
+                }
+                if (newClients.length > 0) {
+                    await Client.updateMany({ _id: { $in: newClients } }, { $addToSet: { projects: id } });
+                }
+            }
+
+            if (isAmcActive && data.amcStartDate && data.amcType) {
                 const startDate = new Date(data.amcStartDate);
                 const months = data.amcType.type === 'Monthly' ? data.amcType.value : data.amcType.value * 12;
                 // const hoursPerMonth = data.amcHours / months;
@@ -214,7 +240,7 @@ class ProjectController {
                             priority: 'Medium',
                             isActive: true,
                             createdBy: req.user._id,
-                            // amcHours: hoursPerMonth.toFixed(2)
+                            isAmc: true
                         });
                     }
                 }
@@ -307,8 +333,7 @@ class ProjectController {
                 }
             }
 
-            if (projectType && projectType.trim() !== '') {
-
+            if (projectType && projectType.trim() !== '' && projectType !== 'undefined' && projectType !== 'null') {
                 searchQuery.projectType = projectType;
             }
 
@@ -320,10 +345,19 @@ class ProjectController {
                 ];
             }
 
-            if (status && status.trim() !== '') {
-                searchQuery.projectStatus = status
+            if (status && status.trim() !== '' && status !== 'undefined' && status !== 'null') {
+                if (status.toLowerCase() !== 'all') {
+                    if (status === 'Support') {
+                        searchQuery.$or = [
+                            { projectStatus: 'Support' },
+                            { hasAmc: true }
+                        ];
+                    } else {
+                        searchQuery.projectStatus = status;
+                    }
+                }
             } else {
-                searchQuery.projectStatus = { $nin: ['Hold', 'Delivered'] }
+                searchQuery.projectStatus = { $nin: ['Hold', 'Delivered'] };
             }
 
             if (isActive) searchQuery.isActive = isActive === 'true';
@@ -551,6 +585,14 @@ class ProjectController {
                 acc[item._id] = item.count;
                 return acc;
             }, { Ongoing: 0, Support: 0, Delivered: 0, Hold: 0 });
+
+            // Count projects that are not Support but have AMC enabled
+            const additionalAmcCount = await Project.countDocuments({
+                ...matchQuery,
+                projectStatus: { $ne: 'Support' },
+                hasAmc: true
+            });
+            statusCounts.Support += additionalAmcCount;
 
             return res.status(200).json({
                 status: 200,

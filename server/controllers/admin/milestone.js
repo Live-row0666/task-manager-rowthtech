@@ -129,7 +129,15 @@ class MilestoneController {
                 ...(isActive !== undefined && isActive !== '' && { isActive: isActive === 'true' }),
             };
 
-            if (projectDetails.projectStatus.trim() === 'Support') {
+            const isAmcRequest = req.query.type === 'AMC' || (projectDetails.projectStatus.trim() === 'Support' && req.query.type !== 'Ongoing');
+
+            if (isAmcRequest) {
+                // In AMC view: only fetch AMC milestones
+                searchQuery.$or = [
+                    { isAmc: true },
+                    { title: { $regex: /AMC$/i } }
+                ];
+
                 // Get milestones with pagination
                 const milestones = await Milestone.find(searchQuery)
                     .populate('project', 'name amcHours')
@@ -214,6 +222,10 @@ class MilestoneController {
 
             } else {
                 searchQuery.isDelivered = isDelivered === 'true' ? true : false;
+                // In Ongoing view: strictly exclude AMC milestones
+                searchQuery.isAmc = { $ne: true };
+                searchQuery.title = { $not: { $regex: /AMC$/i } };
+
                 const milestones = await Milestone.find(searchQuery)
                     .populate('project', 'name amcHours')
                     .populate('assignedTo', 'name')
@@ -394,7 +406,7 @@ class MilestoneController {
                     priority: 'Medium',
                     isActive: true,
                     createdBy: req.user._id,
-                    // amcHours: hoursPerMonth.toFixed(2)
+                    isAmc: true
                 });
             }
 

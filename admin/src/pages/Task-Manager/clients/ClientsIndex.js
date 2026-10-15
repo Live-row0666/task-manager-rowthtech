@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Table, Button, Modal, Form, Row, Col } from 'react-bootstrap';
 import { useSelector, useDispatch } from 'react-redux';
 import { getClients, createClient, updateClient, deleteClient, sendInvitation, } from '../../../redux/client/action';
 import { getAllTechnology } from '../../../redux/technology/action';
+import { getAllProjects } from '../../../redux/projects/action';
+import ProjectModal from '../projects/modal/ProjectModal';
+import Select from 'react-select';
 import ToastHandle from '../../../constants/toaster/toaster';
 import MainLoader from '../../../constants/Loader/loader';
 import MainDeleteModel from '../../../constants/deleteModel/MainDeleteModel';
@@ -10,6 +13,7 @@ import Pagination from '@mui/material/Pagination';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { emojiRegex } from '../../../helpers/emojiRegex';
+import { APICore } from '../../../helpers/api/apiCore';
 
 const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
     const dispatch = useDispatch();
@@ -18,6 +22,7 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
     const [sendingInvitation, setSendingInvitation] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [showProjectModal, setShowProjectModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [currentClient, setCurrentClient] = useState(null);
     const [deleteModal, setDeleteModal] = useState(false);
@@ -35,23 +40,31 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
         loginEmail: '',
         loginPassword: '',
         role: '',
-        // address: {
-        //     street: '',
-        //     city: '',
-        //     state: '',
-        //     zipCode: '',
-        //     country: ''
-        // },
-        // contactPerson: {
-        //     name: '',
-        //     position: '',
-        //     phone: '',
-        //     email: ''
-        // },
+        projects: [],
         notes: '',
         status: 'active'
     });
-    const selectedDepartment = localStorage.getItem('selectedDepartment');
+    const rawDepartment = localStorage.getItem('selectedDepartment');
+    const selectedDepartment = (rawDepartment && rawDepartment !== 'undefined' && rawDepartment !== 'null') ? rawDepartment : null;
+
+    const [allAvailableProjects, setAllAvailableProjects] = useState([]);
+
+    const fetchAllProjects = async () => {
+        try {
+            const api = new APICore();
+            const res = await api.get('/api/v1/admin/project?status=all&isActive=true&page=1&limit=500');
+            if (res && res.data) {
+                const list = Array.isArray(res.data.data)
+                    ? res.data.data
+                    : (Array.isArray(res.data) ? res.data : []);
+                if (list.length > 0) {
+                    setAllAvailableProjects(list);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching all projects:', err);
+        }
+    };
 
     const handleStatus = (client) => {
         setSelectedClient(client);
@@ -71,19 +84,70 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
         setStatusModal(false);
         setSelectedClient(null);
     };
+
     useEffect(() => {
-        dispatch(getClients({ page: 1, projectType: selectedDepartment, search: searchTerm }));
+        fetchAllProjects();
+    }, []);
+
+    useEffect(() => {
+        dispatch(getClients({ page: 1, projectType: selectedDepartment || undefined, search: searchTerm }));
         dispatch(getAllTechnology());
-    }, [dispatch, searchTerm]);
+        dispatch(getAllProjects({ projectStatus: 'all', status: true, skip: 1, limit: 500 }));
+    }, [dispatch, searchTerm, selectedDepartment]);
 
     const clients = Array.isArray(store?.clientReducer?.clients) ? store.clientReducer.clients : [];
     const loading = store?.clientReducer?.loading;
     const totalPages = store?.clientReducer?.totalPages || 1;
 
+    const reduxProjectData = useSelector(state => state?.getProject?.data);
+    const reduxProjects = useMemo(() => {
+        if (Array.isArray(reduxProjectData)) return reduxProjectData;
+        if (Array.isArray(reduxProjectData?.data)) return reduxProjectData.data;
+        if (Array.isArray(reduxProjectData?.projects)) return reduxProjectData.projects;
+        return [];
+    }, [reduxProjectData]);
+
+    const combinedProjects = useMemo(() => {
+        const map = new Map();
+        // Add all available projects
+        allAvailableProjects.forEach(p => {
+            if (p?._id) map.set(p._id.toString(), p);
+        });
+        // Add redux projects
+        reduxProjects.forEach(p => {
+            if (p?._id) map.set(p._id.toString(), p);
+        });
+        return Array.from(map.values());
+    }, [allAvailableProjects, reduxProjects]);
+
+    const projectList = combinedProjects;
+
+    const projectOptions = useMemo(() => {
+        return combinedProjects.map(p => ({
+            label: `${p.name || p.projectName || 'Project'}${p.projectStatus ? ` (${p.projectStatus})` : ''}`,
+            value: p._id
+        }));
+    }, [combinedProjects]);
+
+    const handleProjectAdded = (newProject) => {
+        if (newProject?._id) {
+            setAllAvailableProjects(prev => [newProject, ...prev]);
+            setFormData(prev => ({
+                ...prev,
+                projects: [...new Set([...(prev.projects || []), newProject._id])]
+            }));
+        }
+        fetchAllProjects();
+        dispatch(getAllProjects({ status: true, projectType: selectedDepartment || undefined, skip: 1, limit: 200 }));
+    };
+
     const handleShowModal = (client = null) => {
         if (client) {
             setEditMode(true);
             setCurrentClient(client);
+            const clientProjectIds = Array.isArray(client.projects)
+                ? client.projects.map(p => (typeof p === 'object' && p ? p._id : p))
+                : [];
             setFormData({
                 name: client.name || '',
                 companyName: client.companyName || '',
@@ -93,7 +157,7 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                 status: client.status || 'active',
                 loginEmail: client.loginEmail || '',
                 loginPassword: client.password || '',
-
+                projects: clientProjectIds,
             });
         } else {
             setEditMode(false);
@@ -107,6 +171,7 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                 status: 'active',
                 loginEmail: '',
                 loginPassword: '',
+                projects: [],
             });
         }
         setShowModal(true);
@@ -181,14 +246,16 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
             return;
         }
 
-        // Helper function to remove empty values
         const removeEmpty = (obj) => {
             const newObj = {};
             Object.keys(obj).forEach(key => {
                 const value = obj[key];
                 if (value !== null && value !== undefined) {
                     if (Array.isArray(value)) {
-                        const filtered = value.filter(item => item && item.trim && item.trim() !== '');
+                        const filtered = value.filter(item => {
+                            if (typeof item === 'string') return item.trim() !== '';
+                            return item !== null && item !== undefined;
+                        });
                         if (filtered.length > 0) newObj[key] = filtered;
                     } else if (typeof value === 'object') {
                         const cleaned = removeEmpty(value);
@@ -202,7 +269,8 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
         };
 
         const cleanedData = removeEmpty(formData);
-        cleanedData.projectType = selectedDepartment
+        cleanedData.projectType = selectedDepartment;
+        cleanedData.projects = formData.projects || [];
         if (editMode) {
             dispatch(updateClient(currentClient._id, cleanedData));
         } else {
@@ -301,12 +369,13 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                             <Table className="mb-0 add_Color_font table-hover table-sm" style={{ fontSize: '11px' }}>
                                 <thead className="table-dark sticky-top">
                                     <tr>
-                                        <th className='fw-bold fs-6 text-center' style={{ width: '5%' }}>#</th>
-                                        <th className='fw-bold fs-6 text-start' style={{ width: '20%' }}>Name</th>
-                                        <th className='fw-bold fs-6 text-start' style={{ width: '20%' }}>Company</th>
-                                        <th className='fw-bold fs-6 text-start' style={{ width: '20%' }}>Email</th>
-                                        <th className='fw-bold fs-6 text-center' style={{ width: '15%' }}>Contact</th>
-                                        <th className='fw-bold fs-6 text-center' style={{ width: '10%' }}>Status</th>
+                                        <th className='fw-bold fs-6 text-center' style={{ width: '4%' }}>#</th>
+                                        <th className='fw-bold fs-6 text-start' style={{ width: '18%' }}>Name</th>
+                                        <th className='fw-bold fs-6 text-start' style={{ width: '16%' }}>Company</th>
+                                        <th className='fw-bold fs-6 text-start' style={{ width: '16%' }}>Email</th>
+                                        <th className='fw-bold fs-6 text-start' style={{ width: '16%' }}>Projects</th>
+                                        <th className='fw-bold fs-6 text-center' style={{ width: '12%' }}>Contact</th>
+                                        <th className='fw-bold fs-6 text-center' style={{ width: '8%' }}>Status</th>
                                         <th className='fw-bold fs-6 text-center' style={{ width: '10%' }}>Actions</th>
                                     </tr>
                                 </thead>
@@ -322,6 +391,22 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                                             </td>
                                             <td className="text-start" style={{ fontSize: '12px' }}>
                                                 <span className="namelink text-muted">{client.email?.[0] || 'N/A'}</span>
+                                            </td>
+                                            <td className="text-start" style={{ fontSize: '12px' }}>
+                                                {client.projects && client.projects.length > 0 ? (
+                                                    <div className="d-flex flex-wrap gap-1">
+                                                        {client.projects.map((p, pIdx) => {
+                                                            const pName = typeof p === 'object' && p ? p.name : (projectList.find(proj => proj._id === p)?.name || 'Project');
+                                                            return (
+                                                                <span key={pIdx} className="badge bg-light text-dark border" style={{ fontSize: '10px' }}>
+                                                                    {pName}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted" style={{ fontSize: '11px' }}>-</span>
+                                                )}
                                             </td>
                                             <td className='text-center' style={{ fontSize: '12px' }}>
                                                 <span className="namelink text-muted">{client.contact?.[0] || 'N/A'}</span>
@@ -377,7 +462,7 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                     </div>
                 )}
 
-                <Modal show={showModal} onHide={handleCloseModal} size="xl" backdrop="static">
+                <Modal show={showModal} onHide={handleCloseModal} size="xl" backdrop="static" className={showProjectModal ? 'd-none' : ''}>
                     <Modal.Header className='py-2'>
                         <Modal.Title className="text-black fw-bold" style={{ fontSize: '14px' }}>
                             {editMode ? 'Update Client' : 'Create Client'}
@@ -430,19 +515,61 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                                                     />
                                                 </Form.Group>
                                             </Col>
-                                            {/* <Col lg={6}>
+                                            <Col lg={editMode ? 6 : 12}>
                                                 <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>Contact Person</Form.Label>
-                                                    <Form.Control
-                                                    className='form'
-                                                        type="text"
-                                                        name="contactPerson.name"
-                                                        value={formData.contactPerson.name}
-                                                        onChange={handleInputChange}
-                                                        placeholder="Enter contact person name"
+                                                    <Form.Label className='mb-0 small d-flex align-items-center justify-content-between'>
+                                                        <span>
+                                                            Projects &nbsp;
+                                                            <i
+                                                                onClick={() => setShowProjectModal(true)}
+                                                                className="bi bi-plus-circle cp text-danger"
+                                                                style={{ cursor: 'pointer' }}
+                                                                title="Create New Project"
+                                                            />
+                                                        </span>
+                                                    </Form.Label>
+                                                    <Select
+                                                        isMulti
+                                                        options={projectOptions}
+                                                        value={projectOptions.filter(p => formData.projects?.includes(p.value))}
+                                                        onChange={(selected) => {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                projects: selected ? selected.map(item => item.value) : []
+                                                            }));
+                                                        }}
+                                                        placeholder="Select projects..."
+                                                        className="react-select-container"
+                                                        classNamePrefix="react-select"
+                                                        styles={{
+                                                            control: (base) => ({
+                                                                ...base,
+                                                                minHeight: '30px',
+                                                                fontSize: '12px'
+                                                            }),
+                                                            valueContainer: (base) => ({
+                                                                ...base,
+                                                                padding: '2px 8px',
+                                                                flexWrap: 'wrap'
+                                                            }),
+                                                            multiValue: (base) => ({
+                                                                ...base,
+                                                                fontSize: '11px',
+                                                                margin: '1px'
+                                                            }),
+                                                            multiValueLabel: (base) => ({
+                                                                ...base,
+                                                                fontSize: '11px',
+                                                                padding: '2px 6px'
+                                                            }),
+                                                            placeholder: (base) => ({
+                                                                ...base,
+                                                                fontSize: '12px'
+                                                            })
+                                                        }}
                                                     />
                                                 </Form.Group>
-                                            </Col> */}
+                                            </Col>
                                             {editMode ? <Col lg={6}>
                                                 <Form.Group className="mb-2">
                                                     <Form.Label className='mb-0 small'>Status</Form.Label>
@@ -800,6 +927,13 @@ const ClientsIndex = ({ inProjectModal = false, onClientAdded }) => {
                         </Modal.Footer>
                     </Form>
                 </Modal>
+
+                <ProjectModal
+                    modal={showProjectModal}
+                    closeModal={() => setShowProjectModal(false)}
+                    onProjectAdded={handleProjectAdded}
+                    initialClientId={currentClient?._id || null}
+                />
 
                 <MainDeleteModel
                     deleteModel={deleteModal}

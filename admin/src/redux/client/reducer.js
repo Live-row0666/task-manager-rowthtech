@@ -27,12 +27,18 @@ export const clientReducer = (state = initialState, action) => {
                 error: null
             };
 
-        case CLIENT_CONSTANTS.CREATE_CLIENT_SUCCESS:
+        case CLIENT_CONSTANTS.CREATE_CLIENT_SUCCESS: {
+            const newCreatedClient = action.payload?.client || action.payload?.data || (action.payload?._id ? action.payload : null);
+            const currentList = Array.isArray(state.clients) ? state.clients : [];
             return {
                 ...state,
                 loading: false,
+                clients: newCreatedClient?._id
+                    ? [newCreatedClient, ...currentList.filter(c => c._id !== newCreatedClient._id)]
+                    : state.clients,
                 error: null
             };
+        }
 
         case CLIENT_CONSTANTS.UPDATE_CLIENT_SUCCESS:
             return {

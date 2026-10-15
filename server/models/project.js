@@ -92,6 +92,7 @@ const mongoose = require('mongoose'), { Schema } = mongoose,
             },
 
             // AMC specific fields to be used if project created under the amc or switched to amc
+            hasAmc: { type: Boolean, default: false },
             amcType: {
                 type: { type: String, enum: ['Monthly', 'Yearly'] },
                 value: Number

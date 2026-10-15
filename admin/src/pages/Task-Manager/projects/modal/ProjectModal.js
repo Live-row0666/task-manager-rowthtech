@@ -26,7 +26,7 @@ import { emojiRegex } from '../../../../helpers/emojiRegex';
 import { getScopedUserIdParams } from '../../../../helpers/scopeUserParams';
 import axios from 'axios';
 
-const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => {
+const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false, onProjectAdded = null, initialClientId = null }) => {
     const quillRef = useRef(null);
     const MAX_WORDS = 1000;
     const MAX_WORD_LENGTH = 45;
@@ -67,13 +67,14 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
     const [amcStartDate, setAmcStartDate] = useState(null);
     const [amcEndDate, setAmcEndDate] = useState(null);
     const [projectStatus, setProjectStatus] = useState('Ongoing');
+    const [hasAmc, setHasAmc] = useState(false);
     const [showRenewAmcModal, setShowRenewAmcModal] = useState(false);
     const [pendingNewClientName, setPendingNewClientName] = useState(null);
-       const userRole = store?.Auth?.user?.role;
+    const userRole = store?.Auth?.user?.role;
     const scopedUserParams = getScopedUserIdParams(
-    userRole,
-    store?.Auth?.user?.id
-);
+        userRole,
+        store?.Auth?.user?.id
+    );
     const selectedDepartment = localStorage.getItem('selectedDepartment');
 
     const {
@@ -126,6 +127,9 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
             setAmcStartDate(editData?.amcStartDate ? new Date(editData.amcStartDate) : null);
             setAmcEndDate(editData?.amcEndDate ? new Date(editData.amcEndDate) : null);
             setProjectStatus(editData?.projectStatus || 'Ongoing');
+            const amcFlag = Boolean(editData?.hasAmc || editData?.projectStatus === 'Support');
+            setHasAmc(amcFlag);
+            setValue('hasAmc', amcFlag);
             setValue('amcType', editData?.amcType?.type || '');
             setValue('amcValue', editData?.amcType?.value || '');
             setValue('amcHours', editData?.amcHours || 0);
@@ -150,6 +154,8 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
             setAmcStartDate(null);
             setAmcEndDate(null);
             setProjectStatus('Ongoing');
+            setHasAmc(false);
+            setValue('hasAmc', false);
             setValue('amcType', '');
             setValue('amcValue', '');
             setValue('amcHours', 0);
@@ -215,7 +221,7 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
         if (originalEnd !== currentEnd) changes.end = currentData.end;
 
         // Compare AMC fields
-        if (currentData.projectStatus === 'Support') {
+        if (currentData.projectStatus === 'Support' || currentData.hasAmc) {
             const originalAmcStart = originalData?.amcStartDate ? new Date(originalData.amcStartDate).getTime() : null;
             const currentAmcStart = currentData.amcStartDate ? new Date(currentData.amcStartDate).getTime() : null;
             if (originalAmcStart !== currentAmcStart) changes.amcStartDate = currentData.amcStartDate;
@@ -226,6 +232,10 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
 
             if (!objectsEqual(currentData.amcType, originalData?.amcType)) changes.amcType = currentData.amcType;
             if (parseFloat(currentData.amcHours) !== parseFloat(originalData?.amcHours || 0)) changes.amcHours = currentData.amcHours;
+        }
+
+        if (Boolean(currentData.hasAmc) !== Boolean(originalData?.hasAmc)) {
+            changes.hasAmc = currentData.hasAmc;
         }
 
         return changes;
@@ -268,8 +278,11 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
             projectType: finalProjectType
         };
 
-        if (data?.projectStatus === 'Support') {
-            // For AMC projects, only include AMC-specific fields
+        const isAmc = data?.projectStatus === 'Support' || hasAmc;
+        currentData.hasAmc = isAmc;
+
+        if (isAmc) {
+            // Include AMC-specific fields
             currentData.amcType = {
                 type: data?.amcType,
                 value: parseInt(data?.amcValue)
@@ -277,10 +290,15 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
             currentData.amcStartDate = amcStartDate;
             currentData.amcEndDate = amcEndDate;
             currentData.amcHours = parseFloat(data?.amcHours) || 0;
+        }
+
+        if (data?.projectStatus !== 'Support') {
+            // For Ongoing projects, keep development start/end dates
+            currentData.start = startDate || amcStartDate;
+            currentData.end = endDate || amcEndDate;
         } else {
-            // For non-AMC projects, include regular start/end dates
-            currentData.start = startDate;
-            currentData.end = endDate;
+            currentData.start = amcStartDate;
+            currentData.end = amcEndDate;
         }
 
         let body;
@@ -394,11 +412,21 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
     }, [amcStartDate, watch('amcValue'), selectedAmcType]);
 
     useEffect(() => {
+        if (modal && !editData && initialClientId) {
+            setSelectedClients([initialClientId]);
+        }
+    }, [modal, editData, initialClientId]);
+
+    useEffect(() => {
         if (addProjectsResponse === 201 || updateProjectsResponse === 200) {
+            const createdOrUpdatedProject = store?.addProject?.data?.data || store?.addProject?.data?.project || store?.addProject?.data;
             if (projectStatus === 'Support') {
                 dispatch(getAmcProjects({ projectType: selectedDepartment, page: 1, limit: 100, search: '', ...scopedUserParams }));
             } else {
                 dispatch(getAllProjects({ status: true, skip: 1, projectType: selectedDepartment, projectStatus: localStorage.getItem('activeProjectTab') || 'Ongoing', ...scopedUserParams }));
+            }
+            if (typeof onProjectAdded === 'function') {
+                onProjectAdded(createdOrUpdatedProject);
             }
             closeModal();
         }
@@ -410,7 +438,7 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                 <Modal.Title className="text-black fw-bold" style={{ fontSize: '14px' }}>
                     {isEdit ? 'Update Project' : 'Create Project'}
                 </Modal.Title>
-                {isEdit && editData?.projectStatus === 'Support' && (
+                {isEdit && (editData?.projectStatus === 'Support' || editData?.hasAmc || hasAmc) && (
                     <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
@@ -454,9 +482,10 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                         <Form.Group className="mb-2">
                                             <Form.Label className='mb-0 small'>Client &nbsp;
                                                 <i
-                                                    onClick={() => clientSelected ? setShowClientModal(true) : null}
-                                                    className={`bi bi-plus-circle cp ${clientSelected ? 'text-danger' : 'text-muted'}`}
-                                                    style={{ cursor: clientSelected ? 'pointer' : 'not-allowed' }}
+                                                    onClick={() => setShowClientModal(true)}
+                                                    className="bi bi-plus-circle cp text-danger"
+                                                    style={{ cursor: 'pointer' }}
+                                                    title="Add Client"
                                                 />
                                             </Form.Label>
                                             <Select
@@ -526,7 +555,7 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                     <Col lg={6}>
                                         <Form.Group className="mb-2">
                                             <Form.Label className='mb-0 small'>Project For</Form.Label>
-                                            <Form.Select 
+                                            <Form.Select
                                                 value={projectType}
                                                 onChange={(e) => setProjectType(e.target.value)}
                                                 style={{ height: '30px', paddingTop: '5px' }}
@@ -546,8 +575,18 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                                 <Form.Select
                                                     {...register('projectStatus')}
                                                     onChange={(e) => {
-                                                        setProjectStatus(e.target.value);
-                                                        setValue('projectStatus', e.target.value);
+                                                        const newStatus = e.target.value;
+                                                        setProjectStatus(newStatus);
+                                                        setValue('projectStatus', newStatus);
+                                                        if (newStatus !== 'Ongoing') {
+                                                            if (newStatus === 'Support') {
+                                                                setHasAmc(true);
+                                                                setValue('hasAmc', true);
+                                                            } else {
+                                                                setHasAmc(false);
+                                                                setValue('hasAmc', false);
+                                                            }
+                                                        }
                                                     }}
                                                     style={{ height: '30px', paddingTop: '5px' }}
                                                 >
@@ -560,122 +599,184 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                         </Col>
                                     )}
 
-                                    {/* AMC Fields - Show only when project status is Support (AMC) */}
-                                    {(watch('projectStatus') === 'Support' || projectStatus === 'Support') && (
-                                        <>
-                                            <Col lg={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`AMC Type`} <span className='text-danger'>{`*`}</span></Form.Label>
-                                                    <Form.Select
-                                                        {...register('amcType', { required: watch('projectStatus') === 'Support' })}
-                                                        onChange={(e) => {
-                                                            setSelectedAmcType(e.target.value);
-                                                            setValue('amcType', e.target.value);
+                                    {/* Enable AMC Contract toggle beside Project Status only when status is Ongoing */}
+                                    {(watch('projectStatus') === 'Ongoing' || projectStatus === 'Ongoing') && (
+                                        <Col lg={6}>
+                                            <Form.Group className="mb-2">
+                                                <Form.Label className='mb-0 small text-muted'>AMC Contract</Form.Label>
+                                                <div
+                                                    className="d-flex align-items-center cp"
+                                                    style={{ height: '30px', backgroundColor: '#fff', cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        const newVal = !hasAmc;
+                                                        setHasAmc(newVal);
+                                                        setValue('hasAmc', newVal);
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            width: '34px',
+                                                            height: '18px',
+                                                            backgroundColor: hasAmc ? '#727cf5' : '#dee2e6',
+                                                            borderRadius: '20px',
+                                                            padding: '2px',
+                                                            transition: 'background-color 0.2s',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            flexShrink: 0
                                                         }}
-                                                        disabled={isEdit && editData?.projectStatus === 'Support'}
-                                                        style={{ height: '30px', paddingTop: '5px' }}>
-                                                        <option value="">Select AMC Type</option>
-                                                        {["Monthly", "Yearly"]?.map((data, index) => (
-                                                            <option value={data} key={index}>{data}</option>
-                                                        ))}
-                                                    </Form.Select>
-                                                    {errors.amcType && <span className="text-danger small">{`AMC Type is required`}</span>}
-                                                </Form.Group>
-                                            </Col>
-                                            <Col lg={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`AMC Tenure`} {selectedAmcType ? "(" + selectedAmcType + ")" : ''} <span className='text-danger'>*</span></Form.Label>
-                                                    <Form.Control
-                                                        type="number"
-                                                        className='form'
-                                                        placeholder="Enter AMC Tenure"
-                                                        {...register('amcValue', {
-                                                            required: watch('projectStatus') === 'Support',
-                                                            min: { value: 1, message: 'Value must be positive' },
-                                                        })}
-                                                        onChange={(e) => {
-                                                            let value = e.target.value;
-
-                                                            // if Yearly is selected, restrict to 1 digit
-                                                            if (selectedAmcType === "Yearly" && value.length > 1) {
-                                                                value = value.slice(0, 1);
-                                                            } else if (selectedAmcType === "Monthly" && value.length > 3) {
-                                                                value = value.slice(0, 3);
-                                                            }
-
-                                                            setValue("amcValue", value);
-                                                        }}
-                                                        disabled={isEdit && editData?.projectStatus === 'Support'}
-                                                        style={{ height: '30px' }}
-                                                    />
-                                                    {errors.amcValue && <span className="text-danger small">{errors.amcValue.message || 'AMC Tenure is required'}</span>}
-                                                </Form.Group>
-                                            </Col>
-                                            <Col lg={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`AMC Start Date`} <span className='text-danger'>{`*`}</span></Form.Label>
-                                                    <DatePicker
-                                                        selected={amcStartDate}
-                                                        onChange={date => setAmcStartDate(date)}
-                                                        placeholderText="Select AMC start date"
-                                                        className="form-control form"
-                                                        required={watch('projectStatus') === 'Support'}
-                                                        disabled={isEdit && editData?.projectStatus === 'Support'}
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                            <Col lg={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`AMC End Date`} <span className='text-danger'>{`*`}</span></Form.Label>
-                                                    <DatePicker
-                                                        selected={amcEndDate}
-                                                        onChange={date => setAmcEndDate(date)}
-                                                        minDate={amcStartDate}
-                                                        placeholderText="Auto-calculated based on start date and tenure"
-                                                        className="form-control form"
-                                                        required={watch('projectStatus') === 'Support'}
-                                                        readOnly
-                                                        disabled
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                            <Col lg={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`AMC Hours`}<span className='text-danger'>*</span></Form.Label>
-                                                    <Form.Control
-                                                        type="number"
-                                                        step="0.01"
-                                                        className='form'
-                                                        placeholder="Enter AMC hours"
-                                                        {...register('amcHours', {
-                                                            required: 'This field is required',
-                                                            min: { value: 0.01, message: 'Hours must be more than 0' }
-                                                        })}
-                                                        disabled={isEdit && editData?.projectStatus === 'Support'}
-                                                        style={{ height: '30px' }}
-                                                    />
-                                                    {errors.amcHours && <span className="text-danger small">{errors.amcHours.message}</span>}
-                                                </Form.Group>
-                                            </Col>
-                                            {editData?.amcHours ? (
-                                                <Col lg={6}>
-                                                    <Form.Group className="mb-2">
-                                                        <Form.Label className='mb-0 small'>{`Worked Hours`}</Form.Label>
-                                                        <Form.Control
-                                                            type="number"
-                                                            className='form'
-                                                            placeholder="Enter worked hours"
-                                                            {...register('workedHours', {
-                                                                min: { value: 0, message: 'Hours must be positive' }
-                                                            })}
-                                                            disabled={isEdit && editData?.projectStatus === 'Support'}
-                                                            style={{ height: '30px' }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: '14px',
+                                                                height: '14px',
+                                                                backgroundColor: '#fff',
+                                                                borderRadius: '50%',
+                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                                                                transform: hasAmc ? 'translateX(16px)' : 'translateX(0px)',
+                                                                transition: 'transform 0.2s ease-in-out'
+                                                            }}
                                                         />
-                                                        {errors.workedHours && <span className="text-danger small">{errors.workedHours.message}</span>}
-                                                    </Form.Group>
-                                                </Col>
-                                            ) : ('')}
-                                        </>
+                                                    </div>
+                                                    <span className="fw-semibold text-primary ms-2" style={{ fontSize: '12px', userSelect: 'none' }}>
+                                                        Enable AMC (Ongoing + AMC)
+                                                    </span>
+                                                </div>
+                                            </Form.Group>
+                                        </Col>
+                                    )}
+
+                                    {/* AMC Section */}
+                                    {(watch('projectStatus') === 'Support' || projectStatus === 'Support' || hasAmc) && (
+                                        <Col lg={12} className="my-2">
+                                            <div className="p-2 rounded border bg-light">
+                                                <h6 className="text-primary fw-bold mb-2 pb-1 border-bottom d-flex align-items-center" style={{ fontSize: '13px' }}>
+                                                    <i className="bi bi-shield-check me-2 fs-5"></i>AMC Details
+                                                </h6>
+                                                <Row>
+                                                    <Col lg={6}>
+                                                        <Form.Group className="mb-2">
+                                                            <Form.Label className='mb-0 small'>{`AMC Type`} <span className='text-danger'>{`*`}</span></Form.Label>
+                                                            <Form.Select
+                                                                {...register('amcType', { required: (watch('projectStatus') === 'Support' || hasAmc) })}
+                                                                onChange={(e) => {
+                                                                    setSelectedAmcType(e.target.value);
+                                                                    setValue('amcType', e.target.value);
+                                                                }}
+                                                                disabled={isEdit && editData?.projectStatus === 'Support'}
+                                                                style={{ height: '30px', paddingTop: '5px' }}>
+                                                                <option value="">Select AMC Type</option>
+                                                                {["Monthly", "Yearly"]?.map((data, index) => (
+                                                                    <option value={data} key={index}>{data}</option>
+                                                                ))}
+                                                            </Form.Select>
+                                                            {errors.amcType && <span className="text-danger small">{`AMC Type is required`}</span>}
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col lg={6}>
+                                                        <Form.Group className="mb-2">
+                                                            <Form.Label className='mb-0 small'>{`AMC Tenure`} {selectedAmcType ? "(" + selectedAmcType + ")" : ''} <span className='text-danger'>*</span></Form.Label>
+                                                            <Form.Control
+                                                                type="number"
+                                                                className='form'
+                                                                placeholder="Enter AMC Tenure"
+                                                                {...register('amcValue', {
+                                                                    required: (watch('projectStatus') === 'Support' || hasAmc),
+                                                                    min: { value: 1, message: 'Value must be positive' },
+                                                                })}
+                                                                onChange={(e) => {
+                                                                    let value = e.target.value;
+                                                                    if (selectedAmcType === "Yearly" && value.length > 1) {
+                                                                        value = value.slice(0, 1);
+                                                                    } else if (selectedAmcType === "Monthly" && value.length > 3) {
+                                                                        value = value.slice(0, 3);
+                                                                    }
+                                                                    setValue("amcValue", value);
+                                                                }}
+                                                                disabled={isEdit && editData?.projectStatus === 'Support'}
+                                                                style={{ height: '30px' }}
+                                                            />
+                                                            {errors.amcValue && <span className="text-danger small">{errors.amcValue.message || 'AMC Tenure is required'}</span>}
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col lg={6}>
+                                                        <Form.Group className="mb-2">
+                                                            <Form.Label className='mb-0 small'>{`AMC Start Date`} <span className='text-danger'>{`*`}</span></Form.Label>
+                                                            <DatePicker
+                                                                selected={amcStartDate}
+                                                                onChange={date => setAmcStartDate(date)}
+                                                                placeholderText="Select AMC start date"
+                                                                className="form-control form"
+                                                                required={watch('projectStatus') === 'Support' || hasAmc}
+                                                                disabled={isEdit && editData?.projectStatus === 'Support'}
+                                                            />
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col lg={6}>
+                                                        <Form.Group className="mb-2">
+                                                            <Form.Label className='mb-0 small'>{`AMC End Date`} <span className='text-danger'>{`*`}</span></Form.Label>
+                                                            <DatePicker
+                                                                selected={amcEndDate}
+                                                                onChange={date => setAmcEndDate(date)}
+                                                                minDate={amcStartDate}
+                                                                placeholderText="Auto-calculated based on start date and tenure"
+                                                                className="form-control form"
+                                                                required={watch('projectStatus') === 'Support' || hasAmc}
+                                                                readOnly
+                                                                disabled
+                                                            />
+                                                        </Form.Group>
+                                                    </Col>
+                                                    <Col lg={6}>
+                                                        <Form.Group className="mb-2">
+                                                            <Form.Label className='mb-0 small'>{`AMC Hours`}<span className='text-danger'>*</span></Form.Label>
+                                                            <Form.Control
+                                                                type="number"
+                                                                step="0.01"
+                                                                className='form'
+                                                                placeholder="Enter AMC hours"
+                                                                {...register('amcHours', {
+                                                                    required: (watch('projectStatus') === 'Support' || hasAmc) ? 'This field is required' : false,
+                                                                    min: { value: 0.01, message: 'Hours must be more than 0' }
+                                                                })}
+                                                                disabled={isEdit && editData?.projectStatus === 'Support'}
+                                                                style={{ height: '30px' }}
+                                                            />
+                                                            {errors.amcHours && <span className="text-danger small">{errors.amcHours.message}</span>}
+                                                        </Form.Group>
+                                                    </Col>
+                                                    {editData?.amcHours ? (
+                                                        <Col lg={6}>
+                                                            <Form.Group className="mb-2">
+                                                                <Form.Label className='mb-0 small'>{`Worked Hours`}</Form.Label>
+                                                                <Form.Control
+                                                                    type="number"
+                                                                    className='form'
+                                                                    placeholder="Enter worked hours"
+                                                                    {...register('workedHours', {
+                                                                        min: { value: 0, message: 'Hours must be positive' }
+                                                                    })}
+                                                                    disabled={isEdit && editData?.projectStatus === 'Support'}
+                                                                    style={{ height: '30px' }}
+                                                                />
+                                                                {errors.workedHours && <span className="text-danger small">{errors.workedHours.message}</span>}
+                                                            </Form.Group>
+                                                        </Col>
+                                                    ) : (
+                                                        <Col lg={6} />
+                                                    )}
+                                                </Row>
+                                            </div>
+                                        </Col>
+                                    )}
+
+                                    {/* Ongoing Details Heading (shown in dual mode) */}
+                                    {hasAmc && projectStatus !== 'Support' && (
+                                        <Col lg={12} className="mt-2 mb-1">
+                                            <h6 className="text-dark fw-bold border-bottom pb-1 d-flex align-items-center" style={{ fontSize: '13px' }}>
+                                                <i className="bi bi-kanban me-2 text-primary fs-5"></i>Ongoing Details
+                                            </h6>
+                                        </Col>
                                     )}
 
                                     {selectedDepartment !== "Marketing" && selectedDepartment !== "Freelance" &&
@@ -804,7 +905,7 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                         <>
                                             <Col lg={6}>
                                                 <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`Start Date`}</Form.Label>
+                                                    <Form.Label className='mb-0 small'>{hasAmc ? `Ongoing Start Date` : `Start Date`}</Form.Label>
                                                     <DatePicker
                                                         selected={startDate}
                                                         onChange={date => setStartDate(date)}
@@ -817,7 +918,7 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                                             </Col>
                                             <Col lg={6}>
                                                 <Form.Group className="mb-2">
-                                                    <Form.Label className='mb-0 small'>{`End Date`}</Form.Label>
+                                                    <Form.Label className='mb-0 small'>{hasAmc ? `Ongoing End Date` : `End Date`}</Form.Label>
                                                     <DatePicker
                                                         selected={endDate}
                                                         onChange={date => setEndDate(date)}
@@ -1294,8 +1395,12 @@ const ProjectModal = ({ modal, closeModal, editData = null, isAMC = false }) => 
                 show={showClientModal}
                 onHide={() => setShowClientModal(false)}
                 onClientAdded={(newClientData) => {
-                    dispatch(getClients({ projectType: selectedDepartment }));
-                    if (newClientData?.name) setPendingNewClientName(newClientData.name);
+                    if (newClientData?._id) {
+                        setSelectedClients(prev => [...new Set([...(prev || []), newClientData._id])]);
+                    }
+                    if (newClientData?.name) {
+                        setPendingNewClientName(newClientData.name);
+                    }
                 }}
             />
             {/* Add technology modal */}
@@ -1331,23 +1436,23 @@ const RenewAmcModal = ({ show, projectStatus, closeModal, onHide, editData, disp
     const [renewAmcType, setRenewAmcType] = useState('');
     const [renewAmcStartDate, setRenewAmcStartDate] = useState(null);
     const [renewAmcEndDate, setRenewAmcEndDate] = useState(null);
-  const store = useSelector((state) => state);
+    const store = useSelector((state) => state);
 
-const userRole = store?.Auth?.user?.role;
+    const userRole = store?.Auth?.user?.role;
 
-const scopedUserParams = getScopedUserIdParams(
-    userRole,
-    store?.Auth?.user?.id
-);
+    const scopedUserParams = getScopedUserIdParams(
+        userRole,
+        store?.Auth?.user?.id
+    );
 
-const {
-    register: renewRegister,
-    handleSubmit: renewHandleSubmit,
-    setValue: renewSetValue,
-    watch: renewWatch,
-    formState: { errors: renewErrors }
-} = useForm();
-   
+    const {
+        register: renewRegister,
+        handleSubmit: renewHandleSubmit,
+        setValue: renewSetValue,
+        watch: renewWatch,
+        formState: { errors: renewErrors }
+    } = useForm();
+
     useEffect(() => {
         if (show && editData) {
             renewSetValue('amcType', editData?.amcType?.type || '');
@@ -1394,40 +1499,40 @@ const {
 
         const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/v1/admin/milestone/renew-amc`, renewData);
         if (response.status === 200) {
-    toast.success(response.data.message);
-    onHide();
+            toast.success(response.data.message);
+            onHide();
 
-  if (response.status === 200) {
-    toast.success(response.data.message);
-    onHide();
+            if (response.status === 200) {
+                toast.success(response.data.message);
+                onHide();
 
-    if (projectStatus === "Support") {
-        dispatch(
-            getAmcProjects({
-                projectType: selectedDepartment,
-                page: 1,
-                limit: 100,
-                search: "",
-                ...scopedUserParams,
-            })
-        );
-    } else {
-        dispatch(
-            getAllProjects({
-                status: true,
-                skip: 1,
-                projectType: selectedDepartment,
-                projectStatus:
-                    localStorage.getItem("activeProjectTab") || "Ongoing",
-                ...scopedUserParams,
-            })
-        );
-    }
+                if (projectStatus === "Support") {
+                    dispatch(
+                        getAmcProjects({
+                            projectType: selectedDepartment,
+                            page: 1,
+                            limit: 100,
+                            search: "",
+                            ...scopedUserParams,
+                        })
+                    );
+                } else {
+                    dispatch(
+                        getAllProjects({
+                            status: true,
+                            skip: 1,
+                            projectType: selectedDepartment,
+                            projectStatus:
+                                localStorage.getItem("activeProjectTab") || "Ongoing",
+                            ...scopedUserParams,
+                        })
+                    );
+                }
 
-    closeModal();
-}
+                closeModal();
+            }
 
-}
+        }
     };
 
     return (

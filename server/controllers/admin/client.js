@@ -3,6 +3,7 @@
 const Client = require('../../models/client');
 const User = require('../../models/user');
 const Role = require('../../models/role');
+const Project = require('../../models/project');
 const EncryptionService = require('../../utils/encryption');
 const nodemailer = require("nodemailer");
 class ClientController {
@@ -10,87 +11,152 @@ class ClientController {
     async createClient(req, res) {
         try {
             let data = req.body;
-            data.createdBy = req.user._id;
-            if (!data.name) {
-                return res.status(400).json({ error: 'Name Is required' });
+            data.createdBy = req.user ? req.user._id : null;
+            if (!data.name || !data.name.trim()) {
+                return res.status(400).json({ status: 400, error: 'Client Name is required' });
             }
-            console.log(data, "xcvncxvxcvxcvcx")
 
-            const existingClient = await Client.findOne({ name: data.name });
+            const existingClient = await Client.findOne({ name: data.name.trim() });
             if (existingClient) {
-                return res.status(400).json({ error: 'Client with this name already exists' });
+                return res.status(400).json({ status: 400, error: 'Client with this name already exists' });
             }
 
-            const client = new Client(data);
+            const rawEmail = data.loginEmail || (Array.isArray(data.email) ? data.email[0] : data.email);
+            if (!rawEmail || !rawEmail.trim()) {
+                return res.status(400).json({ status: 400, error: 'Email is required' });
+            }
+            const loginEmail = rawEmail.trim().toLowerCase();
 
-            console.log(client, "CXvxcnbvncxbnvxcnb")
-            const checkRole = await Role.findOne({ name: "Client" });
+            const existingEmail = await Client.findOne({ loginEmail });
+            if (existingEmail) {
+                return res.status(400).json({ status: 400, error: 'Client with this email already exists' });
+            }
 
-            const plainPassword = data.loginPassword;
+            const plainPassword = data.loginPassword || data.password;
+            if (!plainPassword || !plainPassword.trim()) {
+                return res.status(400).json({ status: 400, error: 'Password is required' });
+            }
 
-            const encryptedPassword = EncryptionService.encrypt(plainPassword);
-
+            let checkRole = await Role.findOne({ name: "Client" });
             if (!checkRole) {
-                return res.status(400).json({ message: "Role not found" });
+                checkRole = await Role.findOne({ name: { $regex: /^client$/i } });
             }
-            client.loginEmail = data.loginEmail,
-                client.password = encryptedPassword,
-                client.role = checkRole._id
-
+            if (!checkRole) {
+                checkRole = await Role.create({ name: 'Client', description: 'Client', permissions: [] });
+            }
+            const encryptedPassword = EncryptionService.encrypt(plainPassword);
+            const emailArray = Array.isArray(data.email) && data.email.length > 0 && data.email[0]
+                ? data.email
+                : [loginEmail];
+            const clientProjects = Array.isArray(data.projects) ? data.projects : [];
+            const client = new Client({
+                ...data,
+                name: data.name.trim(),
+                loginEmail,
+                email: emailArray,
+                password: encryptedPassword,
+                role: checkRole._id,
+                projects: clientProjects,
+                createdBy: req.user ? req.user._id : null
+            });
             await client.save();
-            res.status(201).json({ status: 201, message: 'Client created successfully', client });
+            if (clientProjects.length > 0) {
+                await Project.updateMany(
+                    { _id: { $in: clientProjects } },
+                    { $addToSet: { client: client._id } }
+                );
+            }
+            const populatedClient = await Client.findById(client._id).populate('projects', 'name');
+            res.status(201).json({ status: 201, message: 'Client created successfully', client: populatedClient || client });
         } catch (error) {
+            if (error.code === 11000) {
+                const field = Object.keys(error.keyPattern || {})[0] || 'Field';
+                return res.status(400).json({ status: 400, error: `${field} already exists` });
+            }
             res.status(500).json({ status: 500, error: error.message });
         }
     }
-
     // Update client
-    // async updateClient(req, res) {
-    //     try {
-    //         const client = await Client.findByIdAndUpdate(
-    //             req.params.id,
-    //             req.body,
-    //             { new: true, runValidators: true }
-    //         );
-    //         if (!client) {
-    //             return res.status(404).json({ status: 404, error: 'Client not found' });
-    //         }
-    //         res.json(client);
-    //     } catch (error) {
-    //         res.status(500).json({ status: 500, error: error.message });
-    //     }
-    // }
-
     async updateClient(req, res) {
-    try {
-        const { status } = req.body;
+        try {
+            const data = req.body;
+            const existingClient = await Client.findById(req.params.id);
+            if (!existingClient) {
+                return res.status(404).json({
+                    status: 404,
+                    error: "Client not found"
+                });
+            }
+            // Quick toggle for status only
+            if (Object.keys(data).length === 1 && data.status !== undefined) {
+                existingClient.status = data.status;
+                await existingClient.save();
+                return res.json({
+                    status: 200,
+                    message: "Client status updated successfully",
+                    data: existingClient
+                });
+            }
+            if (data.name && data.name.trim()) {
+                const dup = await Client.findOne({ _id: { $ne: existingClient._id }, name: data.name.trim() });
+                if (dup) {
+                    return res.status(400).json({ status: 400, error: 'Client with this name already exists' });
+                }
+                existingClient.name = data.name.trim();
+            }
 
-        const client = await Client.findByIdAndUpdate(
-            req.params.id,
-            { status },
-            { new: true, runValidators: true }
-        );
+            if (data.companyName !== undefined) existingClient.companyName = data.companyName;
+            if (data.email) existingClient.email = Array.isArray(data.email) ? data.email : [data.email];
+            if (data.contact) existingClient.contact = Array.isArray(data.contact) ? data.contact : [data.contact];
+            if (data.notes !== undefined) existingClient.notes = data.notes;
+            if (data.status) existingClient.status = data.status;
 
-        if (!client) {
-            return res.status(404).json({
-                status: 404,
-                error: "Client not found"
+            if (data.loginEmail && data.loginEmail.trim()) {
+                const loginEmail = data.loginEmail.trim().toLowerCase();
+                const dupEmail = await Client.findOne({ _id: { $ne: existingClient._id }, loginEmail });
+                if (dupEmail) {
+                    return res.status(400).json({ status: 400, error: 'Client with this email already exists' });
+                }
+                existingClient.loginEmail = loginEmail;
+            }
+
+            if (data.loginPassword || data.password) {
+                const plainPassword = data.loginPassword || data.password;
+                if (plainPassword && plainPassword.trim()) {
+                    existingClient.password = EncryptionService.encrypt(plainPassword.trim());
+                }
+            }
+
+            if (data.projects !== undefined) {
+                const prevProjects = (existingClient.projects || []).map(p => p.toString());
+                const newProjects = Array.isArray(data.projects) ? data.projects.map(p => p.toString()) : [];
+
+                const removed = prevProjects.filter(p => !newProjects.includes(p));
+                if (removed.length > 0) {
+                    await Project.updateMany({ _id: { $in: removed } }, { $pull: { client: existingClient._id } });
+                }
+                if (newProjects.length > 0) {
+                    await Project.updateMany({ _id: { $in: newProjects } }, { $addToSet: { client: existingClient._id } });
+                }
+                existingClient.projects = newProjects;
+            }
+
+            await existingClient.save();
+
+            const updatedClient = await Client.findById(existingClient._id).populate('projects', 'name');
+
+            return res.json({
+                status: 200,
+                message: "Client updated successfully",
+                data: updatedClient || existingClient
+            });
+        } catch (error) {
+            return res.status(500).json({
+                status: 500,
+                error: error.message
             });
         }
-
-        return res.json({
-            status: 200,
-            message: "Client status updated successfully",
-            data: client
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            status: 500,
-            error: error.message
-        });
     }
-}
 
     // Get all clients with filters and pagination
     async getClients(req, res) {
@@ -109,8 +175,6 @@ class ClientController {
                 filters.status = req.query.status;
             }
 
-
-
             // Search by name, email or contact
             if (req.query.search) {
                 filters.$or = [
@@ -122,6 +186,7 @@ class ClientController {
 
             const total = await Client.countDocuments(filters);
             const clients = (await Client.find(filters)
+                .populate('projects', 'name')
                 .sort({ name: 1 })
                 .skip(skip)
                 .limit(limit)

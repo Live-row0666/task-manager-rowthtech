@@ -55,7 +55,7 @@ const clientDependencySchema = new mongoose.Schema({
     },
     project: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'ClientProject',
+        ref: 'Project',
         required: true
     },
     title: {

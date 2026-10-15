@@ -1,5 +1,6 @@
 const ClientSupport = require('../../models/clientSupport');
-const ClientProject = require('../../models/clientProject');
+const Project = require('../../models/project');
+const Client = require('../../models/client');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const https = require('https');
@@ -181,9 +182,17 @@ class ClientSupportController {
             // Resolve project: use provided projectId or fallback to client's first active project
             let targetProjectId = projectId;
             if (!targetProjectId) {
-                const clientProj = await ClientProject.findOne({ client: clientId, isActive: true });
-                if (clientProj) {
-                    targetProjectId = clientProj._id;
+                const clientDoc = await Client.findById(clientId).select('projects').lean();
+                const clientProjectIds = Array.isArray(clientDoc?.projects) ? clientDoc.projects : [];
+                const proj = await Project.findOne({
+                    $or: [
+                        { client: clientId },
+                        { _id: { $in: clientProjectIds } }
+                    ],
+                    isActive: true
+                });
+                if (proj) {
+                    targetProjectId = proj._id;
                 }
             }
 

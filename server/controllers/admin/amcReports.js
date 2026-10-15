@@ -16,7 +16,10 @@ class AmcReportsController {
 
             // Build query object
             let query = {
-                projectStatus: 'Support'
+                $or: [
+                    { projectStatus: 'Support' },
+                    { hasAmc: true }
+                ]
             };
 
             if (user && user.trim() !== '') {

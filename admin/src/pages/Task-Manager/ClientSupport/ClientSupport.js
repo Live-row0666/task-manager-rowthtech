@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { Modal } from 'react-bootstrap';
 import { io } from 'socket.io-client';
 import config from '../../../config';
-import { getClientProjects } from '../../../redux/actions';
-import { getClients } from '../../../redux/client/action';
 import { APICore } from '../../../helpers/api/apiCore';
 import './ClientSupport.css';
 
@@ -19,8 +16,6 @@ const QUICK_PM_RESPONSES = [
 ];
 
 const ClientSupport = () => {
-    const dispatch = useDispatch();
-    const store = useSelector((state) => state);
     // Tickets state - dynamically loaded from backend
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +23,6 @@ const ClientSupport = () => {
     const [sendingMessage, setSendingMessage] = useState(false);
 
     // Filter states
-    const [selectedClient, setSelectedClient] = useState('all');
     const [selectedProject, setSelectedProject] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedPriority, setSelectedPriority] = useState('all');
@@ -83,6 +77,21 @@ const ClientSupport = () => {
             joinAdminRooms();
         });
 
+        socket.on('ticket_created', (data) => {
+            if (data && data.ticket) {
+                setTickets(prev => [data.ticket, ...prev.filter(t => t._id !== data.ticket._id)]);
+                const p = data.ticket.project;
+                if (p && p._id && isOngoingOrAmc(p.projectStatus)) {
+                    const statusLabel = (p.projectStatus === 'Support' || p.projectStatus?.toLowerCase() === 'amc') ? 'AMC' : 'Ongoing';
+                    const pName = p.name || 'Project';
+                    setTicketProjects(prev => {
+                        if (prev.some(item => item.id === String(p._id))) return prev;
+                        return [...prev, { id: String(p._id), name: `${pName} (${statusLabel})` }].sort((a, b) => a.name.localeCompare(b.name));
+                    });
+                }
+            }
+        });
+
         socket.on('new_client_support_response', (data) => {
             if (data && data.ticketId && data.ticket) {
                 setTickets(prev => prev.map(t => (t._id === data.ticketId ? data.ticket : t)));
@@ -120,23 +129,42 @@ const ClientSupport = () => {
         };
     }, [activeTicket?._id]);
 
-    // Fetch projects and clients in Redux store on mount
-    useEffect(() => {
-        dispatch(getClientProjects({ page: 1, limit: 100 }));
-        dispatch(getClients({ page: 1, limit: 100 }));
-    }, [dispatch]);
+    const isOngoingOrAmc = (status) => {
+        if (!status) return true;
+        const st = String(status).trim().toLowerCase();
+        return st === 'ongoing' || st === 'support' || st === 'amc';
+    };
 
-    const reduxClients = store?.clientReducer?.clients || [];
-    const reduxProjects = store?.getClientProjectsReducer?.data?.data || [];
+    const [ticketProjects, setTicketProjects] = useState([]);
+
+    // Load ticketed Ongoing / AMC projects on mount
+    useEffect(() => {
+        api.get('/api/v1/admin/client-support')
+            .then(res => {
+                if (res && res.data && Array.isArray(res.data.data)) {
+                    const pMap = new Map();
+                    res.data.data.forEach((t) => {
+                        const p = t.project;
+                        if (p && p._id && isOngoingOrAmc(p.projectStatus)) {
+                            const statusLabel = (p.projectStatus === 'Support' || p.projectStatus?.toLowerCase() === 'amc') ? 'AMC' : 'Ongoing';
+                            const pName = p.name || 'Project';
+                            pMap.set(String(p._id), {
+                                id: String(p._id),
+                                name: `${pName} (${statusLabel})`
+                            });
+                        }
+                    });
+                    setTicketProjects(Array.from(pMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+                }
+            })
+            .catch(() => { });
+    }, []);
 
     // Fetch real tickets from backend API
     const fetchTickets = useCallback(async () => {
         try {
             setLoading(true);
             const params = {};
-            if (selectedClient && selectedClient !== 'all') {
-                params.clientId = selectedClient;
-            }
             if (selectedProject && selectedProject !== 'all') {
                 params.projectId = selectedProject;
             }
@@ -153,6 +181,21 @@ const ClientSupport = () => {
             const res = await api.get('/api/v1/admin/client-support', params);
             if (res && res.data && Array.isArray(res.data.data)) {
                 setTickets(res.data.data);
+                if (!selectedProject || selectedProject === 'all') {
+                    const pMap = new Map();
+                    res.data.data.forEach((t) => {
+                        const p = t.project;
+                        if (p && p._id && isOngoingOrAmc(p.projectStatus)) {
+                            const statusLabel = (p.projectStatus === 'Support' || p.projectStatus?.toLowerCase() === 'amc') ? 'AMC' : 'Ongoing';
+                            const pName = p.name || 'Project';
+                            pMap.set(String(p._id), {
+                                id: String(p._id),
+                                name: `${pName} (${statusLabel})`
+                            });
+                        }
+                    });
+                    setTicketProjects(Array.from(pMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+                }
             } else {
                 setTickets([]);
             }
@@ -162,119 +205,18 @@ const ClientSupport = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedClient, selectedProject, selectedStatus, selectedPriority, searchTerm]);
+    }, [selectedProject, selectedStatus, selectedPriority, searchTerm]);
 
     // Initial load and whenever filters change
     useEffect(() => {
         fetchTickets();
     }, [fetchTickets]);
 
-    // Format clients list from Redux and loaded tickets
-    const clientsList = useMemo(() => {
-        const map = new Map();
-
-        // Add from Redux
-        if (Array.isArray(reduxClients)) {
-            reduxClients.forEach((c) => {
-                if (c && c._id && c.name) {
-                    map.set(String(c._id), { id: String(c._id), name: c.name });
-                }
-            });
-        }
-
-        // Add from projects
-        if (Array.isArray(reduxProjects)) {
-            reduxProjects.forEach((p) => {
-                if (Array.isArray(p.client)) {
-                    p.client.forEach((c) => {
-                        if (c && (c._id || c.name)) {
-                            const id = String(c._id || c.name);
-                            if (!map.has(id)) {
-                                map.set(id, { id, name: c.name || c });
-                            }
-                        }
-                    });
-                }
-            });
-        }
-
-        // Add from loaded tickets
-        if (Array.isArray(tickets)) {
-            tickets.forEach((t) => {
-                if (t.client && t.client._id && t.client.name) {
-                    const id = String(t.client._id);
-                    if (!map.has(id)) {
-                        map.set(id, { id, name: t.client.name });
-                    }
-                }
-            });
-        }
-
-        return Array.from(map.values());
-    }, [reduxClients, reduxProjects, tickets]);
-
-    // Format projects list from Redux and loaded tickets
-    const projectsList = useMemo(() => {
-        const map = new Map();
-
-        if (Array.isArray(reduxProjects)) {
-            reduxProjects.forEach((p) => {
-                const clientObj = Array.isArray(p.client) && p.client.length > 0 ? p.client[0] : null;
-                const clientId = clientObj ? String(clientObj._id || clientObj.name || '') : '';
-                const clientName = clientObj ? (clientObj.name || clientObj) : '';
-                map.set(String(p._id), {
-                    id: String(p._id),
-                    name: p.name,
-                    clientId: clientId,
-                    clientName: clientName,
-                });
-            });
-        }
-
-        if (Array.isArray(tickets)) {
-            tickets.forEach((t) => {
-                if (t.project && t.project._id && !map.has(String(t.project._id))) {
-                    map.set(String(t.project._id), {
-                        id: String(t.project._id),
-                        name: t.project.name || 'Project',
-                        clientId: t.client ? String(t.client._id || '') : '',
-                        clientName: t.client ? (t.client.name || '') : '',
-                    });
-                }
-            });
-        }
-
-        return Array.from(map.values());
-    }, [reduxProjects, tickets]);
-
-    // Projects available based on selected client
-    const availableProjects = useMemo(() => {
-        if (selectedClient === 'all') return projectsList;
-        return projectsList.filter((p) => {
-            if (!p.clientId) return true;
-            return p.clientId === selectedClient || p.clientName?.toLowerCase() === selectedClient.toLowerCase();
-        });
-    }, [projectsList, selectedClient]);
-
-    // Handle Client filter change
-    const handleClientChange = (e) => {
-        const newClientId = e.target.value;
-        setSelectedClient(newClientId);
-
-        // Reset project if it doesn't belong to the newly selected client
-        if (newClientId !== 'all') {
-            const belongs = projectsList.some(
-                (p) => p.id === selectedProject && (p.clientId === newClientId || p.clientName?.toLowerCase() === newClientId.toLowerCase())
-            );
-            if (!belongs) {
-                setSelectedProject('all');
-            }
-        }
-    };
+    // Only ticketed Ongoing & AMC projects are shown in the dropdown
+    const projectsList = ticketProjects;
 
     // Reset all filters
     const handleResetFilters = () => {
-        setSelectedClient('all');
         setSelectedProject('all');
         setSelectedStatus('all');
         setSelectedPriority('all');
@@ -615,23 +557,6 @@ const ClientSupport = () => {
                 </div>
 
                 <div className="client-filter-row">
-                    {/* Client Dropdown */}
-                    <div className="client-filter-item">
-                        <label className="client-filter-label">Select Client</label>
-                        <select
-                            className="client-filter-select"
-                            value={selectedClient}
-                            onChange={handleClientChange}
-                        >
-                            <option value="all">All Clients ({clientsList.length})</option>
-                            {clientsList.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
                     {/* Client Project Dropdown */}
                     <div className="client-filter-item">
                         <label className="client-filter-label">Select Project</label>
@@ -640,8 +565,8 @@ const ClientSupport = () => {
                             value={selectedProject}
                             onChange={(e) => setSelectedProject(e.target.value)}
                         >
-                            <option value="all">All Projects ({availableProjects.length})</option>
-                            {availableProjects.map(p => (
+                            <option value="all">All Projects ({projectsList.length})</option>
+                            {projectsList.map(p => (
                                 <option key={p.id} value={p.id}>
                                     {p.name}
                                 </option>
@@ -709,15 +634,9 @@ const ClientSupport = () => {
                 </div>
 
                 {/* Active Filter Tags */}
-                {(selectedClient !== 'all' || selectedProject !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchTerm) && (
+                {(selectedProject !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchTerm) && (
                     <div className="client-active-tags-bar">
                         <span className="text-muted fw-bold me-1">Active filters:</span>
-                        {selectedClient !== 'all' && (
-                            <span className="client-tag-pill">
-                                Client: {clientsList.find(c => c.id === selectedClient)?.name || selectedClient}
-                                <span className="client-tag-remove" onClick={() => setSelectedClient('all')}>&times;</span>
-                            </span>
-                        )}
                         {selectedProject !== 'all' && (
                             <span className="client-tag-pill">
                                 Project: {projectsList.find(p => p.id === selectedProject)?.name || selectedProject}

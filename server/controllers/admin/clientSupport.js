@@ -1,6 +1,6 @@
 const ClientSupport = require('../../models/clientSupport');
 require('../../models/client');
-require('../../models/clientProject');
+require('../../models/project');
 require('../../models/user');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 

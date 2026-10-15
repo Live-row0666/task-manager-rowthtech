@@ -20,17 +20,41 @@ function evp_bytestokey(password, keyLen, ivLen) {
     };
 }
 
+const scryptKeyCache = new Map();
+function getScryptKey(secret) {
+    if (!secret) return null;
+    let key = scryptKeyCache.get(secret);
+    if (!key) {
+        key = crypto.scryptSync(secret, 'salt', 32);
+        scryptKeyCache.set(secret, key);
+    }
+    return key;
+}
+
+const evpKeyIvCache = new Map();
+function getEvpKeyIv(input) {
+    if (!input) return null;
+    const cacheKey = Buffer.isBuffer(input) ? input.toString('hex') : String(input);
+    let cached = evpKeyIvCache.get(cacheKey);
+    if (!cached) {
+        cached = evp_bytestokey(input, 32, 16);
+        evpKeyIvCache.set(cacheKey, cached);
+    }
+    return cached;
+}
+
 class EncryptionService {
     constructor() {
         this.algorithm = 'aes-256-cbc';
         this.secretKey = process.env.ENCRYPTION_SECRET || 'default_encryption_secret_key_minimum_32_chars_long_for_safety';
-        this.key = crypto.scryptSync(this.secretKey, 'salt', 32);
+        this.key = getScryptKey(this.secretKey);
     }
 
     encrypt(text) {
+        if (!text || typeof text !== 'string') return '';
         // Use standard EVP derivation for consistency with existing database passwords
-        const scryptKey = crypto.scryptSync(this.secretKey, 'salt', 32);
-        const { key, iv } = evp_bytestokey(scryptKey, 32, 16);
+        const scryptKey = getScryptKey(this.secretKey);
+        const { key, iv } = getEvpKeyIv(scryptKey);
         const randomIv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(this.algorithm, key, iv);
         let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -59,11 +83,11 @@ class EncryptionService {
         const uniqueSecrets = [...new Set(possibleSecrets)];
 
         for (const secret of uniqueSecrets) {
-            const scryptKey = crypto.scryptSync(secret, 'salt', 32);
+            const scryptKey = getScryptKey(secret);
 
             // 1. EVP_BytesToKey derivation on scryptKey (exact legacy createCipher format in database)
             try {
-                const { key, iv } = evp_bytestokey(scryptKey, 32, 16);
+                const { key, iv } = getEvpKeyIv(scryptKey);
                 const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
                 let decrypted = decipher.update(cipherHex, 'hex', 'utf8');
                 decrypted += decipher.final('utf8');
@@ -72,7 +96,7 @@ class EncryptionService {
 
             // 2. EVP_BytesToKey derivation on secret string
             try {
-                const { key, iv } = evp_bytestokey(secret, 32, 16);
+                const { key, iv } = getEvpKeyIv(secret);
                 const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
                 let decrypted = decipher.update(cipherHex, 'hex', 'utf8');
                 decrypted += decipher.final('utf8');

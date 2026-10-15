@@ -1,6 +1,6 @@
 const ClientDocument = require("../../models/clientDocuments");
 const Client = require("../../models/client");
-const ClientProject = require("../../models/clientProject");
+const Project = require("../../models/project");
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const s3Client = new S3Client({
     region: process.env.AWS_REGION,
@@ -37,9 +37,15 @@ class ClientDocumentsController {
         try {
 
             const { clientId } = req.params;
+            const clientDoc = await Client.findById(clientId).select('projects').lean();
+            const clientProjectIds = Array.isArray(clientDoc?.projects) ? clientDoc.projects : [];
 
-            const projects = await ClientProject.find({
-                client: clientId,
+            const projects = await Project.find({
+                $or: [
+                    { client: clientId },
+                    { _id: { $in: clientProjectIds } }
+                ],
+                isActive: true
             })
                 .select("_id name")
                 .sort({ name: 1 });

@@ -55,8 +55,8 @@ const Milestone = () => {
     }, [id]);
 
     useEffect(() => {
-        dispatch(getsingleMileStone({ id: id, skip, mileStoneId: '', isDelivered, isActive: activeTab }));
-    }, [render, isDelivered, activeTab]);
+        dispatch(getsingleMileStone({ id: id, skip, mileStoneId: '', isDelivered, isActive: activeTab, type: projectType }));
+    }, [render, isDelivered, activeTab, projectType]);
 
     useEffect(() => {
         if (deletehandle?.status == 200) {
@@ -80,12 +80,12 @@ const Milestone = () => {
         setStatus(val);
         setIsDelivered(!val);
         setSkip(1);
-        dispatch(getsingleMileStone({ id: id, skip: 1, mileStoneId: '', isDelivered: !val, isActive: activeTab }));
+        dispatch(getsingleMileStone({ id: id, skip: 1, mileStoneId: '', isDelivered: !val, isActive: activeTab, type: projectType }));
     };
 
     const handlePaginationChange = (event: React.ChangeEvent<unknown>, value: number) => {
         setSkip(value);
-        dispatch(getsingleMileStone({ id: id, skip: value, mileStoneId: '', isDelivered: isDelivered, isActive: activeTab }));
+        dispatch(getsingleMileStone({ id: id, skip: value, mileStoneId: '', isDelivered: isDelivered, isActive: activeTab, type: projectType }));
     };
 
     const handleStatusChange = (e, data) => {
@@ -218,6 +218,28 @@ const Milestone = () => {
                                     </button>
                                     <button className={`btn fw-semibold px-2 rounded-0 ${status === true ? 'bg-dark text-white' : 'btn-outline-secondary'}`} style={{ padding: '4px 16px', fontSize: '11px' }} onClick={() => handleActive(true)}>In Progress</button>
                                     <button className={`btn fw-semibold px-2 rounded-0 ${status === false ? 'bg-dark text-white' : 'btn-outline-secondary'}`} style={{ padding: '4px 16px', fontSize: '11px' }} onClick={() => handleActive(false)}>Delivered</button>
+
+                                    {/* Dual Project Milestone Switcher */}
+                                    {store?.getProjectById?.data?.data?.hasAmc && (
+                                        <div className="btn-group ms-3" role="group">
+                                            <button
+                                                type="button"
+                                                className={`btn fw-semibold ${projectType !== 'AMC' ? 'btn-primary text-white' : 'btn-outline-primary'}`}
+                                                style={{ padding: '4px 12px', fontSize: '11px' }}
+                                                onClick={() => navigate(`/dashboard/milestone/${id}`)}
+                                            >
+                                                <i className="mdi mdi-view-list me-1"></i>Ongoing Milestones
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`btn fw-semibold ${projectType === 'AMC' ? 'btn-primary text-white' : 'btn-outline-primary'}`}
+                                                style={{ padding: '4px 12px', fontSize: '11px' }}
+                                                onClick={() => navigate(`/dashboard/milestone/${id}?type=AMC`)}
+                                            >
+                                                <i className="mdi mdi-shield-check me-1"></i>AMC Milestones
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {projectType !== "AMC" && (
                                     <div className="d-flex align-items-center gap-1">
