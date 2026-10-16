@@ -51,3 +51,32 @@
     vertical-align: middle !important;
     box-sizing: border-box !important;
 }
+
+/* Review Form Inputs */
+.cr-review-form .form-label {
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.cr-review-form .form-control,
+.cr-review-form .form-select {
+    border-color: #cbd5e1;
+    border-radius: 6px;
+    color: #1e293b;
+}
+
+.cr-review-form .form-control:focus,
+.cr-review-form .form-select:focus {
+    border-color: #727cf5;
+    box-shadow: 0 0 0 0.15rem rgba(114, 124, 245, 0.15);
+}
+
+.cr-review-form .input-group .input-group-text {
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    color: #64748b;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}

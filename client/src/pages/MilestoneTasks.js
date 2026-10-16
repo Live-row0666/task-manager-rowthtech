@@ -21,6 +21,8 @@ const MilestoneTasks = () => {
 
     const mName = searchParams.get('mName') || 'Milestone';
     const pName = searchParams.get('pName') || '';
+    const projectId = searchParams.get("projectId") || "";
+    const mType = searchParams.get("type") || "Ongoing";
 
     const { user, clientTasks, clientTasksLoading, clientMilestones, dashboard } = useSelector(s => ({
         user: s.Auth.user,
@@ -38,7 +40,6 @@ const MilestoneTasks = () => {
     const [search, setSearch] = useState('');
     const [activeMsId, setActiveMsId] = useState(milestoneId);
     const [activeMsName, setActiveMsName] = useState(mName);
-    const projectId = searchParams.get("projectId") || "";
 
     useEffect(() => {
         if (activeMsId) dispatch(getClientTasksAction(activeMsId));
@@ -176,7 +177,13 @@ const MilestoneTasks = () => {
                         <div className="mst-breadcrumb">
                             {pName && (
                                 <>
-                                    <span className="mst-bc-project">{pName}</span>
+                                    <Link
+                                        to={`/dashboard/milestones?projectId=${projectId}&type=${mType}`}
+                                        className="mst-bc-project"
+                                        style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+                                    >
+                                        {pName}
+                                    </Link>
                                     <i className="bi bi-chevron-right mst-bc-sep" />
                                 </>
                             )}
@@ -195,7 +202,13 @@ const MilestoneTasks = () => {
 
                             <button
                                 className="milestone-back-btn"
-                                onClick={() => navigate(-1)}
+                                onClick={() => {
+                                    if (projectId) {
+                                        navigate(`/dashboard/milestones?projectId=${projectId}&type=${mType}`);
+                                    } else {
+                                        navigate(-1);
+                                    }
+                                }}
                             >
                                 <i className="bi bi-arrow-left"></i>
                                 <span>Back</span>

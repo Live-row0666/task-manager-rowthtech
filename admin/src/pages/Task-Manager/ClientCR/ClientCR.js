@@ -26,8 +26,7 @@ const ClientCR = () => {
     const [activeCR, setActiveCR] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [statusToUpdate, setStatusToUpdate] = useState('submitted');
-    const [estimatedHours, setEstimatedHours] = useState(0);
-    const [cost, setCost] = useState(0);
+    const [estimatedHours, setEstimatedHours] = useState('');
     const [adminNotes, setAdminNotes] = useState('');
     const [priorityToUpdate, setPriorityToUpdate] = useState('medium');
     const [targetDateToUpdate, setTargetDateToUpdate] = useState('');
@@ -78,8 +77,7 @@ const ClientCR = () => {
     const handleOpenReview = (item) => {
         setActiveCR(item);
         setStatusToUpdate(item.status || 'submitted');
-        setEstimatedHours(item.estimatedHours || 0);
-        setCost(item.cost || 0);
+        setEstimatedHours(item.estimatedHours ? item.estimatedHours : '');
         setAdminNotes(item.adminNotes || '');
         setPriorityToUpdate(item.priority || 'medium');
         setTargetDateToUpdate(item.targetDate ? moment.utc(item.targetDate).format('YYYY-MM-DD') : '');
@@ -95,8 +93,7 @@ const ClientCR = () => {
         try {
             const payload = {
                 status: statusToUpdate,
-                estimatedHours: Number(estimatedHours) || 0,
-                cost: Number(cost) || 0,
+                estimatedHours: estimatedHours !== '' ? Number(estimatedHours) : 0,
                 adminNotes: adminNotes.trim(),
                 priority: priorityToUpdate,
                 targetDate: targetDateToUpdate || undefined
@@ -345,7 +342,6 @@ const ClientCR = () => {
                                             <th className="text-center">Priority</th>
                                             <th className="text-center">Status</th>
                                             <th className="text-center">Est. Hours</th>
-                                            <th className="text-center">Cost</th>
                                             <th>Submitted</th>
                                             <th>Target Date</th>
                                             <th className="text-end">Actions</th>
@@ -374,9 +370,6 @@ const ClientCR = () => {
                                                 <td className="text-center">{renderStatusBadge(item.status)}</td>
                                                 <td className="text-center fw-semibold">
                                                     {item.estimatedHours > 0 ? `${item.estimatedHours} hrs` : <span className="text-muted">-</span>}
-                                                </td>
-                                                <td className="text-center fw-semibold">
-                                                    {item.cost > 0 ? `$${item.cost}` : <span className="text-muted">-</span>}
                                                 </td>
                                                 <td className="small text-muted">
                                                     {moment(item.createdAt).format('DD/MM/YYYY')}
@@ -533,18 +526,18 @@ const ClientCR = () => {
 
                                     {/* Engineering Assessment Form Controls */}
                                     <div className="mt-3 pt-2">
-                                        <h6 className="text-primary fw-bold mb-2 border-bottom pb-1" style={{ fontSize: '12px' }}>
-                                            <i className="fas fa-sliders-h me-2"></i>ENGINEERING REVIEW & COMMERCIAL ASSESSMENT
+                                        <h6 className="text-primary fw-bold mb-3 border-bottom pb-2" style={{ fontSize: '13px' }}>
+                                            <i className="fas fa-sliders-h me-2"></i>ENGINEERING REVIEW & ASSESSMENT
                                         </h6>
-                                        <Row className="g-2">
+                                        <Row className="g-3 cr-review-form">
                                             <Col md={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Update Status <span className="text-danger">*</span></Form.Label>
+                                                <Form.Group>
+                                                    <Form.Label className="mb-1 small fw-bold">Update Status <span className="text-danger">*</span></Form.Label>
                                                     <Form.Select
-                                                        size="sm"
                                                         value={statusToUpdate}
                                                         onChange={(e) => setStatusToUpdate(e.target.value)}
-                                                        style={{ height: '36px', fontSize: '13px' }}
+                                                        className="form-control"
+                                                        style={{ height: '38px', fontSize: '13px' }}
                                                     >
                                                         <option value="submitted">Submitted (Under Review)</option>
                                                         <option value="in_review">In Review (Evaluating Scope)</option>
@@ -555,47 +548,14 @@ const ClientCR = () => {
                                                     </Form.Select>
                                                 </Form.Group>
                                             </Col>
-                                            <Col md={3}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Estimated Hours</Form.Label>
-                                                    <div className="input-group input-group-sm">
-                                                        <Form.Control
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            placeholder="e.g. 16"
-                                                            value={estimatedHours}
-                                                            onChange={(e) => setEstimatedHours(e.target.value)}
-                                                            style={{ height: '36px', fontSize: '13px' }}
-                                                        />
-                                                        <span className="input-group-text bg-light">hrs</span>
-                                                    </div>
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={3}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Commercials / Cost ($)</Form.Label>
-                                                    <div className="input-group input-group-sm">
-                                                        <span className="input-group-text bg-light">$</span>
-                                                        <Form.Control
-                                                            type="number"
-                                                            min="0"
-                                                            placeholder="e.g. 450"
-                                                            value={cost}
-                                                            onChange={(e) => setCost(e.target.value)}
-                                                            style={{ height: '36px', fontSize: '13px' }}
-                                                        />
-                                                    </div>
-                                                </Form.Group>
-                                            </Col>
                                             <Col md={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Priority</Form.Label>
+                                                <Form.Group>
+                                                    <Form.Label className="mb-1 small fw-bold">Priority</Form.Label>
                                                     <Form.Select
-                                                        size="sm"
                                                         value={priorityToUpdate}
                                                         onChange={(e) => setPriorityToUpdate(e.target.value)}
-                                                        style={{ height: '36px', fontSize: '13px' }}
+                                                        className="form-control"
+                                                        style={{ height: '38px', fontSize: '13px' }}
                                                     >
                                                         <option value="low">Low</option>
                                                         <option value="medium">Medium</option>
@@ -605,27 +565,43 @@ const ClientCR = () => {
                                                 </Form.Group>
                                             </Col>
                                             <Col md={6}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Target Completion Date</Form.Label>
+                                                <Form.Group>
+                                                    <Form.Label className="mb-1 small fw-bold">Estimated Hours</Form.Label>
+                                                    <div className="input-group">
+                                                        <Form.Control
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            placeholder="e.g. 16"
+                                                            value={estimatedHours}
+                                                            onChange={(e) => setEstimatedHours(e.target.value)}
+                                                            style={{ height: '38px', fontSize: '13px' }}
+                                                        />
+                                                        <span className="input-group-text bg-light text-muted" style={{ height: '38px', fontSize: '12px' }}>hrs</span>
+                                                    </div>
+                                                </Form.Group>
+                                            </Col>
+                                            <Col md={6}>
+                                                <Form.Group>
+                                                    <Form.Label className="mb-1 small fw-bold">Target Completion Date</Form.Label>
                                                     <Form.Control
                                                         type="date"
-                                                        size="sm"
                                                         value={targetDateToUpdate}
                                                         onChange={(e) => setTargetDateToUpdate(e.target.value)}
-                                                        style={{ height: '36px', fontSize: '13px' }}
+                                                        style={{ height: '38px', fontSize: '13px' }}
                                                     />
                                                 </Form.Group>
                                             </Col>
                                             <Col md={12}>
-                                                <Form.Group className="mb-2">
-                                                    <Form.Label className="mb-0 small fw-bold">Admin Feedback / Notes (Visible to Client)</Form.Label>
+                                                <Form.Group>
+                                                    <Form.Label className="mb-1 small fw-bold">Admin Feedback / Notes (Visible to Client)</Form.Label>
                                                     <Form.Control
                                                         as="textarea"
                                                         rows={3}
-                                                        placeholder="Explain estimated delivery timeframe, technical requirements, or quote breakdown..."
+                                                        placeholder="Explain estimated delivery timeframe, technical requirements, or next steps..."
                                                         value={adminNotes}
                                                         onChange={(e) => setAdminNotes(e.target.value)}
-                                                        style={{ fontSize: '13px' }}
+                                                        style={{ fontSize: '13px', resize: 'vertical' }}
                                                     />
                                                 </Form.Group>
                                             </Col>

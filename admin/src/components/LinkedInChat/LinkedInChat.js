@@ -397,8 +397,35 @@ const AdminChatTab = ({
 // Main LinkedIn Chat Component
 // ==========================================================================
 const LinkedInChat = () => {
-    // Drawer state
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    // Redux auth tracking: ensures component updates when user logs in or auth state changes
+    const authUser = useSelector((state) => state.Auth?.user);
+    const userLoggedIn = useSelector((state) => state.Auth?.userLoggedIn);
+
+    // Drawer state - defaults to true so chat box is shown immediately when first coming to the site
+    const [isDrawerOpen, setIsDrawerOpen] = useState(() => {
+        try {
+            const saved = localStorage.getItem('admin_chat_drawer_open');
+            return saved !== null ? saved === 'true' : true;
+        } catch (e) {
+            return true;
+        }
+    });
+
+    const handleOpenDrawer = () => {
+        setIsDrawerOpen(true);
+        try {
+            localStorage.setItem('admin_chat_drawer_open', 'true');
+        } catch (e) { }
+    };
+
+    const handleCloseDrawer = (e) => {
+        if (e) e.stopPropagation();
+        setIsDrawerOpen(false);
+        try {
+            localStorage.setItem('admin_chat_drawer_open', 'false');
+        } catch (e) { }
+    };
+
     const [conversations, setConversations] = useState([]);
     const [totalUnread, setTotalUnread] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
@@ -461,7 +488,8 @@ const LinkedInChat = () => {
         if (api.isUserAuthenticated()) {
             fetchConversations();
         }
-    }, [fetchConversations]);
+    }, [fetchConversations, authUser, userLoggedIn]);
+
     // Socket.io real-time connection
     useEffect(() => {
         if (!api.isUserAuthenticated()) return;
@@ -517,7 +545,7 @@ const LinkedInChat = () => {
         return () => {
             if (socket) socket.disconnect();
         };
-    }, [fetchConversations, markConversationAsRead]);
+    }, [fetchConversations, markConversationAsRead, authUser, userLoggedIn]);
 
     // Open or focus chat tab with selected client
     const handleSelectClient = (client) => {
@@ -589,7 +617,8 @@ const LinkedInChat = () => {
         return name.includes(q) || companyName.includes(q) || email.includes(q);
     });
 
-    if (!api.isUserAuthenticated()) {
+    const isAccountPage = typeof window !== 'undefined' && window.location.pathname.includes('/account/');
+    if (isAccountPage || !api.isUserAuthenticated()) {
         return null;
     }
 
@@ -613,7 +642,7 @@ const LinkedInChat = () => {
             {!isDrawerOpen && (
                 <div
                     className="admin-floating-chat-trigger"
-                    onClick={() => setIsDrawerOpen(true)}
+                    onClick={handleOpenDrawer}
                     title="Open Messaging"
                 >
                     <div className="admin-chat-icon-btn">
@@ -632,7 +661,7 @@ const LinkedInChat = () => {
                     {/* Drawer Header */}
                     <div
                         className="admin-li-drawer-header"
-                        onClick={() => setIsDrawerOpen(false)}
+                        onClick={handleCloseDrawer}
                         title="Close Messaging"
                     >
                         <div className="admin-li-drawer-title-wrap">
@@ -651,10 +680,7 @@ const LinkedInChat = () => {
                             <button
                                 type="button"
                                 className="admin-li-btn-toggle"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsDrawerOpen(false);
-                                }}
+                                onClick={handleCloseDrawer}
                                 title="Close drawer"
                             >
                                 <i className="uil uil-multiply"></i>

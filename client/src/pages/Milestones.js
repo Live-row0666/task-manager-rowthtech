@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getDashboard, getClientMilestonesAction } from '../redux/actions';
 import moment from 'moment';
 import CommonHeader from '../components/commonHeader';
@@ -49,6 +49,7 @@ const CountUp = ({ end = 0, duration = 800, decimals = 0 }) => {
 const Milestones = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const { dashboard, clientMilestones, clientMilestonesLoading } = useSelector(s => ({
         dashboard: s.Auth.dashboard,
@@ -56,8 +57,28 @@ const Milestones = () => {
         clientMilestonesLoading: s.Auth.clientMilestonesLoading,
     }));
 
-    const [selProject, setSelProject] = useState('');
-    const [milestoneType, setMilestoneType] = useState('Ongoing'); // 'Ongoing' | 'AMC'
+    // Initialize selected project from query params or localStorage
+    const [selProject, setSelProject] = useState(() => {
+        try {
+            const fromQuery = new URLSearchParams(window.location.search).get('projectId');
+            if (fromQuery) return fromQuery;
+            return localStorage.getItem('client_selected_project_id') || '';
+        } catch (e) {
+            return '';
+        }
+    });
+
+    // Initialize milestone type (Ongoing vs AMC) from query params or localStorage
+    const [milestoneType, setMilestoneType] = useState(() => {
+        try {
+            const fromQuery = new URLSearchParams(window.location.search).get('type');
+            if (fromQuery) return fromQuery;
+            return localStorage.getItem('client_selected_milestone_type') || 'Ongoing';
+        } catch (e) {
+            return 'Ongoing';
+        }
+    });
+
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
@@ -69,11 +90,62 @@ const Milestones = () => {
 
     const projects = useMemo(() => dashboard?.projects || [], [dashboard?.projects]);
 
+    // Sync state if URL search parameters change
     useEffect(() => {
-        if (projects.length > 0 && !selProject) {
-            setSelProject(projects[0]._id);
+        const queryProj = searchParams.get('projectId');
+        if (queryProj && queryProj !== selProject) {
+            setSelProject(queryProj);
+            try {
+                localStorage.setItem('client_selected_project_id', queryProj);
+            } catch (e) { }
         }
-    }, [projects, selProject]);
+        const queryType = searchParams.get('type');
+        if (queryType && queryType !== milestoneType) {
+            setMilestoneType(queryType);
+            try {
+                localStorage.setItem('client_selected_milestone_type', queryType);
+            } catch (e) { }
+        }
+    }, [searchParams]);
+
+    // Restore selected project when projects list is loaded
+    useEffect(() => {
+        if (projects.length > 0) {
+            const savedProject = localStorage.getItem('client_selected_project_id');
+            const target = selProject || savedProject;
+            const projectExists = projects.some(p => p._id === target);
+
+            if (projectExists) {
+                if (selProject !== target) {
+                    setSelProject(target);
+                }
+                try {
+                    localStorage.setItem('client_selected_project_id', target);
+                } catch (e) { }
+            } else {
+                setSelProject(projects[0]._id);
+                try {
+                    localStorage.setItem('client_selected_project_id', projects[0]._id);
+                } catch (e) { }
+            }
+        }
+    }, [projects]);
+
+    const handleSelectProject = (projectId) => {
+        setSelProject(projectId);
+        try {
+            localStorage.setItem('client_selected_project_id', projectId);
+        } catch (e) { }
+        setIsProjectDropdownOpen(false);
+    };
+
+    const handleSelectMilestoneType = (type) => {
+        setMilestoneType(type);
+        setStatusFilter('all');
+        try {
+            localStorage.setItem('client_selected_milestone_type', type);
+        } catch (e) { }
+    };
 
     useEffect(() => {
         if (selProject) {
@@ -211,10 +283,7 @@ const Milestones = () => {
                             <button
                                 type="button"
                                 className={`ms-type-btn ${milestoneType === 'Ongoing' ? 'active' : ''}`}
-                                onClick={() => {
-                                    setMilestoneType('Ongoing');
-                                    setStatusFilter('all');
-                                }}
+                                onClick={() => handleSelectMilestoneType('Ongoing')}
                             >
                                 <i className="bi bi-layers-fill"></i>
                                 <span>Ongoing</span>
@@ -222,10 +291,7 @@ const Milestones = () => {
                             <button
                                 type="button"
                                 className={`ms-type-btn ${milestoneType === 'AMC' ? 'active' : ''}`}
-                                onClick={() => {
-                                    setMilestoneType('AMC');
-                                    setStatusFilter('all');
-                                }}
+                                onClick={() => handleSelectMilestoneType('AMC')}
                             >
                                 <i className="bi bi-shield-check"></i>
                                 <span>AMC</span>
@@ -262,10 +328,7 @@ const Milestones = () => {
                                                     <div
                                                         key={p._id}
                                                         className={`project-dropdown-item ${isSelected ? 'selected' : ''}`}
-                                                        onClick={() => {
-                                                            setSelProject(p._id);
-                                                            setIsProjectDropdownOpen(false);
-                                                        }}
+                                                        onClick={() => handleSelectProject(p._id)}
                                                     >
                                                         <div className="item-icon-wrap">
                                                             <i className="bi bi-folder2-open"></i>
@@ -615,7 +678,7 @@ const Milestones = () => {
                                             m.title || 'AMC'
                                         )}&pName=${encodeURIComponent(
                                             projects.find(p => p._id === selProject)?.name || ""
-                                        )}`;
+                                        )}&type=${milestoneType}`;
 
                                         return (
                                             <tr
@@ -710,7 +773,7 @@ const Milestones = () => {
                                             m.title || 'Milestone'
                                         )}&pName=${encodeURIComponent(
                                             projects.find(p => p._id === selProject)?.name || ""
-                                        )}`;
+                                        )}&type=${milestoneType}`;
 
                                         return (
                                             <tr

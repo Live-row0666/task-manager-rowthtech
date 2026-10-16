@@ -35,7 +35,14 @@ const LinkedInChat = () => {
     const user = reduxUser || sessionUser;
     const userId = user?._id || user?.id;
 
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(() => {
+        try {
+            const saved = localStorage.getItem('client_chat_open');
+            return saved !== null ? saved === 'true' : true;
+        } catch (e) {
+            return true;
+        }
+    });
     const [messages, setMessages] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [inputValue, setInputValue] = useState('');
@@ -111,11 +118,21 @@ const LinkedInChat = () => {
     const handleToggleOpen = () => {
         const nextState = !isOpen;
         setIsOpen(nextState);
+        try {
+            localStorage.setItem('client_chat_open', nextState ? 'true' : 'false');
+        } catch (e) { }
         if (nextState) {
             setUnreadCount(0);
             markAsRead();
             fetchMessages(true);
         }
+    };
+
+    const handleClose = () => {
+        setIsOpen(false);
+        try {
+            localStorage.setItem('client_chat_open', 'false');
+        } catch (e) { }
     };
 
     const isOpenRef = useRef(isOpen);
@@ -331,7 +348,7 @@ const LinkedInChat = () => {
                             <button
                                 type="button"
                                 className="li-btn-header-action"
-                                onClick={() => setIsOpen(false)}
+                                onClick={handleClose}
                                 title="Close"
                             >
                                 <i className="bi bi-x-lg"></i>
