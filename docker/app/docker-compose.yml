@@ -20,6 +20,8 @@ services:
     restart: unless-stopped
     ports:
       - "9013:9013"
+    environment:
+      - PORT=9013
     volumes:
       - /etc/localtime:/etc/localtime:ro
 
@@ -30,6 +32,8 @@ services:
     restart: unless-stopped
     ports:
       - "9014:9014"
+    environment:
+      - PORT=9014
     volumes:
       - /etc/localtime:/etc/localtime:ro
 
@@ -40,5 +44,7 @@ services:
     restart: unless-stopped
     ports:
       - "9015:9015"
+    environment:
+      - PORT=9015
     volumes:
       - /etc/localtime:/etc/localtime:ro

@@ -3,6 +3,7 @@ WORKDIR /app
 RUN echo "Copying files...."
 COPY . .
 WORKDIR /app
-RUN npm install
+RUN rm -f package-lock.json && npm install
+ENV PORT=9012
 CMD ["npm", "run", "start"]
 EXPOSE 9012
