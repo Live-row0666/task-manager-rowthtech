@@ -1,5 +1,4 @@
 import { APICore } from '../../helpers/api/apiCore';
-import axios from 'axios';
 const api = new APICore();
 
 const DOCUMENT_BASE = '/api/v1/admin/documents';
@@ -28,7 +27,7 @@ export function getProjectsApi(data) {
 
 export function uploadDocumentsApi(formData) {
   return api.createWithFileDocument(
-    `${DOCUMENT_BASE}/upload`,
+    '/api/v1/client/client-documents/upload',
     formData
   );
 }
@@ -64,8 +63,6 @@ export function getDocumentsApi(data) {
 =========================== */
 
 export function deleteDocumentApi(data) {
-
-    const { documentId } = data.payload;
-
-    return api.delete(`${DOCUMENT_BASE}/${documentId}`);
+    const documentId = data?.payload?.documentId || data?.payload || data;
+    return api.delete(`/api/v1/client/client-documents/${documentId}`);
 }

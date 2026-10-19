@@ -35,14 +35,8 @@ const LinkedInChat = () => {
     const user = reduxUser || sessionUser;
     const userId = user?._id || user?.id;
 
-    const [isOpen, setIsOpen] = useState(() => {
-        try {
-            const saved = localStorage.getItem('client_chat_open');
-            return saved !== null ? saved === 'true' : true;
-        } catch (e) {
-            return true;
-        }
-    });
+    // Chat window state - closed by default, opens only when user clicks trigger
+    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [inputValue, setInputValue] = useState('');
@@ -118,9 +112,6 @@ const LinkedInChat = () => {
     const handleToggleOpen = () => {
         const nextState = !isOpen;
         setIsOpen(nextState);
-        try {
-            localStorage.setItem('client_chat_open', nextState ? 'true' : 'false');
-        } catch (e) { }
         if (nextState) {
             setUnreadCount(0);
             markAsRead();
@@ -130,9 +121,6 @@ const LinkedInChat = () => {
 
     const handleClose = () => {
         setIsOpen(false);
-        try {
-            localStorage.setItem('client_chat_open', 'false');
-        } catch (e) { }
     };
 
     const isOpenRef = useRef(isOpen);

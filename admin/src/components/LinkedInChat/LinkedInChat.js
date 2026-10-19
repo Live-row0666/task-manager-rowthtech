@@ -401,29 +401,16 @@ const LinkedInChat = () => {
     const authUser = useSelector((state) => state.Auth?.user);
     const userLoggedIn = useSelector((state) => state.Auth?.userLoggedIn);
 
-    // Drawer state - defaults to true so chat box is shown immediately when first coming to the site
-    const [isDrawerOpen, setIsDrawerOpen] = useState(() => {
-        try {
-            const saved = localStorage.getItem('admin_chat_drawer_open');
-            return saved !== null ? saved === 'true' : true;
-        } catch (e) {
-            return true;
-        }
-    });
+    // Drawer state - closed by default, opens only when user clicks trigger
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
     const handleOpenDrawer = () => {
         setIsDrawerOpen(true);
-        try {
-            localStorage.setItem('admin_chat_drawer_open', 'true');
-        } catch (e) { }
     };
 
     const handleCloseDrawer = (e) => {
         if (e) e.stopPropagation();
         setIsDrawerOpen(false);
-        try {
-            localStorage.setItem('admin_chat_drawer_open', 'false');
-        } catch (e) { }
     };
 
     const [conversations, setConversations] = useState([]);

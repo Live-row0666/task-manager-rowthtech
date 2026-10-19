@@ -1,0 +1,775 @@
+/* ==========================================================================
+   ADMIN CLIENT DOCUMENTS & DELIVERABLES STYLING
+   ========================================================================== */
+
+.admin-docs-container {
+    padding: 20px 0 40px 0;
+}
+
+/* ── Page Header ──────────────────────────────────────────────────────── */
+.admin-docs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.admin-docs-title-wrap h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.3px;
+}
+
+.admin-docs-title-wrap h3 i {
+    color: #727cf5;
+    font-size: 24px;
+}
+
+.admin-docs-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    max-width: 650px;
+    line-height: 1.5;
+}
+
+.admin-docs-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-admin-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    background: linear-gradient(135deg, #727cf5 0%, #5a64e8 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(114, 124, 245, 0.28);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-admin-upload:hover {
+    background: linear-gradient(135deg, #5a64e8 0%, #4853d9 100%);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(114, 124, 245, 0.38);
+}
+
+.btn-admin-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-admin-refresh:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+/* ── KPI Stat Cards Grid ──────────────────────────────────────────────── */
+.admin-docs-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+    .admin-docs-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .admin-docs-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-doc-stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-doc-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.admin-doc-stat-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.admin-doc-stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+
+.admin-doc-stat-sub {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.admin-doc-stat-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.icon-wrap-indigo {
+    background: #eef2ff;
+    color: #6366f1;
+}
+
+.icon-wrap-rose {
+    background: #fff1f2;
+    color: #f43f5e;
+}
+
+.icon-wrap-emerald {
+    background: #ecfdf5;
+    color: #10b981;
+}
+
+.icon-wrap-sky {
+    background: #f0f9ff;
+    color: #0ea5e9;
+}
+
+/* ── Main Data Card & Toolbar ─────────────────────────────────────────── */
+.admin-docs-main-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.admin-docs-toolbar {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: #ffffff;
+}
+
+.admin-docs-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-docs-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.admin-docs-badge-count {
+    display: inline-block;
+    padding: 3px 9px;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.admin-docs-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-docs-search-box {
+    position: relative;
+    width: 250px;
+}
+
+.admin-docs-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.admin-docs-search-input {
+    width: 100%;
+    height: 38px;
+    padding: 8px 12px 8px 34px;
+    font-size: 13px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #1e293b;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.admin-docs-search-input:focus {
+    background: #ffffff;
+    border-color: #727cf5;
+    box-shadow: 0 0 0 3px rgba(114, 124, 245, 0.12);
+}
+
+.admin-docs-filter-select {
+    height: 38px;
+    padding: 6px 12px;
+    font-size: 13px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #334155;
+    outline: none;
+    min-width: 160px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-docs-filter-select:focus {
+    background: #ffffff;
+    border-color: #727cf5;
+}
+
+.btn-admin-clear-filter {
+    height: 38px;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-admin-clear-filter:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+/* ── Custom Data Table ────────────────────────────────────────────────── */
+.table-admin-docs {
+    width: 100% !important;
+    margin-bottom: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    text-align: left !important;
+}
+
+.table-admin-docs thead th {
+    background: #f8fafc !important;
+    padding: 12px 16px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.6px !important;
+    color: #64748b !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-top: none !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+}
+
+.table-admin-docs tbody td {
+    padding: 14px 16px !important;
+    vertical-align: middle !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    text-align: left !important;
+}
+
+.table-admin-docs tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table-admin-docs tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.table-admin-docs tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Strict Column-specific Alignments */
+.table-admin-docs th.col-num,
+.table-admin-docs td.col-num {
+    text-align: center !important;
+    width: 50px !important;
+}
+
+.table-admin-docs th.col-title,
+.table-admin-docs td.col-title {
+    text-align: left !important;
+    min-width: 260px !important;
+}
+
+.table-admin-docs th.col-client,
+.table-admin-docs td.col-client {
+    text-align: left !important;
+    width: 160px !important;
+}
+
+.table-admin-docs th.col-project,
+.table-admin-docs td.col-project {
+    text-align: left !important;
+    width: 160px !important;
+}
+
+.table-admin-docs th.col-files,
+.table-admin-docs td.col-files {
+    text-align: left !important;
+    min-width: 180px !important;
+}
+
+.table-admin-docs th.col-date,
+.table-admin-docs td.col-date {
+    text-align: left !important;
+    width: 130px !important;
+}
+
+.table-admin-docs th.col-actions,
+.table-admin-docs td.col-actions {
+    text-align: center !important;
+    width: 90px !important;
+}
+
+/* Document title cell */
+.admin-doc-title-cell {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    gap: 12px !important;
+}
+
+.admin-doc-type-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    background: #eef2ff !important;
+    color: #4f46e5 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    flex-shrink: 0 !important;
+}
+
+.admin-doc-title-content {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+}
+
+.admin-doc-title-main {
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.3 !important;
+    text-align: left !important;
+}
+
+.admin-doc-title-sub {
+    font-size: 11px !important;
+    color: #64748b !important;
+    margin-top: 2px !important;
+    text-align: left !important;
+    word-break: break-all !important;
+}
+
+/* Badges */
+.admin-doc-client-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.admin-doc-client-pill i {
+    color: #6366f1;
+    font-size: 12px;
+}
+
+.admin-doc-project-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1d4ed8;
+}
+
+.admin-doc-project-pill i {
+    font-size: 12px;
+}
+
+/* File Attachment Badges */
+.admin-doc-files-list {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.admin-file-download-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+}
+
+.admin-file-download-badge:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #727cf5;
+    transform: translateY(-1px);
+}
+
+/* Action Buttons */
+.admin-doc-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.btn-admin-action-view {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-admin-action-view:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+.btn-admin-action-delete {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    border: 1px solid #fee2e2;
+    background: #ffffff;
+    color: #ef4444;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-admin-action-delete:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+/* Empty State */
+.admin-docs-empty {
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.admin-docs-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin: 0 auto 16px auto;
+}
+
+.admin-docs-empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.admin-docs-empty-desc {
+    font-size: 13px;
+    color: #64748b;
+    max-width: 420px;
+    margin: 0 auto 18px auto;
+}
+
+/* ── Modal Styling ────────────────────────────────────────────────────── */
+.admin-docs-modal .modal-content {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.2);
+    overflow: hidden;
+}
+
+.admin-docs-modal .modal-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 18px 24px;
+}
+
+.admin-docs-modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.admin-docs-modal-title-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #eef2ff;
+    color: #727cf5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.admin-docs-modal .modal-body {
+    padding: 24px;
+}
+
+.admin-docs-modal .modal-footer {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 14px 24px;
+}
+
+.admin-modal-group {
+    margin-bottom: 18px;
+}
+
+.admin-modal-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 6px;
+}
+
+.admin-modal-label .req {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.admin-modal-input,
+.admin-modal-select {
+    width: 100%;
+    height: 42px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #1e293b;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.admin-modal-input:focus,
+.admin-modal-select:focus {
+    border-color: #727cf5;
+    box-shadow: 0 0 0 3px rgba(114, 124, 245, 0.15);
+}
+
+/* Dropzone in Admin Modal */
+.admin-docs-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-docs-dropzone.dragging,
+.admin-docs-dropzone:hover {
+    border-color: #727cf5;
+    background: #f0f2ff;
+}
+
+.admin-dropzone-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    color: #727cf5;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px auto;
+}
+
+.admin-dropzone-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.admin-dropzone-title span {
+    color: #727cf5;
+    text-decoration: underline;
+}
+
+.admin-dropzone-sub {
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* Selected Files preview list */
+.admin-selected-files-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.admin-file-pill-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.admin-file-pill-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.admin-file-pill-name {
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+.admin-file-pill-size {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.btn-remove-pill {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.btn-remove-pill:hover {
+    color: #ef4444;
+}

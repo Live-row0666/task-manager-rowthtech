@@ -12,12 +12,20 @@ const ClientMilestone = require('../../models/clientMilestone');
 const ClientDocumentsController = require('../../controllers/client/documents')
 const ClientTask = require('../../models/clientTask');
 const { verifyClient } = require('../../middleware/auth');
+const upload = require('../../middleware/upload');
 
 // Mount routes
 router.use('/', dashboardRoutes);
 router.use('/auth', authRoutes);
 
 router.get("/client-documents", verifyClient, ClientDocumentsController.getDocuments);
+router.post(
+    "/client-documents/upload",
+    verifyClient,
+    upload.array("documents"),
+    ClientDocumentsController.uploadDocuments
+);
+router.delete("/client-documents/:id", verifyClient, ClientDocumentsController.deleteDocument);
 // GET /api/v1/client/client-milestone
 router.get('/client-milestone', verifyClient, async (req, res) => {
     try {
@@ -169,7 +177,6 @@ const ClientSupportController = require('../../controllers/client/support');
 const ClientDependencyController = require('../../controllers/client/dependency');
 const ClientChatController = require('../../controllers/client/chat');
 const ClientCRController = require('../../controllers/client/clientCR');
-const upload = require('../../middleware/upload');
 
 // Support routes (client scoped with project & screenshot attachments)
 router.get('/support/download', ClientSupportController.downloadFile);

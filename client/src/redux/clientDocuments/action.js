@@ -14,6 +14,10 @@ export const uploadClientDocument = (payload) => ({
     payload,
 });
 
+export const resetUploadDocument = () => ({
+    type: ClientDocumentTypes.UPLOAD_DOCUMENT_RESET,
+});
+
 export const getClientDocuments = (payload) => ({
     type: ClientDocumentTypes.GET_DOCUMENTS,
     payload,
