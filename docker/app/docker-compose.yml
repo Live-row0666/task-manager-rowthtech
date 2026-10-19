@@ -1,78 +1,44 @@
-version: "3.8"
-
+version: "3"
 services:
   taskmanagerserver:
-    image: taskmanagerserver-dev
-    build:
-      context: ./server
-      dockerfile: Dockerfile.dev
-    container_name: taskmanagerserver-dev
-    ports:
-      - "9100:9100"
-    env_file:
-      - ./server/.env
-    volumes:
-      - ./server:/app
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
+    image: taskmanagerserver
+    build: ../../server
+    container_name: taskmanagerserver
     restart: unless-stopped
+    ports:
+      - "9012:9012"
+    environment:
+      - PORT=9012
+      - NODE_ENV=production
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
 
   taskmanageradmin:
-    image: taskmanageradmin-dev
-    build:
-      context: ./admin
-      dockerfile: Dockerfile.dev
-    container_name: taskmanageradmin-dev
-    ports:
-      - "9101:9101"
-    env_file:
-      - ./admin/.env
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    volumes:
-      - ./admin:/app
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
-    stdin_open: true
-    tty: true
+    image: taskmanageradmin
+    build: ../../admin
+    container_name: taskmanageradmin
     restart: unless-stopped
+    ports:
+      - "9013:9013"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
 
   taskmanageruser:
-    image: taskmanageruser-dev
-    build:
-      context: ./user
-      dockerfile: Dockerfile.dev
-    container_name: taskmanageruser-dev
-    ports:
-      - "9102:9102"
-    env_file:
-      - ./user/.env
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    volumes:
-      - ./user:/app
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
-    stdin_open: true
-    tty: true
+    image: taskmanageruser
+    build: ../../user
+    container_name: taskmanageruser
     restart: unless-stopped
+    ports:
+      - "9014:9014"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
 
   taskmanagerclient:
-    image: taskmanagerclient-dev
-    build:
-      context: ./client
-      dockerfile: Dockerfile.dev
-    container_name: taskmanagerclient-dev
-    ports:
-      - "9103:9103"
-    env_file:
-      - ./client/.env
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    volumes:
-      - ./client:/app
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
-    stdin_open: true
-    tty: true
+    image: taskmanagerclient
+    build: ../../client
+    container_name: taskmanagerclient
     restart: unless-stopped
+    ports:
+      - "9015:9015"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
