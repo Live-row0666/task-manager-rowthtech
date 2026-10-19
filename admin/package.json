@@ -12,6 +12,8 @@
     "@mui/x-charts": "7.1.0",
     "@testing-library/jest-dom": "6.4.2",
     "@xstyled/styled-components": "3.8.0",
+    "ajv": "^8.12.0",
+    "ajv-keywords": "^5.1.0",
     "apexcharts": "3.48.0",
     "axios": "1.6.8",
     "axios-mock-adapter": "1.22.0",
