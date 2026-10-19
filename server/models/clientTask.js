@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const clientTaskSchema = new mongoose.Schema(
     {
-        project: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientProject', required: true },
-        milestone: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientMilestone' },
+        project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
+        milestone: { type: mongoose.Schema.Types.ObjectId, ref: 'Milestone' },
         workType: { type: String, default: 'Task' },
         status: { type: String, default: 'To Do' },
         progress: { type: Number, min: 0, max: 100, default: 0 },

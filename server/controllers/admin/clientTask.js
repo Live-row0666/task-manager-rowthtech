@@ -1,4 +1,8 @@
 const ClientTask = require('../../models/clientTask');
+const ClientProject = require('../../models/clientProject');
+const ClientMilestone = require('../../models/clientMilestone');
+const Project = require('../../models/project');
+const Milestone = require('../../models/milestones');
 
 class ClientTaskController {
 
@@ -13,12 +17,21 @@ class ClientTaskController {
 
             const task = await ClientTask.create(data);
 
-            const populated = await ClientTask.findById(task._id)
+            let populated = await ClientTask.findById(task._id)
                 .populate('project', 'name')
                 .populate('milestone', 'title')
                 .populate('assignee', 'name email')
                 .populate('reporter', 'name email')
                 .lean();
+
+            if (!populated.project && data.project) {
+                const p = await Project.findById(data.project).select('name').lean() || await ClientProject.findById(data.project).select('name').lean();
+                if (p) populated.project = p;
+            }
+            if (!populated.milestone && data.milestone) {
+                const m = await Milestone.findById(data.milestone).select('title').lean() || await ClientMilestone.findById(data.milestone).select('title').lean();
+                if (m) populated.milestone = m;
+            }
 
             return res.status(201).json({
                 status: 201,
@@ -54,7 +67,7 @@ class ClientTaskController {
             if (status.trim())      query.status     = status;
             if (search.trim())      query.summary    = { $regex: search, $options: 'i' };
 
-            const tasks = await ClientTask.find(query)
+            let tasks = await ClientTask.find(query)
                 .populate('project', 'name')
                 .populate('milestone', 'title')
                 .populate('assignee', 'name email')
@@ -63,6 +76,23 @@ class ClientTaskController {
                 .skip((Number(page) - 1) * Number(limit))
                 .sort({ createdAt: -1 })
                 .lean();
+
+            for (let t of tasks) {
+                if (!t.project && t.project !== undefined) {
+                    const raw = await ClientTask.findById(t._id).select('project').lean();
+                    if (raw?.project) {
+                        const p = await Project.findById(raw.project).select('name').lean() || await ClientProject.findById(raw.project).select('name').lean();
+                        if (p) t.project = p;
+                    }
+                }
+                if (!t.milestone && t.milestone !== undefined) {
+                    const raw = await ClientTask.findById(t._id).select('milestone').lean();
+                    if (raw?.milestone) {
+                        const m = await Milestone.findById(raw.milestone).select('title').lean() || await ClientMilestone.findById(raw.milestone).select('title').lean();
+                        if (m) t.milestone = m;
+                    }
+                }
+            }
 
             const count = await ClientTask.countDocuments(query);
 
@@ -82,13 +112,29 @@ class ClientTaskController {
     // GET /api/v1/admin/client-task/:id
     async getSingleClientTask(req, res) {
         try {
-            const task = await ClientTask.findById(req.params.id)
+            let task = await ClientTask.findById(req.params.id)
                 .populate('project', 'name')
                 .populate('milestone', 'title')
                 .populate('assignee', 'name email')
                 .populate('reporter', 'name email')
                 .lean();
             if (!task) return res.status(404).json({ status: 404, message: 'Client task not found' });
+
+            if (!task.project) {
+                const raw = await ClientTask.findById(task._id).select('project').lean();
+                if (raw?.project) {
+                    const p = await Project.findById(raw.project).select('name').lean() || await ClientProject.findById(raw.project).select('name').lean();
+                    if (p) task.project = p;
+                }
+            }
+            if (!task.milestone) {
+                const raw = await ClientTask.findById(task._id).select('milestone').lean();
+                if (raw?.milestone) {
+                    const m = await Milestone.findById(raw.milestone).select('title').lean() || await ClientMilestone.findById(raw.milestone).select('title').lean();
+                    if (m) task.milestone = m;
+                }
+            }
+
             return res.status(200).json({ status: 200, message: 'Client task retrieved successfully', data: task });
         } catch (error) {
             return res.status(500).json({ status: 500, message: 'Internal server error', error: error.message });

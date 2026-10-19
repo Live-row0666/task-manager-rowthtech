@@ -11,6 +11,7 @@ const ClientProject = require('../../models/clientProject');
 const ClientMilestone = require('../../models/clientMilestone');
 const ClientDocumentsController = require('../../controllers/client/documents')
 const ClientTask = require('../../models/clientTask');
+const Role = require('../../models/role');
 const { verifyClient } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
@@ -143,29 +144,48 @@ router.get('/client-task', verifyClient, async (req, res) => {
 
         if (milestoneId) query.milestone = milestoneId;
 
-        let tasks = await Task.find(query)
+        // Only show tasks created by users with Project Manager role or designation
+        const pmRoles = await Role.find({ name: { $regex: /project\s*manager/i } }).select('_id');
+        const pmRoleIds = pmRoles.map(r => r._id);
+        const pmUsers = await Users.find({
+            $or: [
+                { role: { $in: pmRoleIds } },
+                { designation: { $regex: /project\s*manager/i } }
+            ]
+        }).select('_id');
+        const pmUserIds = pmUsers.map(u => u._id);
+
+        if (!pmUserIds.length) {
+            return res.status(200).json({ status: 200, data: [] });
+        }
+
+        query.createdBy = { $in: pmUserIds };
+
+        let tasks = await ClientTask.find(query)
             .populate('assignee', 'name email designation role profilePicture')
             .populate('milestone', 'title status startDate completionDate')
             .populate('project', 'name projectStatus projectType')
+            .populate('createdBy', 'name email designation role')
             .limit(Number(limit))
             .sort({ createdAt: -1 })
             .lean();
 
         if (!tasks.length) {
-            tasks = await ClientTask.find(query)
+            tasks = await Task.find(query)
                 .populate('assignee', 'name email designation role profilePicture')
                 .populate('milestone', 'title status startDate completionDate')
                 .populate('project', 'name projectStatus projectType')
+                .populate('createdBy', 'name email designation role')
                 .limit(Number(limit))
                 .sort({ createdAt: -1 })
                 .lean();
-        } else {
-            // Normalize task summary to title for client UI
-            tasks = tasks.map(t => ({
-                ...t,
-                title: t.summary || t.title
-            }));
         }
+
+        // Normalize task summary to title for client UI
+        tasks = tasks.map(t => ({
+            ...t,
+            title: t.summary || t.title
+        }));
 
         return res.status(200).json({ status: 200, data: tasks });
     } catch (err) {

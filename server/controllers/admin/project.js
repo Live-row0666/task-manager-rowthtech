@@ -337,21 +337,37 @@ class ProjectController {
                 searchQuery.projectType = projectType;
             }
 
+            const andConditions = [];
+
             if (search && search.trim() !== '') {
-                searchQuery.$or = [
-                    { name: { $regex: search, $options: 'i' } },
-                    { description: { $regex: search, $options: 'i' } },
-                    { type: { $regex: search, $options: 'i' } }
-                ];
+                andConditions.push({
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        { description: { $regex: search, $options: 'i' } },
+                        { type: { $regex: search, $options: 'i' } }
+                    ]
+                });
             }
 
             if (status && status.trim() !== '' && status !== 'undefined' && status !== 'null') {
                 if (status.toLowerCase() !== 'all') {
-                    if (status === 'Support') {
-                        searchQuery.$or = [
-                            { projectStatus: 'Support' },
-                            { hasAmc: true }
-                        ];
+                    if (status.toLowerCase() === 'ongoing_amc' || status.toLowerCase() === 'ongoing,amc') {
+                        andConditions.push({
+                            $or: [
+                                { projectStatus: 'Ongoing' },
+                                { projectStatus: 'Support' },
+                                { hasAmc: true },
+                                { type: 'AMC' }
+                            ]
+                        });
+                    } else if (status === 'Support') {
+                        andConditions.push({
+                            $or: [
+                                { projectStatus: 'Support' },
+                                { hasAmc: true },
+                                { type: 'AMC' }
+                            ]
+                        });
                     } else {
                         searchQuery.projectStatus = status;
                     }
@@ -360,7 +376,17 @@ class ProjectController {
                 searchQuery.projectStatus = { $nin: ['Hold', 'Delivered'] };
             }
 
-            if (isActive) searchQuery.isActive = isActive === 'true';
+            if (isActive && isActive !== 'all') {
+                searchQuery.isActive = isActive === 'true';
+            }
+
+            if (andConditions.length > 0) {
+                if (andConditions.length === 1 && !searchQuery.$or) {
+                    searchQuery.$or = andConditions[0].$or;
+                } else {
+                    searchQuery.$and = andConditions;
+                }
+            }
             // console.log('Search Query:', searchQuery);
 
             const projects = await Project.find(searchQuery)

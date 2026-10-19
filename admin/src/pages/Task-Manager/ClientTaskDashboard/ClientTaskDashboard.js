@@ -18,7 +18,7 @@ import { handleUpload } from '../../../constants/handleUpload';
 import DescriptionOffCanvas from '../../../components/DescriptionOffCanvas';
 import './ClientTaskDashboard.css';
 import {
-    getClientProjects, getClientMilestones, getClientTasks,
+    getAllProjects, getClientMilestones, getClientTasks,
     addClientTask, updateClientTask, getAllUsers,
 } from '../../../redux/actions';
 
@@ -242,6 +242,14 @@ const TaskCard = ({ item, onStatusChange }) => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ADD TASK MODAL
+const isOngoingOrAmc = (p) => {
+    if (!p) return false;
+    const status = p.projectStatus || '';
+    const isOngoing = status === 'Ongoing';
+    const isAmc = status === 'Support' || p.hasAmc === true || p.type === 'AMC';
+    return isOngoing || isAmc;
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
     const dispatch = useDispatch();
@@ -252,7 +260,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
     const dept = localStorage.getItem('selectedDepartment') || 'Tech';
     const authUser = store?.Auth?.user;
 
-    const clientProjects = store?.getClientProjectsReducer?.data?.data || [];
+    const projectsList = store?.getProject?.data?.data || store?.getProject?.data?.response?.projects || store?.getProject?.data || store?.getClientProjectsReducer?.data?.data || [];
     const clientMilestones = store?.getClientMilestonesReducer?.data?.data || [];
     const users = store?.getAllUsers?.data?.data || [];
     const loading = store?.addClientTaskReducer?.loading;
@@ -302,7 +310,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
     useEffect(() => {
         if (show) {
             dispatch(getAllUsers({ userType: dept }));
-            dispatch(getClientProjects({ page: 1, limit: 100 }));
+            dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 }));
         }
     }, [show]);
 
@@ -330,8 +338,8 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
     const toOpt = (arr, idKey, lblKey) =>
         (arr || []).filter(i => i && i[idKey] && i[lblKey]).map(i => ({ value: String(i[idKey]), label: String(i[lblKey]) }));
 
-    const pOpts = (clientProjects || [])
-        .filter((p) => p?._id && p?.name)
+    const pOpts = (Array.isArray(projectsList) ? projectsList : [])
+        .filter((p) => p?._id && p?.name && isOngoingOrAmc(p))
         .map((p) => ({
             value: String(p._id),
             label: String(p.name),
@@ -357,9 +365,6 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
     const priorityColor = {
         Critical: '#dc3545', High: '#fd7e14', Medium: '#198754', Low: '#0d6efd'
     };
-
-
-    console.log(clientProjects, "hgdgfgdhsfsdh")
 
     return (
         <Modal show={show} onHide={closeModal} backdrop="static" className="taskModal" centered size="xl">
@@ -419,15 +424,21 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                             )
                                                         );
 
+                                                        if (opt?.value) {
+                                                            dispatch(getClientMilestones({ projectId: opt.value, page: 1, limit: 100 }));
+                                                        }
+
                                                         setValue("milestone", null);
                                                     }}
                                                     onInputChange={(value, actionMeta) => {
                                                         if (actionMeta.action === "input-change") {
                                                             dispatch(
-                                                                getClientProjects({
-                                                                    page: 1,
+                                                                getAllProjects({
+                                                                    skip: 1,
                                                                     limit: 100,
                                                                     search: value,
+                                                                    status: true,
+                                                                    projectStatus: 'ongoing_amc',
                                                                 })
                                                             );
                                                         }
@@ -673,7 +684,7 @@ const ClientTaskDashboard = () => {
     const store = useSelector(s => s);
     const { control } = useForm();
 
-    const clientProjects = store?.getClientProjectsReducer?.data?.data || [];
+    const projectsList = store?.getProject?.data?.data || store?.getProject?.data?.response?.projects || store?.getProject?.data || store?.getClientProjectsReducer?.data?.data || [];
     const clientMilestones = store?.getClientMilestonesReducer?.data?.data || [];
     const allTasks = store?.getClientTasksReducer?.data?.data || [];
     const tasksLoading = store?.getClientTasksReducer?.loading;
@@ -688,7 +699,7 @@ const ClientTaskDashboard = () => {
     const [localTasks, setLocalTasks] = useState([]);
     const [taskView, setTaskView] = useState('Board');
 
-    useEffect(() => { dispatch(getClientProjects({ page: 1, limit: 100 })); }, [dispatch]);
+    useEffect(() => { dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 })); }, [dispatch]);
 
     useEffect(() => {
         const cols = {};
@@ -752,13 +763,16 @@ const ClientTaskDashboard = () => {
 
     const allFilteredTasks = COLS.flatMap(s => filtered[s]?.items || []);
 
-    const pOpts = (clientProjects || []).filter(p => p?._id && p?.name).map(p => ({ value: String(p._id), label: String(p.name), data: p }));
+    const pOpts = (Array.isArray(projectsList) ? projectsList : [])
+        .filter((p) => p?._id && p?.name && isOngoingOrAmc(p))
+        .map((p) => ({ value: String(p._id), label: String(p.name), data: p }));
     const mOpts = (clientMilestones || []).filter(m => m?._id && m?.title).map(m => ({ value: String(m._id), label: String(m.title) }));
 
 
     useEffect(() => {
-        if (!projectSelected && clientProjects.length > 0) {
-            const firstProject = clientProjects[0];
+        const validProjects = (Array.isArray(projectsList) ? projectsList : []).filter(isOngoingOrAmc);
+        if (!projectSelected && validProjects.length > 0) {
+            const firstProject = validProjects[0];
 
             setProjectSelected(firstProject._id);
 
@@ -772,7 +786,7 @@ const ClientTaskDashboard = () => {
 
             fetchTasks(firstProject._id, "");
         }
-    }, [clientProjects]);
+    }, [projectsList]);
 
     return (
         <div className="card ctd-page">
@@ -797,16 +811,6 @@ const ClientTaskDashboard = () => {
                         </div>
                         <div className="ctd-topbar-right">
                             <div className="ctd-select-wrap">
-                                {/* <Controller name="project" control={control} render={({ field }) => (
-                                    <Select
-                                        value={projectSelected
-                                            ? { value: String(projectSelected), label: String(clientProjects.find(p => p._id === projectSelected)?.name || '') }
-                                            : null}
-                                        options={pOpts}
-                                        onChange={opt => { field.onChange(opt); handleProjectChange(opt); }}
-                                        onInputChange={v => v && dispatch(getClientProjects({ page: 1, limit: 100, search: v }))}
-                                        placeholder="Select Project" isSearchable isClearable styles={SS} />
-                                )} /> */}
 
                                 <Controller
                                     name="project"
@@ -820,8 +824,8 @@ const ClientTaskDashboard = () => {
                                                     ? {
                                                         value: String(projectSelected),
                                                         label:
-                                                            clientProjects.find(
-                                                                p => p._id === projectSelected
+                                                            (Array.isArray(projectsList) ? projectsList : []).find(
+                                                                p => String(p._id) === String(projectSelected)
                                                             )?.name || "",
                                                     }
                                                     : null)
@@ -834,10 +838,12 @@ const ClientTaskDashboard = () => {
                                             onInputChange={(v) =>
                                                 v &&
                                                 dispatch(
-                                                    getClientProjects({
-                                                        page: 1,
+                                                    getAllProjects({
+                                                        skip: 1,
                                                         limit: 100,
                                                         search: v,
+                                                        status: true,
+                                                        projectStatus: 'ongoing_amc',
                                                     })
                                                 )
                                             }

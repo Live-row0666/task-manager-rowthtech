@@ -1,4 +1,5 @@
 const ClientMilestone = require('../../models/clientMilestone');
+const Milestone = require('../../models/milestones');
 
 class ClientMilestoneController {
 
@@ -53,7 +54,7 @@ class ClientMilestoneController {
 
             if (search.trim()) query.title = { $regex: search, $options: 'i' };
 
-            const milestones = await ClientMilestone.find(query)
+            let milestones = await Milestone.find(query)
                 .populate('project', 'name')
                 .populate('assignedTo', 'name email')
                 .limit(Number(limit))
@@ -61,7 +62,18 @@ class ClientMilestoneController {
                 .sort({ createdAt: -1 })
                 .lean();
 
-            const count = await ClientMilestone.countDocuments(query);
+            let count = await Milestone.countDocuments(query);
+
+            if (!milestones.length) {
+                milestones = await ClientMilestone.find(query)
+                    .populate('project', 'name')
+                    .populate('assignedTo', 'name email')
+                    .limit(Number(limit))
+                    .skip((Number(page) - 1) * Number(limit))
+                    .sort({ createdAt: -1 })
+                    .lean();
+                count = await ClientMilestone.countDocuments(query);
+            }
 
             return res.status(200).json({
                 status: 200,

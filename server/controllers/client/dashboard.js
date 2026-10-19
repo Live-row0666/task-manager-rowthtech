@@ -5,6 +5,8 @@ const ClientMilestone = require("../../models/clientMilestone");
 const Task = require("../../models/task");
 const ClientTask = require("../../models/clientTask");
 const Client = require("../../models/client");
+const Role = require("../../models/role");
+const Users = require("../../models/user");
 
 class ClientDashboardController {
     async getDashboard(req, res) {
@@ -116,17 +118,33 @@ class ClientDashboardController {
             const inProgressMilestones = milestones.filter((m) => m.status === "In Progress" || m.status === "Ongoing").length;
             const pendingMilestones = milestones.filter((m) => m.status === "Not Started" || m.status === "To Do").length;
 
-            // ── Get Tasks (Task model with ClientTask fallback) ───────────────
-            let tasks = await Task.find({
-                project: project._id,
-                isActive: true,
-            });
+            // ── Get Project Manager Users ─────────────────────────────────────
+            const pmRoles = await Role.find({ name: { $regex: /project\s*manager/i } }).select('_id');
+            const pmRoleIds = pmRoles.map(r => r._id);
+            const pmUsers = await Users.find({
+                $or: [
+                    { role: { $in: pmRoleIds } },
+                    { designation: { $regex: /project\s*manager/i } }
+                ]
+            }).select('_id');
+            const pmUserIds = pmUsers.map(u => u._id);
 
-            if (!tasks.length) {
+            // ── Get Tasks (ClientTask with Task fallback, filtered by Project Manager) ───────────────
+            let tasks = [];
+            if (pmUserIds.length > 0) {
                 tasks = await ClientTask.find({
                     project: project._id,
                     isActive: true,
+                    createdBy: { $in: pmUserIds },
                 });
+
+                if (!tasks.length) {
+                    tasks = await Task.find({
+                        project: project._id,
+                        isActive: true,
+                        createdBy: { $in: pmUserIds },
+                    });
+                }
             }
 
             const totalTasks = tasks.length;
@@ -177,23 +195,28 @@ class ClientDashboardController {
                 .sort((a, b) => new Date(a.completionDate) - new Date(b.completionDate))
                 .slice(0, 3);
 
-            // ── Recent Activities ─────────────────────────────────────────────
-            let recentTasks = await Task.find({
-                project: project._id,
-                isActive: true,
-            })
-                .sort({ updatedAt: -1 })
-                .limit(6)
-                .populate("assignee", "name email");
-
-            if (!recentTasks.length) {
+            // ── Recent Activities (filtered by Project Manager) ───────────────
+            let recentTasks = [];
+            if (pmUserIds.length > 0) {
                 recentTasks = await ClientTask.find({
                     project: project._id,
                     isActive: true,
+                    createdBy: { $in: pmUserIds },
                 })
                     .sort({ updatedAt: -1 })
                     .limit(6)
                     .populate("assignee", "name email");
+
+                if (!recentTasks.length) {
+                    recentTasks = await Task.find({
+                        project: project._id,
+                        isActive: true,
+                        createdBy: { $in: pmUserIds },
+                    })
+                        .sort({ updatedAt: -1 })
+                        .limit(6)
+                        .populate("assignee", "name email");
+                }
             }
 
             const recentActivities = recentTasks.map((t) => ({

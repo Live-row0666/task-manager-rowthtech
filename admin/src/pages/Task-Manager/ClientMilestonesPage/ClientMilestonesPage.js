@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col } from 'react-bootstrap';
 import Select from 'react-select';
 import moment from 'moment';
-import { getClientProjects, getClientMilestones } from '../../../redux/actions';
+import { getAllProjects, getClientMilestones } from '../../../redux/actions';
 import './ClientMilestonesPage.css';
 
 const SS = {
@@ -30,15 +30,23 @@ const ClientMilestonesPage = () => {
     const navigate  = useNavigate();
     const store     = useSelector(s => s);
 
-    const clientProjects   = store?.getClientProjectsReducer?.data?.data || [];
+    const projectsList     = store?.getProject?.data?.data || store?.getProject?.data?.response?.projects || store?.getProject?.data || store?.getClientProjectsReducer?.data?.data || [];
     const clientMilestones = store?.getClientMilestonesReducer?.data?.data || [];
     const loading          = store?.getClientMilestonesReducer?.loading;
 
     const [selProject, setSelProject] = useState(null);
     const [search,     setSearch]     = useState('');
 
+    const isOngoingOrAmc = (p) => {
+        if (!p) return false;
+        const status = p.projectStatus || '';
+        const isOngoing = status === 'Ongoing';
+        const isAmc = status === 'Support' || p.hasAmc === true || p.type === 'AMC';
+        return isOngoing || isAmc;
+    };
+
     useEffect(() => {
-        dispatch(getClientProjects({ page: 1, limit: 100 }));
+        dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 }));
     }, [dispatch]);
 
     const handleProjectChange = opt => {
@@ -52,8 +60,8 @@ const ClientMilestonesPage = () => {
         !search.trim() || m.title?.toLowerCase().includes(search.toLowerCase())
     );
 
-    const projectOpts = clientProjects
-        .filter(p => p?._id && p?.name)
+    const projectOpts = (Array.isArray(projectsList) ? projectsList : [])
+        .filter(p => p?._id && p?.name && isOngoingOrAmc(p))
         .map(p => ({ value: String(p._id), label: String(p.name) }));
 
     const calculateDaysLeft = endDate => {
@@ -81,7 +89,7 @@ const ClientMilestonesPage = () => {
                                 options={projectOpts}
                                 value={selProject}
                                 onChange={handleProjectChange}
-                                onInputChange={v => v && dispatch(getClientProjects({ page: 1, limit: 100, search: v }))}
+                                onInputChange={v => v && dispatch(getAllProjects({ skip: 1, limit: 100, search: v, status: true, projectStatus: 'ongoing_amc' }))}
                                 placeholder="Select Project..."
                                 isClearable
                                 isSearchable
