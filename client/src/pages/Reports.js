@@ -25,7 +25,7 @@ const MilestoneTasksModal = ({ show, onHide, milestone }) => {
 
     return (
         <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" className="milestone-details-modal">
-            <Modal.Header closeButton className="py-2 px-3 border-bottom bg-light">
+            <Modal.Header className="py-2 px-3 border-bottom bg-light">
                 <div className="d-flex align-items-center gap-2">
                     <div className="d-flex align-items-center justify-content-center bg-primary text-white rounded-3" style={{ width: 34, height: 34 }}>
                         <i className="bi bi-flag-fill" style={{ fontSize: 16 }} />
