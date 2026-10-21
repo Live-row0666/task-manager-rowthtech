@@ -329,18 +329,18 @@ const MilestoneTasks = () => {
                                                         <div className="mst-time-row">
 
                                                             <span>
-                                                                <strong>Timeline:</strong> {task.estimatedTime || 0} hrs
+                                                                <strong>Time Spent:</strong> {task.estimatedTime || 0} hrs
                                                             </span>
 
-                                                            <span className="mst-spent">
+
+                                                            {/* <span className="mst-spent">
 
                                                                 Time spent:
                                                                 <strong>
                                                                     {task.timeSpent || task.taskSpent || "0s"}
                                                                 </strong>
 
-                                                            </span>
-
+                                                            </span> */}
                                                         </div>
 
                                                         {/* Footer */}
@@ -358,22 +358,6 @@ const MilestoneTasks = () => {
 
                                                             </div>
 
-                                                            {task.report && task.report.status === 'Approved' && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-sm btn-outline-success py-0 px-2 d-flex align-items-center gap-1 shadow-sm"
-                                                                    style={{ fontSize: '11px', borderRadius: '4px' }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setSelectedReportTask(task);
-                                                                    }}
-                                                                    title="View Delivery Report"
-                                                                >
-                                                                    <i className="bi bi-file-earmark-check-fill text-success" />
-                                                                    <span>Delivery Report</span>
-                                                                </button>
-                                                            )}
-
                                                         </div>
 
                                                     </div>
@@ -386,12 +370,6 @@ const MilestoneTasks = () => {
                         </div>
                     )}
                 </div>
-
-                <ClientTaskReportModal
-                    show={!!selectedReportTask}
-                    task={selectedReportTask}
-                    onHide={() => setSelectedReportTask(null)}
-                />
             </main>
         </div>
     );

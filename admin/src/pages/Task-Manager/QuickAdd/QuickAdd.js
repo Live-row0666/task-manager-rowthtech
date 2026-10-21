@@ -831,9 +831,9 @@ const ClientTaskTab = () => {
                         </Col>
                         <Col md={6}>
                             <Form.Group className="mb-1">
-                                <Form.Label className="mb-0 small">Estimated Time (4 hrs max) <span className="text-danger">*</span></Form.Label>
+                                <Form.Label className="mb-0 small">Estimated Time (Hours) <span className="text-danger">*</span></Form.Label>
                                 <Form.Control className="form" type="number" step="0.5" min="0" placeholder="Enter estimated hours"
-                                    {...register('estimatedTime', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' }, max: { value: 4, message: 'Max 4 hours' }, pattern: { value: /^[0-9]*\.?[0-9]*$/, message: 'Invalid number' } })} />
+                                    {...register('estimatedTime', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' }, pattern: { value: /^[0-9]*\.?[0-9]*$/, message: 'Invalid number' } })} />
                                 {errors.estimatedTime && <span className="text-danger small">{errors.estimatedTime.message}</span>}
                             </Form.Group>
                         </Col>

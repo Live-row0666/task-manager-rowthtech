@@ -830,3 +830,11 @@
         font-size: 11px !important;
     }
 }
+
+.milestone-table-row {
+    transition: background-color 0.15s ease;
+}
+
+.milestone-table-row:hover td {
+    background-color: #f1f5f9 !important;
+}

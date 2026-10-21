@@ -16,7 +16,6 @@ import { emojiRegex } from '../../../helpers/emojiRegex';
 import useQuillWordLimit from '../../../helpers/quillWordLimit';
 import { handleUpload } from '../../../constants/handleUpload';
 import DescriptionOffCanvas from '../../../components/DescriptionOffCanvas';
-import TaskReportModal from './TaskReportModal';
 import './ClientTaskDashboard.css';
 import {
     getAllProjects, getClientMilestones, getClientTasks,
@@ -91,7 +90,7 @@ const safeFilterOption = (candidate, input) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
+const ClientTaskListView = ({ tasks, loading, onEditTask }) => {
     const [selDesc, setSelDesc] = useState('');
     const [selTitle, setSelTitle] = useState('');
     const [showOC, setShowOC] = useState(false);
@@ -131,7 +130,7 @@ const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
                         <th style={{ width: '9%', textAlign: 'center' }}>Priority</th>
                         <th style={{ width: '10%', textAlign: 'center' }}>Task Status</th>
                         <th style={{ width: '9%' }}>Estimated Time</th>
-                        <th style={{ width: '14%', textAlign: 'center' }}>Delivery Report</th>
+                        <th style={{ width: '10%', textAlign: 'center' }}>Action</th>
                     </tr>
                 </thead>
             </Table>
@@ -142,7 +141,7 @@ const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
                             <th style={{ width: '16%' }} /><th style={{ width: '13%' }} /><th style={{ width: '11%' }} />
                             <th style={{ width: '9%' }} /><th style={{ width: '9%' }} /><th style={{ width: '9%' }} />
                             <th style={{ width: '10%' }} /><th style={{ width: '9%' }} />
-                            <th style={{ width: '14%' }} />
+                            <th style={{ width: '10%' }} />
                         </tr>
                     </thead>
                     <tbody>
@@ -180,39 +179,15 @@ const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
                                 </td>
                                 <td className="ctd-list-fs">{item?.estimatedTime ? item.estimatedTime + ' hrs' : 'N/A'}</td>
                                 <td className="text-center ctd-list-fs">
-                                    {item?.report?.status === 'Approved' ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-sm btn-outline-success d-inline-flex align-items-center"
-                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
-                                            onClick={() => onOpenReport && onOpenReport(item)}
-                                            title="Approved and visible to client. Click to view or edit."
-                                        >
-                                            <i className="bi bi-check-circle me-1" />Approved
-                                        </button>
-                                    ) : item?.report?.status === 'Draft' ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-sm btn-outline-warning d-inline-flex align-items-center"
-                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
-                                            onClick={() => onOpenReport && onOpenReport(item)}
-                                            title="Draft report (hidden from client). Click to edit or publish."
-                                        >
-                                            <i className="bi bi-clock-history me-1" />Draft
-                                        </button>
-                                    ) : item?.status === 'Done' ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-sm btn-outline-primary d-inline-flex align-items-center"
-                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
-                                            onClick={() => onOpenReport && onOpenReport(item)}
-                                            title="Create delivery report for client"
-                                        >
-                                            <i className="bi bi-plus-lg me-1" />Add Report
-                                        </button>
-                                    ) : (
-                                        <span className="text-muted" style={{ fontSize: '10px' }}>-</span>
-                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 py-0 px-2"
+                                        style={{ fontSize: '11px', borderRadius: '4px' }}
+                                        onClick={() => onEditTask && onEditTask(item)}
+                                        title="Edit Task"
+                                    >
+                                        <i className="bi bi-pencil-square" style={{ fontSize: '11px' }} /> Edit
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -227,7 +202,7 @@ const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // TASK CARD
 // ══════════════════════════════════════════════════════════════════════════════
-const TaskCard = ({ item, onStatusChange, onOpenReport }) => {
+const TaskCard = ({ item, onStatusChange, onEditTask }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const isOverdue = item.dueDate && moment(item.dueDate).isBefore(moment()) && item.status !== 'Done';
 
@@ -253,9 +228,9 @@ const TaskCard = ({ item, onStatusChange, onOpenReport }) => {
                                         <div className="ctd-card-menu-title">Actions</div>
                                         <div
                                             className="ctd-card-menu-item text-primary"
-                                            onClick={() => { onOpenReport && onOpenReport(item); setMenuOpen(false); }}
+                                            onClick={() => { onEditTask && onEditTask(item); setMenuOpen(false); }}
                                         >
-                                            <i className="bi bi-file-earmark-text me-1" /> Delivery Report
+                                            <i className="bi bi-pencil-square me-1" /> Edit Task
                                         </div>
                                         <div className="ctd-card-menu-title">Move to</div>
                                         {COLS.filter(s => s !== item.status).map(col => (
@@ -274,7 +249,7 @@ const TaskCard = ({ item, onStatusChange, onOpenReport }) => {
                         {item.summary?.length > 100 ? item.summary.slice(0, 99) + '…' : item.summary}
                     </div>
                     <div className="col-12 ctd-card-timeline">
-                        Timeline: {item.estimatedTime || 0} hrs
+                        Time spent: {item.estimatedTime || 0} hrs
                     </div>
                 </div>
                 <div className="ctd-card-footer">
@@ -283,53 +258,20 @@ const TaskCard = ({ item, onStatusChange, onOpenReport }) => {
                             {item.assignee?.name ? item.assignee.name.split(' ').map(w => w[0]).join('') : 'UA'}
                         </span>
                     </OverlayTrigger>
-                    {item.milestone?.title && (
-                        <span className="ctd-card-milestone">
-                            {item.milestone.title.length > 15 ? item.milestone.title.slice(0, 14) + '…' : item.milestone.title}
-                        </span>
-                    )}
-                </div>
-
-                {/* Delivery Report Row */}
-                {(item.report?.summaryOfWork || item.status === 'Done') && (
-                    <div className="ctd-card-report-row mt-2 pt-2 border-top d-flex justify-content-between align-items-center">
-                        <span className="text-secondary d-flex align-items-center gap-1" style={{ fontSize: '11px', fontWeight: 500 }}>
-                            <i className="bi bi-file-earmark-text text-primary" style={{ fontSize: '12px' }} />
-                            Report
-                        </span>
-                        {item.report?.status === 'Approved' ? (
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
-                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
-                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
-                                title="Approved & published to client. Click to view or edit."
-                            >
-                                <i className="bi bi-check-circle" /> Approved
-                            </button>
-                        ) : item.report?.status === 'Draft' ? (
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
-                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
-                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
-                                title="Draft report (hidden from client). Click to edit or publish."
-                            >
-                                <i className="bi bi-clock-history" /> Draft
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
-                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
-                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
-                                title="Click to create client delivery report"
-                            >
-                                <i className="bi bi-plus-lg" /> Add Report
-                            </button>
+                    <div className="d-flex align-items-center gap-1">
+                        {item.milestone?.title && (
+                            <span className="ctd-card-milestone">
+                                {item.milestone.title.length > 15 ? item.milestone.title.slice(0, 14) + '…' : item.milestone.title}
+                            </span>
                         )}
+                        <i
+                            className="bi bi-pencil-square text-primary ms-1 cp"
+                            style={{ fontSize: '13px', cursor: 'pointer' }}
+                            onClick={(e) => { e.stopPropagation(); onEditTask && onEditTask(item); }}
+                            title="Edit Task"
+                        />
                     </div>
-                )}
+                </div>
             </CardBody>
         </CardWrap>
     );
@@ -682,12 +624,11 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do', initialProjectId,
                                 </Col>
                                 <Col md={6}>
                                     <Form.Group className="mb-1">
-                                        <Form.Label className="mb-0 small">Estimated Time (4 hrs max) <span className="text-danger">*</span></Form.Label>
+                                        <Form.Label className="mb-0 small">Estimated Time (Hours) <span className="text-danger">*</span></Form.Label>
                                         <Form.Control className="form" type="number" step="0.5" min="0" placeholder="Enter estimated hours"
                                             {...register('estimatedTime', {
                                                 required: 'Required',
                                                 min: { value: 0, message: 'Cannot be negative' },
-                                                max: { value: 4, message: 'Max 4 hours' },
                                                 pattern: { value: /^[0-9]*\.?[0-9]*$/, message: 'Invalid number' }
                                             })} />
                                         {errors.estimatedTime && <span className="text-danger small">{errors.estimatedTime.message}</span>}
@@ -801,6 +742,497 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do', initialProjectId,
     );
 };
 
+// ══════════════════════════════════════════════════════════════════════════════
+// EDIT TASK MODAL (Same UI as Add Task Modal)
+// ══════════════════════════════════════════════════════════════════════════════
+const EditTaskModal = ({ show, onHide, task, onTaskUpdated }) => {
+    const dispatch = useDispatch();
+    const store = useSelector(s => s);
+    const quillRef = useRef(null);
+    const MAX_WORDS = 1000;
+    const MAX_WORD_LENGTH = 45;
+    const dept = localStorage.getItem('selectedDepartment') || 'Tech';
+    const authUser = store?.Auth?.user;
+
+    const projectsList = store?.getProject?.data?.data || store?.getProject?.data?.response?.projects || store?.getProject?.data || store?.getClientProjectsReducer?.data?.data || [];
+    const clientMilestones = store?.getClientMilestonesReducer?.data?.data || [];
+    const users = store?.getAllUsers?.data?.data || [];
+    const updateLoading = store?.updateClientTaskReducer?.loading;
+
+    const [projectSelected, setProjectSelected] = useState(null);
+    const [milestoneSelected, setMilestoneSelected] = useState(null);
+    const [priority, setPriority] = useState('Medium');
+    const [files, setFiles] = useState([]);
+    const [filesUploading, setFilesUploading] = useState(false);
+    const [projectAssignee, setProjectAssignee] = useState([]);
+
+    const hyper = JSON.parse(localStorage.getItem('hyper_user') || '{}');
+    const defaultOption = {
+        value: String(authUser?.id || authUser?._id || ''),
+        label: String(`You (${authUser?.name || hyper?.username || 'Admin'})`)
+    };
+
+    const { register, handleSubmit, reset, watch, setValue, control, formState: { errors } } = useForm({
+        defaultValues: { priority: 'Medium', reporter: defaultOption, assignee: null, project: null, milestone: null }
+    });
+
+    const handleFileChange = async e => {
+        for (const file of Array.from(e.target.files)) {
+            const url = await handleUpload(file, setFilesUploading);
+            if (url) setFiles(p => [...p, { name: file.name, url: url?.url?.split('?')[0] }]);
+        }
+    };
+
+    const closeModal = () => {
+        onHide();
+    };
+
+    useEffect(() => {
+        if (show && task) {
+            dispatch(getAllUsers({ userType: dept }));
+            dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 }));
+
+            const pId = task.project?._id || (typeof task.project === 'string' ? task.project : null);
+            const foundProj = (Array.isArray(projectsList) ? projectsList : []).find(
+                p => String(p._id) === String(pId)
+            );
+            const pLabel = task.project?.name || foundProj?.name || '';
+            const pOpt = pId ? { value: String(pId), label: String(pLabel), data: foundProj } : null;
+
+            if (pId) {
+                setProjectSelected(String(pId));
+                dispatch(getClientMilestones({ projectId: pId, page: 1, limit: 100 }));
+                if (foundProj?.team) {
+                    setProjectAssignee((foundProj.team || []).filter(u => u?._id && u?.name));
+                }
+            }
+
+            const mId = task.milestone?._id || (typeof task.milestone === 'string' ? task.milestone : null);
+            const mLabel = task.milestone?.title || '';
+            const mOpt = mId ? { value: String(mId), label: String(mLabel) } : null;
+            if (mId) setMilestoneSelected(String(mId));
+
+            const aId = task.assignee?._id || (typeof task.assignee === 'string' ? task.assignee : null);
+            const aLabel = task.assignee?.name || '';
+            const aOpt = aId ? { value: String(aId), label: String(aLabel) } : null;
+
+            const rId = task.reporter?._id || (typeof task.reporter === 'string' ? task.reporter : null);
+            const rLabel = task.reporter?.name || '';
+            const rOpt = rId ? { value: String(rId), label: String(rLabel) } : defaultOption;
+
+            setPriority(task.priority || 'Medium');
+            setFiles(Array.isArray(task.attachments) ? task.attachments : []);
+
+            reset({
+                summary: task.summary || '',
+                project: pOpt,
+                milestone: mOpt,
+                workType: task.workType || 'Sprint',
+                assignee: aOpt,
+                reporter: rOpt,
+                priority: task.priority || 'Medium',
+                estimatedTime: task.estimatedTime !== undefined && task.estimatedTime !== null ? String(task.estimatedTime) : '',
+                startDate: task.startDate ? new Date(task.startDate) : null,
+                dueDate: task.dueDate ? new Date(task.dueDate) : null,
+                description: task.description || '',
+            });
+        }
+    }, [show, task]);
+
+    useEffect(() => {
+        if (show && task && clientMilestones.length > 0) {
+            const mId = task.milestone?._id || (typeof task.milestone === 'string' ? task.milestone : null);
+            const foundM = clientMilestones.find(m => String(m._id) === String(mId));
+            if (foundM) {
+                setValue('milestone', { value: String(foundM._id), label: String(foundM.title) });
+                setMilestoneSelected(String(foundM._id));
+            }
+        }
+    }, [show, task, clientMilestones]);
+
+    useEffect(() => {
+        if (show && task && projectsList.length > 0) {
+            const pId = task.project?._id || (typeof task.project === 'string' ? task.project : null);
+            const foundP = (Array.isArray(projectsList) ? projectsList : []).find(p => String(p._id) === String(pId));
+            if (foundP) {
+                setValue('project', { value: String(foundP._id), label: String(foundP.name), data: foundP });
+                setProjectSelected(String(foundP._id));
+                setProjectAssignee((foundP?.team || []).filter(u => u?._id && u?.name));
+            }
+        }
+    }, [show, task, projectsList]);
+
+    const handleLimitExceed = ({ message }) => toast.error(message);
+    useQuillWordLimit({ quillRef, maxWords: MAX_WORDS, maxWordLength: MAX_WORD_LENGTH, onLimitExceed: handleLimitExceed, setValue, fieldName: 'note' });
+
+    const onSubmit = (data) => {
+        if (!data.project?.value) { toast.error('Project is required'); return; }
+        if (!data.milestone?.value) { toast.error('Milestone is required'); return; }
+        const body = {
+            summary: data.summary,
+            description: data.description,
+            project: data.project.value,
+            milestone: data.milestone.value,
+            assignee: data.assignee?.value || undefined,
+            reporter: data.reporter?.value || undefined,
+            priority: data.priority,
+            estimatedTime: data.estimatedTime !== '' ? Number(data.estimatedTime) : undefined,
+            workType: data.workType,
+            startDate: data.startDate,
+            dueDate: data.dueDate,
+            attachments: files,
+            projectType: dept,
+        };
+
+        const cleanBody = Object.fromEntries(
+            Object.entries(body).filter(([_, v]) => v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0))
+        );
+
+        dispatch(updateClientTask({ taskId: task._id, body: cleanBody }));
+        toast.success('Task updated successfully');
+        if (onTaskUpdated) onTaskUpdated();
+        onHide();
+    };
+
+    const toOpt = (arr, idKey, lblKey) =>
+        (arr || []).filter(i => i && i[idKey] && i[lblKey]).map(i => ({ value: String(i[idKey]), label: String(i[lblKey]) }));
+
+    const pOpts = (Array.isArray(projectsList) ? projectsList : [])
+        .filter((p) => p?._id && p?.name && isOngoingOrAmc(p))
+        .map((p) => ({
+            value: String(p._id),
+            label: String(p.name),
+            data: p,
+        }));
+
+    const mOpts = (clientMilestones || [])
+        .filter((m) => m?._id && m?.title)
+        .map((m) => ({
+            value: String(m._id),
+            label: String(m.title),
+        }));
+
+    const uOpts = toOpt(users, "_id", "name");
+
+    const aOpts =
+        projectAssignee.length > 0
+            ? toOpt(projectAssignee, "_id", "name")
+            : uOpts;
+
+    const safeValue = v => v?.value ? { value: String(v.value), label: String(v.label || '') } : null;
+
+    const priorityColor = {
+        Critical: '#dc3545', High: '#fd7e14', Medium: '#198754', Low: '#0d6efd'
+    };
+
+    return (
+        <Modal show={show} onHide={closeModal} backdrop="static" className="taskModal" centered size="xl">
+            <Modal.Header className="py-2">
+                <Modal.Title className="text-black fw-bold" style={{ fontSize: '14px' }}>Edit Task</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleSubmit(onSubmit)}>
+                <Modal.Body className="p-1 bg-light">
+                    <div className="bg-white p-1 rounded-3 shadow-sm ctd-modal-body-inner">
+
+                        {/* Basic Info */}
+                        <div className="mb-1">
+                            <h6 className="text-dark fw-bold mb-1 border-bottom pb-1">
+                                <i className="fas fa-info-circle me-1" />Basic Information
+                            </h6>
+                            <Row>
+                                <Col md={12}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Summary <span className="text-danger">*</span></Form.Label>
+                                        <Form.Control className="form" type="text" placeholder="Enter Task Summary"
+                                            {...register('summary', { required: true, pattern: /^[^\s].*$/ })} />
+                                        {errors.summary?.type === 'required' && <span className="text-danger small">This field is required</span>}
+                                        {errors.summary?.type === 'pattern' && <span className="text-danger small">Cannot start with empty space</span>}
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        {/* Project Details */}
+                        <div className="mb-1">
+                            <h6 className="text-dark fw-bold mb-1 border-bottom pb-1">
+                                <i className="fas fa-project-diagram me-1" />Project Details
+                            </h6>
+                            <Row>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Project <span className="text-danger">*</span></Form.Label>
+                                        <Controller
+                                            name="project"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={safeValue(field.value)}
+                                                    options={pOpts}
+                                                    filterOption={safeFilterOption}
+                                                    placeholder="Select Project"
+                                                    isClearable
+                                                    isSearchable
+                                                    styles={SS}
+                                                    onChange={(opt) => {
+                                                        field.onChange(opt);
+                                                        setProjectSelected(opt?.value || null);
+                                                        setProjectAssignee(
+                                                            (opt?.data?.team || []).filter(
+                                                                (u) => u?._id && u?.name
+                                                            )
+                                                        );
+                                                        if (opt?.value) {
+                                                            dispatch(getClientMilestones({ projectId: opt.value, page: 1, limit: 100 }));
+                                                        }
+                                                        setValue("milestone", null);
+                                                    }}
+                                                    onInputChange={(value, actionMeta) => {
+                                                        if (actionMeta?.action === "input-change") {
+                                                            dispatch(
+                                                                getAllProjects({
+                                                                    skip: 1,
+                                                                    limit: 100,
+                                                                    search: value,
+                                                                    status: true,
+                                                                    projectStatus: 'ongoing_amc',
+                                                                })
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                        {errors.project && <span className="text-danger small">{errors.project.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Milestone <span className="text-danger">*</span></Form.Label>
+                                        <Controller name="milestone" control={control} defaultValue={null} rules={{ required: 'Milestone is required' }}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={safeValue(field.value)}
+                                                    onChange={opt => { field.onChange(opt); setMilestoneSelected(opt?.value || null); }}
+                                                    options={mOpts} placeholder="Select Milestone"
+                                                    filterOption={safeFilterOption}
+                                                    isClearable isSearchable isDisabled={!projectSelected} styles={SS} />
+                                            )} />
+                                        {errors.milestone && <span className="text-danger small">{errors.milestone.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Work Type <span className="text-danger">*</span></Form.Label>
+                                        <Form.Select className="formSelect" {...register('workType', { required: true })}>
+                                            <option value="" hidden>Select Work Type</option>
+                                            <option value="Bug">Bug</option>
+                                            <option value="Sprint">Sprint</option>
+                                        </Form.Select>
+                                        {errors.workType?.type === 'required' && <span className="text-danger small">Required</span>}
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Assignee</Form.Label>
+                                        <Controller name="assignee" control={control} defaultValue={null}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={safeValue(field.value)}
+                                                    options={aOpts}
+                                                    filterOption={safeFilterOption}
+                                                    placeholder="Select Assignee"
+                                                    isClearable
+                                                    isSearchable
+                                                    styles={SS}
+                                                    noOptionsMessage={() => "No team members found."}
+                                                    onChange={(opt) => field.onChange(opt || null)}
+                                                    onInputChange={(value, actionMeta) => {
+                                                        if (actionMeta?.action === "input-change") {
+                                                            dispatch(
+                                                                getAllUsers({
+                                                                    search: value,
+                                                                    userType: dept,
+                                                                })
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                            )} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Reporter <span className="text-danger">*</span></Form.Label>
+                                        <Controller
+                                            name="reporter"
+                                            control={control}
+                                            defaultValue={defaultOption}
+                                            rules={{ required: "Reporter is required" }}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={safeValue(field.value)}
+                                                    options={[defaultOption, ...uOpts]}
+                                                    filterOption={safeFilterOption}
+                                                    placeholder="Select Reporter"
+                                                    isClearable
+                                                    isSearchable
+                                                    styles={SS}
+                                                    onChange={(opt) => field.onChange(opt || null)}
+                                                    onInputChange={(value, actionMeta) => {
+                                                        if (actionMeta?.action === "input-change") {
+                                                            dispatch(
+                                                                getAllUsers({
+                                                                    search: value,
+                                                                    userType: dept,
+                                                                })
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                        {errors.reporter && <span className="text-danger small">{errors.reporter.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        {/* Task Config */}
+                        <div className="mb-1">
+                            <h6 className="text-dark fw-bold mb-1 border-bottom pb-1">
+                                <i className="fas fa-cogs me-1" />Task Configuration
+                            </h6>
+                            <Row>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Priority</Form.Label>
+                                        <Form.Select className="form" value={priority}
+                                            {...register('priority', { required: true })}
+                                            onChange={e => setPriority(e.target.value)}
+                                            style={{ color: priorityColor[priority] || 'inherit' }}>
+                                            {['Critical', 'High', 'Medium', 'Low'].map(p => (
+                                                <option key={p} value={p} style={{ color: priorityColor[p] }}>{p}</option>
+                                            ))}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Estimated Time (Hours) <span className="text-danger">*</span></Form.Label>
+                                        <Form.Control className="form" type="number" step="0.5" min="0" placeholder="Enter estimated hours"
+                                            {...register('estimatedTime', {
+                                                required: 'Required',
+                                                min: { value: 0, message: 'Cannot be negative' },
+                                                pattern: { value: /^[0-9]*\.?[0-9]*$/, message: 'Invalid number' }
+                                            })} />
+                                        {errors.estimatedTime && <span className="text-danger small">{errors.estimatedTime.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Start Date <span className="text-danger">*</span></Form.Label>
+                                        <Controller name="startDate" control={control} rules={{ required: 'Start date is required' }}
+                                            render={({ field }) => (
+                                                <DatePicker selected={field.value} onChange={d => field.onChange(d)}
+                                                    placeholderText="Select start date" className="form-control form" dateFormat="dd/MM/yyyy" />
+                                            )} />
+                                        {errors.startDate && <span className="text-danger small">{errors.startDate.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group className="mb-1">
+                                        <Form.Label className="mb-0 small">Due Date <span className="text-danger">*</span></Form.Label>
+                                        <Controller name="dueDate" control={control} rules={{ required: 'Due date is required' }}
+                                            render={({ field }) => (
+                                                <DatePicker selected={field.value} onChange={d => field.onChange(d)}
+                                                    minDate={watch('startDate')} placeholderText="Select due date"
+                                                    className="form-control form" dateFormat="dd/MM/yyyy" />
+                                            )} />
+                                        {errors.dueDate && <span className="text-danger small">{errors.dueDate.message}</span>}
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        {/* Additional Info */}
+                        <div className="mb-1">
+                            <h6 className="text-dark fw-bold mb-1 border-bottom pb-1">
+                                <i className="fas fa-paperclip me-1" />Additional Information
+                            </h6>
+                            <Row>
+                                <Col md={12}>
+                                    <Form.Group className="mb-0">
+                                        <Form.Label className="mb-0 small">
+                                            Attachments&nbsp;
+                                            <i onClick={() => document.getElementById('ctd-file-input-edit').click()}
+                                                className="bi bi-plus-circle cp text-danger" />
+                                        </Form.Label>
+                                        <input type="file" id="ctd-file-input-edit" className="d-none" multiple
+                                            onChange={e => {
+                                                const fs = Array.from(e.target.files);
+                                                if (fs.some(f => f.size > 25 * 1024 * 1024)) { toast.error('Files must be < 25MB'); e.target.value = ''; return; }
+                                                handleFileChange(e);
+                                            }} />
+                                        {filesUploading ? (
+                                            <div className="ctd-file-list">
+                                                {[...Array(3)].map((_, i) => (
+                                                    <div key={i} className="placeholder placeholder-wave rounded-2" style={{ width: '100px', height: '28px' }} />
+                                                ))}
+                                            </div>
+                                        ) : files.length > 0 && (
+                                            <div className="ctd-file-list">
+                                                {files.map((f, i) => (
+                                                    <div key={i} className="ctd-file-item shadow-sm border">
+                                                        <span className="me-2">{f.name?.length > 25 ? f.name.slice(0, 24) + '...' : f.name}</span>
+                                                        <i onClick={() => setFiles(files.filter((_, x) => x !== i))}
+                                                            className="bi bi-x-circle cp text-danger" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </Form.Group>
+                                </Col>
+                                <Col lg={12}>
+                                    <Form.Group className="mb-2">
+                                        <Form.Label className="mb-0 d-flex justify-content-between small align-items-center">
+                                            Description
+                                            <small className="text-muted">{(() => {
+                                                const t = quillRef?.current?.getEditor()?.getText()?.trim();
+                                                return `(${t?.split(/\s+/)?.filter(Boolean)?.length || 0} / ${MAX_WORDS} words)`;
+                                            })()}</small>
+                                        </Form.Label>
+                                        <Controller name="description" control={control}
+                                            render={({ field: { onChange, value } }) => (
+                                                <ReactQuill ref={quillRef} value={value}
+                                                    onChange={(c, _, s) => {
+                                                        if (s === 'user') {
+                                                            const t = quillRef.current.getEditor().getText().trim();
+                                                            if (emojiRegex.test(t)) { quillRef.current.getEditor().history.undo(); return; }
+                                                            if (t.split(/\s+/).filter(Boolean).length > MAX_WORDS) { quillRef.current.getEditor().history.undo(); toast.error(`Max ${MAX_WORDS} words`); return; }
+                                                            onChange(c);
+                                                        }
+                                                    }}
+                                                    theme="snow" placeholder="Enter detailed description here..."
+                                                    className="ctd-quill-wrap"
+                                                    modules={{ toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] }} />
+                                            )} />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        </div>
+                    </div>
+                </Modal.Body>
+                <Modal.Footer>
+                    <button className="btn btn-outline-secondary fw-semibold" style={{ padding: '4px 16px', fontSize: '11px' }} onClick={closeModal} type="button">Cancel</button>
+                    <button type="submit" className="btn bg-dark text-white fw-semibold" style={{ padding: '4px 16px', fontSize: '11px' }} disabled={updateLoading}>
+                        {updateLoading ? 'Updating...' : 'Update Task'}
+                    </button>
+                </Modal.Footer>
+            </Form>
+        </Modal>
+    );
+};
+
 
 const ClientTaskDashboard = () => {
     const dispatch = useDispatch();
@@ -820,7 +1252,13 @@ const ClientTaskDashboard = () => {
     const [columns, setColumns] = useState({});
     const [localTasks, setLocalTasks] = useState([]);
     const [taskView, setTaskView] = useState('Board');
-    const [reportModalTask, setReportModalTask] = useState(null);
+    const [editingTask, setEditingTask] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+
+    const handleOpenEdit = (task) => {
+        setEditingTask(task);
+        setShowEditModal(true);
+    };
 
     useEffect(() => { dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 })); }, [dispatch]);
 
@@ -1018,7 +1456,7 @@ const ClientTaskDashboard = () => {
                         </div>
                     </div>
                 ) : taskView === 'List' ? (
-                    <ClientTaskListView tasks={allFilteredTasks} loading={tasksLoading} onOpenReport={setReportModalTask} />
+                    <ClientTaskListView tasks={allFilteredTasks} loading={tasksLoading} onEditTask={handleOpenEdit} />
                 ) : tasksLoading ? (
                     <div className="ctd-loading">
                         <div className="spinner-border text-dark" />
@@ -1047,7 +1485,7 @@ const ClientTaskDashboard = () => {
                                                         </div>
                                                     </div>
                                                 ) : col.items.map(task => (
-                                                    <TaskCard key={task._id} item={task} onStatusChange={handleStatusChange} onOpenReport={setReportModalTask} />
+                                                    <TaskCard key={task._id} item={task} onStatusChange={handleStatusChange} onEditTask={handleOpenEdit} />
                                                 ))}
                                             </div>
                                         </KanbanColumn>
@@ -1057,7 +1495,6 @@ const ClientTaskDashboard = () => {
                         </TaskColumnStyles>
                     </Container>
                 )}
-
                 <AddTaskModal
                     show={showModal}
                     onHide={() => setShowModal(false)}
@@ -1065,11 +1502,17 @@ const ClientTaskDashboard = () => {
                     initialProjectId={projectSelected}
                     initialMilestoneId={milestoneSelected} />
 
-                <TaskReportModal
-                    show={!!reportModalTask}
-                    task={reportModalTask}
-                    onHide={() => setReportModalTask(null)}
-                    onReportSaved={() => fetchTasks()} />
+                {showEditModal && editingTask && (
+                    <EditTaskModal
+                        show={showEditModal}
+                        onHide={() => {
+                            setShowEditModal(false);
+                            setEditingTask(null);
+                        }}
+                        task={editingTask}
+                        onTaskUpdated={() => fetchTasks()}
+                    />
+                )}
             </div>
         </div>
     );

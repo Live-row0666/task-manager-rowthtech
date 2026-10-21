@@ -1,7 +1,11 @@
 const Task = require('../../models/task');
+const ClientTask = require('../../models/clientTask');
 const TaskComment = require('../../models/taskComment');
 const User = require('../../models/user');
 const Project = require('../../models/project');
+const Milestone = require('../../models/milestones');
+const ClientProject = require('../../models/clientProject');
+const ClientMilestone = require('../../models/clientMilestone');
 const NotificationService = require('../../utils/notificationService');
 
 class TaskController {
@@ -19,6 +23,7 @@ class TaskController {
             }
 
             const task = await Task.create(data);
+
             const populatedTask = await Task.findById(task._id)
                 .populate('assignee', 'name email')
                 .populate('project', 'name description');
@@ -62,47 +67,28 @@ class TaskController {
             const data = req.body;
 
             const oldTask = await Task.findById(id).populate('assignee', 'name email');
-            const task = await Task.findByIdAndUpdate(id, data, { new: true })
+            let task = await Task.findByIdAndUpdate(id, data, { new: true })
                 .populate('assignee', 'name email')
                 .populate('project', 'name description');
 
+            let clientTask = null;
             if (!task) {
+                clientTask = await ClientTask.findByIdAndUpdate(id, data, { new: true })
+                    .populate('assignee', 'name email')
+                    .populate('project', 'name description');
+            }
+
+            if (!task && !clientTask) {
                 return res.status(404).json({
                     status: 404,
                     message: 'Task not found'
                 });
             }
 
-            // // Check if assignee changed
-            // if (data.assignee && (!oldTask.assignee || oldTask.assignee._id.toString() !== data.assignee)) {
-            //     await NotificationService.sendTaskAssignedNotification(
-            //         task._id,
-            //         task.assignee._id,
-            //         req.user._id,
-            //         task.summary
-            //     );
-
-            //     await NotificationService.sendTaskAssignmentEmail(
-            //         task.assignee,
-            //         task,
-            //         task.project
-            //     );
-            // }
-
-            // // Send update notification to assignee if task details changed
-            // if (task.assignee && (data.status || data.priority || data.description)) {
-            //     await NotificationService.sendTaskUpdatedNotification(
-            //         task._id,
-            //         task.assignee._id,
-            //         req.user._id,
-            //         task.summary
-            //     );
-            // }
-
             return res.status(200).json({
                 status: 200,
                 message: 'Task updated successfully',
-                data: task
+                data: task || clientTask
             });
         } catch (error) {
             return res.status(500).json({
@@ -225,6 +211,33 @@ class TaskController {
                 .lean();
 
             if (!task) {
+                let clientTask = await ClientTask.findById(id)
+                    .populate('project', 'name description client team')
+                    .populate('milestone', 'title description status')
+                    .populate('assignee', 'name email designation')
+                    .populate('reporter', 'name email designation')
+                    .lean();
+
+                if (clientTask) {
+                    if (!clientTask.project) {
+                        const raw = await ClientTask.findById(id).select('project milestone').lean();
+                        if (raw?.project) {
+                            clientTask.project = await Project.findById(raw.project).select('name description client').lean() || await ClientProject.findById(raw.project).select('name description client').lean();
+                        }
+                        if (raw?.milestone) {
+                            clientTask.milestone = await Milestone.findById(raw.milestone).select('title description status').lean() || await ClientMilestone.findById(raw.milestone).select('title description status').lean();
+                        }
+                    }
+                    return res.status(200).json({
+                        status: 200,
+                        message: 'Task retrieved successfully',
+                        data: {
+                            ...clientTask,
+                            comments: []
+                        }
+                    });
+                }
+
                 return res.status(404).json({
                     status: 404,
                     message: 'Task not found'

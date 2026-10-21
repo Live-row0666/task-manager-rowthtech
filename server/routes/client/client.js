@@ -161,7 +161,7 @@ router.get('/client-task', verifyClient, async (req, res) => {
 
         query.createdBy = { $in: pmUserIds };
 
-        let tasks = await ClientTask.find(query)
+        let clientTasks = await ClientTask.find(query)
             .populate('assignee', 'name email designation role profilePicture')
             .populate('milestone', 'title status startDate completionDate')
             .populate('project', 'name projectStatus projectType')
@@ -170,16 +170,20 @@ router.get('/client-task', verifyClient, async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        if (!tasks.length) {
-            tasks = await Task.find(query)
-                .populate('assignee', 'name email designation role profilePicture')
-                .populate('milestone', 'title status startDate completionDate')
-                .populate('project', 'name projectStatus projectType')
-                .populate('createdBy', 'name email designation role')
-                .limit(Number(limit))
-                .sort({ createdAt: -1 })
-                .lean();
+        let normalTasks = await Task.find(query)
+            .populate('assignee', 'name email designation role profilePicture')
+            .populate('milestone', 'title status startDate completionDate')
+            .populate('project', 'name projectStatus projectType')
+            .populate('createdBy', 'name email designation role')
+            .limit(Number(limit))
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const taskMap = new Map();
+        for (let t of [...normalTasks, ...clientTasks]) {
+            taskMap.set(t._id.toString(), t);
         }
+        let tasks = Array.from(taskMap.values());
 
         // Normalize task summary to title for client UI & protect unapproved reports
         tasks = tasks.map(t => {

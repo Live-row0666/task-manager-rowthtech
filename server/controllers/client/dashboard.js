@@ -100,7 +100,7 @@ class ClientDashboardController {
                 });
             }
 
-            // ── Get Milestones (Milestone model with ClientMilestone fallback) ──
+            // ── Get Milestones from Milestone model (Milestone.js) ────────────
             let milestones = await Milestone.find({
                 project: project._id,
                 isActive: true,
@@ -129,29 +129,34 @@ class ClientDashboardController {
             }).select('_id');
             const pmUserIds = pmUsers.map(u => u._id);
 
-            // ── Get Tasks (ClientTask with Task fallback, filtered by Project Manager) ───────────────
-            let tasks = [];
+            // ── Get Tasks ONLY from ClientTask (clienttasks collection) ──────────
+            const clientTaskQuery = {
+                project: project._id,
+                isActive: true,
+            };
             if (pmUserIds.length > 0) {
-                tasks = await ClientTask.find({
-                    project: project._id,
-                    isActive: true,
-                    createdBy: { $in: pmUserIds },
-                });
-
-                if (!tasks.length) {
-                    tasks = await Task.find({
-                        project: project._id,
-                        isActive: true,
-                        createdBy: { $in: pmUserIds },
-                    });
-                }
+                clientTaskQuery.$or = [
+                    { createdBy: { $in: pmUserIds } },
+                    { createdBy: { $exists: false } },
+                    { createdBy: null }
+                ];
             }
+            const tasks = await ClientTask.find(clientTaskQuery)
+                .populate("assignee", "name email")
+                .populate("reporter", "name email")
+                .lean();
 
             const totalTasks = tasks.length;
             const completedTasks = tasks.filter(
                 (t) => t.status === "Completed" || t.status === "Done"
             ).length;
             const remainingTasks = totalTasks - completedTasks;
+
+            const totalProjectHours = tasks.reduce((sum, t) => sum + (Number(t.estimatedTime) || 0), 0);
+            const completedProjectHours = tasks
+                .filter(t => t.status === "Completed" || t.status === "Done")
+                .reduce((sum, t) => sum + (Number(t.estimatedTime) || 0), 0);
+            const pendingProjectHours = totalProjectHours - completedProjectHours;
 
             // ── Overall Progress ──────────────────────────────────────────────
             let overallProgress = 0;
@@ -161,27 +166,56 @@ class ClientDashboardController {
                 overallProgress = Math.round((completedTasks / totalTasks) * 100);
             }
 
-            // ── Milestone Progress ────────────────────────────────────────────
+            // ── Milestone Progress & Detailed Task Breakdown ───────────────────
             const milestonesWithProgress = milestones.map((milestone) => {
-                const milestoneTasks = tasks.filter(
-                    (t) => t.milestone && t.milestone.toString() === milestone._id.toString()
-                );
+                const mIdStr = milestone._id.toString();
+                const milestoneTasks = tasks.filter((t) => {
+                    if (!t.milestone) return false;
+                    const tMilestoneId = t.milestone._id ? t.milestone._id.toString() : t.milestone.toString();
+                    return tMilestoneId === mIdStr;
+                });
 
                 const milestoneTotalTasks = milestoneTasks.length;
                 const milestoneCompletedTasks = milestoneTasks.filter(
                     (t) => t.status === "Completed" || t.status === "Done"
                 ).length;
-                const milestoneRemainingTasks = milestoneTotalTasks - milestoneCompletedTasks;
-                const progress = milestoneTotalTasks > 0
-                    ? Math.round((milestoneCompletedTasks / milestoneTotalTasks) * 100)
-                    : 0;
+                const milestonePendingTasks = milestoneTotalTasks - milestoneCompletedTasks;
+
+                const milestoneTotalHours = milestoneTasks.reduce((sum, t) => sum + (Number(t.estimatedTime) || 0), 0);
+                const milestoneCompletedHours = milestoneTasks
+                    .filter((t) => t.status === "Completed" || t.status === "Done")
+                    .reduce((sum, t) => sum + (Number(t.estimatedTime) || 0), 0);
+                const milestonePendingHours = milestoneTotalHours - milestoneCompletedHours;
+
+                let progress = 0;
+                if (milestone.status === "Completed" || milestone.status === "Done") {
+                    progress = 100;
+                } else if (milestoneTotalTasks > 0) {
+                    progress = Math.round((milestoneCompletedTasks / milestoneTotalTasks) * 100);
+                } else if (milestone.status === "In Progress" || milestone.status === "Ongoing") {
+                    progress = 0;
+                }
 
                 return {
                     ...(typeof milestone.toObject === 'function' ? milestone.toObject() : milestone),
                     totalTasks: milestoneTotalTasks,
                     completedTasks: milestoneCompletedTasks,
-                    remainingTasks: milestoneRemainingTasks,
+                    pendingTasks: milestonePendingTasks,
+                    remainingTasks: milestonePendingTasks,
+                    totalHours: milestoneTotalHours,
+                    completedHours: milestoneCompletedHours,
+                    pendingHours: milestonePendingHours,
                     progress,
+                    tasks: milestoneTasks.map(t => ({
+                        _id: t._id,
+                        summary: t.summary || t.title || 'Untitled Task',
+                        status: t.status || 'To Do',
+                        priority: t.priority || 'Medium',
+                        estimatedTime: Number(t.estimatedTime) || 0,
+                        startDate: t.startDate,
+                        dueDate: t.dueDate,
+                        assignee: t.assignee ? { name: t.assignee.name, email: t.assignee.email } : null,
+                    })),
                 };
             });
 
@@ -196,28 +230,7 @@ class ClientDashboardController {
                 .slice(0, 3);
 
             // ── Recent Activities (filtered by Project Manager) ───────────────
-            let recentTasks = [];
-            if (pmUserIds.length > 0) {
-                recentTasks = await ClientTask.find({
-                    project: project._id,
-                    isActive: true,
-                    createdBy: { $in: pmUserIds },
-                })
-                    .sort({ updatedAt: -1 })
-                    .limit(6)
-                    .populate("assignee", "name email");
-
-                if (!recentTasks.length) {
-                    recentTasks = await Task.find({
-                        project: project._id,
-                        isActive: true,
-                        createdBy: { $in: pmUserIds },
-                    })
-                        .sort({ updatedAt: -1 })
-                        .limit(6)
-                        .populate("assignee", "name email");
-                }
-            }
+            const recentTasks = tasks.slice(0, 6);
 
             const recentActivities = recentTasks.map((t) => ({
                 id: t._id,
@@ -249,8 +262,12 @@ class ClientDashboardController {
                     totalTasks,
                     completedTasks,
                     remainingTasks,
+                    pendingTasks: remainingTasks,
                     overallProgress,
                     progressText: `${completedTasks}/${totalTasks}`,
+                    totalHours: totalProjectHours,
+                    completedHours: completedProjectHours,
+                    pendingHours: pendingProjectHours,
                 },
                 currentMilestone,
                 milestones: milestonesWithProgress,

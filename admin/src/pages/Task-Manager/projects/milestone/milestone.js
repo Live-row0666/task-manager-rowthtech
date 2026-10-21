@@ -44,6 +44,8 @@ const Milestone = () => {
     const [isDelivered, setIsDelivered] = useState(false);
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [selectedMilestone, setSelectedMilestone] = useState(null);
+    const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [selectedCompleteMilestone, setSelectedCompleteMilestone] = useState(null);
     const deletehandle = store?.deleteMileStone?.data;
     const sessionData = localStorage.getItem('hyper_user');
     const userData = JSON.parse(sessionData);
@@ -127,7 +129,7 @@ const Milestone = () => {
 
     const closeupdatemodal = (val) => {
         if (val == 'render') {
-            setRender(!render);
+            setRender((prev) => !prev);
         }
         setOpenEditModal(false);
     };
@@ -180,6 +182,30 @@ const Milestone = () => {
         dispatch(updateMileStone(body));
         setShowDeliveryModal(false);
         setSelectedMilestone(null);
+    };
+
+    const handleCompleteToggle = (item) => {
+        if (userRole === 'Testing') {
+            ToastHandle('error', 'Tester is not allowed to change milestone status');
+            return;
+        }
+        setSelectedCompleteMilestone(item);
+        setShowCompleteModal(true);
+    };
+
+    const confirmCompleteUpdate = () => {
+        if (!selectedCompleteMilestone) return;
+        const isCompleted = selectedCompleteMilestone?.status === 'Completed';
+        const newStatus = isCompleted ? 'In Progress' : 'Completed';
+        const body = {
+            milestoneId: selectedCompleteMilestone._id,
+            status: newStatus,
+            ...(newStatus === 'Completed' ? { progress: 100 } : {})
+        };
+        dispatch(updateMileStone(body));
+        setShowCompleteModal(false);
+        setSelectedCompleteMilestone(null);
+        setRender((prev) => !prev);
     };
 
 
@@ -297,7 +323,7 @@ const Milestone = () => {
                                                     <th className='fw-bold fs-6 text-start' style={{ width: '8%' }}>Days Left</th>
                                                     <th className='fw-bold fs-6 text-start' style={{ width: '6%' }}>Priority</th>
                                                     <th className='fw-bold fs-6 text-start' style={{ width: '6%' }}>Status</th>
-                                                    <th className='fw-bold fs-6 text-start' style={{ width: '7%' }}>Action</th>
+                                                    <th className='fw-bold fs-6 text-start text-nowrap' style={{ width: '9%' }}>Action</th>
                                                 </tr>
                                             }
                                         </thead>
@@ -368,6 +394,16 @@ const Milestone = () => {
                                                                         onClick={() => handelUpdate(item)}
                                                                     >
                                                                         <i className="uil-edit-alt" style={{ fontSize: '12px' }}></i>
+                                                                    </button>
+                                                                )}
+                                                                {userRole !== "Testing" && (
+                                                                    <button
+                                                                        className={`btn ${item?.status === 'Completed' ? 'btn-success text-white' : 'btn-outline-success'}`}
+                                                                        style={{ padding: '2px 6px', fontSize: '10px' }}
+                                                                        title={item?.status === 'Completed' ? 'Completed (Click to change)' : 'Mark as Completed'}
+                                                                        onClick={() => handleCompleteToggle(item)}
+                                                                    >
+                                                                        <i className={item?.status === 'Completed' ? "mdi mdi-check-bold" : "mdi mdi-check"} style={{ fontSize: '12px' }}></i>
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -481,6 +517,16 @@ const Milestone = () => {
                                                                         <i className="uil-edit-alt" style={{ fontSize: '12px' }}></i>
                                                                     </button>
                                                                 )}
+                                                                {userRole !== "Testing" && (
+                                                                    <button
+                                                                        className={`btn ${item?.status === 'Completed' ? 'btn-success text-white' : 'btn-outline-success'}`}
+                                                                        style={{ padding: '2px 6px', fontSize: '10px' }}
+                                                                        title={item?.status === 'Completed' ? 'Completed (Click to change)' : 'Mark as Completed'}
+                                                                        onClick={() => handleCompleteToggle(item)}
+                                                                    >
+                                                                        <i className={item?.status === 'Completed' ? "mdi mdi-check-bold" : "mdi mdi-check"} style={{ fontSize: '12px' }}></i>
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -531,6 +577,21 @@ const Milestone = () => {
                     <Modal.Footer>
                         <Button variant="secondary" onClick={() => setShowDeliveryModal(false)}>Cancel</Button>
                         <Button variant="primary" className='bg-dark text-white border-0' onClick={confirmDeliveryUpdate}>Confirm</Button>
+                    </Modal.Footer>
+                </Modal>
+
+                {/* Complete Milestone Modal */}
+                <Modal show={showCompleteModal} onHide={() => setShowCompleteModal(false)}>
+                    <Modal.Header className='py-2' >
+                        <Modal.Title className='fs-5 text-black fw-semibold'>Update Milestone Status</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        Are you sure you want to mark milestone &quot;{selectedCompleteMilestone?.title}&quot; as {selectedCompleteMilestone?.status === 'Completed' ? 'In Progress' : 'Completed'}?
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" className='border-0'
+                            onClick={() => setShowCompleteModal(false)}>No</Button>
+                        <Button variant="primary" className='web_buttons bg-black text-white border-0' onClick={() => confirmCompleteUpdate()}>Yes</Button>
                     </Modal.Footer>
                 </Modal>
 

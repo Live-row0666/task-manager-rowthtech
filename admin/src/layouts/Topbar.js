@@ -337,7 +337,7 @@ const Topbar = ({ hideLogo, navCssClasses, openLeftMenuCallBack, topbarDark }: T
                                         )}
                                     </div>
                                 )}
-                                {store?.Auth?.user?.role !== "Sales" && (
+                                {store?.Auth?.user?.role !== "Sales" && !isClientTaskBoard && (
                                     <button
                                         className="btn bg-dark text-white fw-semibold d-flex align-items-center gap-1"
                                         style={{ padding: '4px 12px', fontSize: '11px' }}

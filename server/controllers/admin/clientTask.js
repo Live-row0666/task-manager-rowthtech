@@ -1,4 +1,5 @@
 const ClientTask = require('../../models/clientTask');
+const Task = require('../../models/task');
 const ClientProject = require('../../models/clientProject');
 const ClientMilestone = require('../../models/clientMilestone');
 const Project = require('../../models/project');
@@ -47,8 +48,23 @@ class ClientTaskController {
     async updateClientTask(req, res) {
         try {
             const task = await ClientTask.findByIdAndUpdate(req.params.id, req.body, { new: true });
-            if (!task) return res.status(404).json({ status: 404, message: 'Client task not found' });
-            return res.status(200).json({ status: 200, message: 'Client task updated successfully', data: task });
+            let normalTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+            if (task) {
+                await Task.updateMany(
+                    { $or: [{ _id: req.params.id }, { project: task.project, summary: task.summary }] },
+                    { $set: req.body }
+                );
+            }
+            if (normalTask) {
+                await ClientTask.updateMany(
+                    { $or: [{ _id: req.params.id }, { project: normalTask.project, summary: normalTask.summary }] },
+                    { $set: req.body }
+                );
+            }
+
+            if (!task && !normalTask) return res.status(404).json({ status: 404, message: 'Client task not found' });
+            return res.status(200).json({ status: 200, message: 'Client task updated successfully', data: task || normalTask });
         } catch (error) {
             return res.status(500).json({ status: 500, message: 'Internal server error', error: error.message });
         }

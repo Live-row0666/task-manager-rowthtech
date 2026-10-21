@@ -5,8 +5,127 @@ import { toast } from 'react-toastify';
 import CommonHeader from '../components/commonHeader';
 import CommonSidebar from '../components/commonSidebar';
 import moment from 'moment';
+import { Modal, Button, Badge } from 'react-bootstrap';
 import './Dashboard.css';
 import './Reports.css';
+
+// Modal for viewing tasks and hours of a milestone
+const MilestoneTasksModal = ({ show, onHide, milestone }) => {
+    if (!milestone) return null;
+    const tasks = Array.isArray(milestone.tasks) ? milestone.tasks : [];
+    const totalHours = milestone.totalHours !== undefined
+        ? milestone.totalHours
+        : tasks.reduce((sum, t) => sum + (Number(t.estimatedTime) || 0), 0);
+    const completedTasksCount = milestone.completedTasks !== undefined
+        ? milestone.completedTasks
+        : tasks.filter(t => t.status === 'Completed' || t.status === 'Done').length;
+    const pendingTasksCount = milestone.pendingTasks !== undefined
+        ? milestone.pendingTasks
+        : Math.max(0, tasks.length - completedTasksCount);
+
+    return (
+        <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" className="milestone-details-modal">
+            <Modal.Header closeButton className="py-2 px-3 border-bottom bg-light">
+                <div className="d-flex align-items-center gap-2">
+                    <div className="d-flex align-items-center justify-content-center bg-primary text-white rounded-3" style={{ width: 34, height: 34 }}>
+                        <i className="bi bi-flag-fill" style={{ fontSize: 16 }} />
+                    </div>
+                    <div>
+                        <Modal.Title className="h6 mb-0 fw-bold text-dark">
+                            {milestone.title || milestone.name}
+                        </Modal.Title>
+                        <small className="text-muted" style={{ fontSize: '11px' }}>
+                            {milestone.startDate ? moment(milestone.startDate).format('DD MMM YYYY') : 'N/A'} &bull; Target: {milestone.completionDate ? moment(milestone.completionDate).format('DD MMM YYYY') : 'N/A'}
+                        </small>
+                    </div>
+                </div>
+            </Modal.Header>
+            <Modal.Body className="p-3">
+                {/* Stats summary bar */}
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                    <div className="px-3 py-2 bg-light border rounded-3 d-flex align-items-center gap-2 flex-grow-1">
+                        <i className="bi bi-clock-history text-primary fs-5" />
+                        <div>
+                            <div className="small text-muted" style={{ fontSize: '11px' }}>Total Hours</div>
+                            <div className="fw-bold fs-6 text-dark">{totalHours} hrs</div>
+                        </div>
+                    </div>
+                    <div className="px-3 py-2 bg-light border rounded-3 d-flex align-items-center gap-2 flex-grow-1">
+                        <i className="bi bi-check2-circle text-success fs-5" />
+                        <div>
+                            <div className="small text-muted" style={{ fontSize: '11px' }}>Completed Tasks</div>
+                            <div className="fw-bold fs-6 text-success">{completedTasksCount} tasks</div>
+                        </div>
+                    </div>
+                    <div className="px-3 py-2 bg-light border rounded-3 d-flex align-items-center gap-2 flex-grow-1">
+                        <i className="bi bi-hourglass-split text-warning fs-5" />
+                        <div>
+                            <div className="small text-muted" style={{ fontSize: '11px' }}>Pending Tasks</div>
+                            <div className="fw-bold fs-6 text-warning">{pendingTasksCount} tasks</div>
+                        </div>
+                    </div>
+                    <div className="px-3 py-2 bg-light border rounded-3 d-flex align-items-center gap-2 flex-grow-1">
+                        <i className="bi bi-pie-chart text-info fs-5" />
+                        <div>
+                            <div className="small text-muted" style={{ fontSize: '11px' }}>Progress</div>
+                            <div className="fw-bold fs-6 text-info">{milestone.progress || (milestone.status === 'Completed' ? 100 : 0)}%</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tasks Table */}
+                <h6 className="fw-bold text-dark mb-2" style={{ fontSize: '13px' }}>
+                    <i className="bi bi-list-check me-1 text-primary" /> Milestone Tasks ({tasks.length})
+                </h6>
+                {tasks.length === 0 ? (
+                    <div className="text-center py-4 bg-light rounded-3 text-muted">
+                        <i className="bi bi-inbox fs-2 d-block mb-1 text-secondary" />
+                        <p className="mb-0 small">No tasks logged under this milestone yet.</p>
+                    </div>
+                ) : (
+                    <div className="table-responsive border rounded-3" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                        <table className="table table-hover table-sm mb-0 align-middle" style={{ fontSize: '12px' }}>
+                            <thead className="table-light sticky-top">
+                                <tr>
+                                    <th style={{ width: '5%' }}>#</th>
+                                    <th style={{ width: '45%' }}>Task Summary</th>
+                                    <th style={{ width: '15%' }}>Status</th>
+                                    <th style={{ width: '15%' }}>Hours</th>
+                                    <th style={{ width: '20%' }}>Assignee</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {tasks.map((task, idx) => (
+                                    <tr key={task._id || idx}>
+                                        <td className="text-muted">{idx + 1}</td>
+                                        <td className="fw-semibold text-dark">{task.summary}</td>
+                                        <td>
+                                            <span className={`badge py-1 px-2 ${task.status === 'Done' || task.status === 'Completed' ? 'bg-success' : task.status === 'In Progress' ? 'bg-primary' : task.status === 'Testing' ? 'bg-info' : 'bg-secondary'}`} style={{ fontSize: '10px' }}>
+                                                {task.status || 'To Do'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="badge bg-light text-dark border py-1 px-2" style={{ fontSize: '11px' }}>
+                                                <i className="bi bi-clock me-1 text-primary" />
+                                                {task.estimatedTime || 0} hrs
+                                            </span>
+                                        </td>
+                                        <td className="text-muted">{task.assignee?.name || 'Unassigned'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Modal.Body>
+            <Modal.Footer className="py-2 px-3 bg-light border-top">
+                <Button variant="secondary" size="sm" onClick={onHide} style={{ fontSize: '12px', padding: '4px 16px' }}>
+                    Close
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    );
+};
 
 // Smooth animated counter component for numbers
 const CountUp = ({ end = 0, duration = 900, decimals = 0 }) => {
@@ -62,6 +181,7 @@ const Reports = () => {
     const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [selectedMilestoneModal, setSelectedMilestoneModal] = useState(null);
     const projectDropdownRef = useRef(null);
 
     useEffect(() => {
@@ -87,7 +207,7 @@ const Reports = () => {
                 setSelectedProjectId(firstId);
                 try {
                     localStorage.setItem('client_selected_project_id', firstId);
-                } catch (e) {}
+                } catch (e) { }
             }
         }
     }, [dashboard?.projects, selectedProjectId]);
@@ -118,6 +238,16 @@ const Reports = () => {
     const remainingTasks = summary.remainingTasks || (totalTasks - completedTasks);
     const overallProgress = summary.overallProgress || (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
 
+    const totalProjectHours = summary.totalHours !== undefined
+        ? Number(summary.totalHours)
+        : milestones.reduce((sum, m) => sum + (Number(m.totalHours) || 0), 0);
+    const completedProjectHours = summary.completedHours !== undefined
+        ? Number(summary.completedHours)
+        : milestones.reduce((sum, m) => sum + (Number(m.completedHours) || 0), 0);
+    const pendingProjectHours = summary.pendingHours !== undefined
+        ? Number(summary.pendingHours)
+        : Math.max(0, totalProjectHours - completedProjectHours);
+
     const completedPercent = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
     const inProgressPercent = totalMilestones > 0 ? (inProgressMilestones / totalMilestones) * 100 : 0;
     const pendingPercent = totalMilestones > 0 ? (pendingMilestones / totalMilestones) * 100 : 0;
@@ -125,9 +255,9 @@ const Reports = () => {
     // Filter milestones based on status tabs & search query
     const filteredMilestones = useMemo(() => {
         return milestones.filter((m) => {
-            const matchesSearch = !searchQuery.trim() || 
+            const matchesSearch = !searchQuery.trim() ||
                 (m.title || m.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-            
+
             let matchesStatus = true;
             if (statusFilter === "Completed") matchesStatus = m.status === "Completed";
             else if (statusFilter === "In Progress") matchesStatus = m.status === "In Progress";
@@ -138,8 +268,8 @@ const Reports = () => {
     }, [milestones, searchQuery, statusFilter]);
 
     // Active deliverable / focus phase
-    const activeDeliverable = dashboard?.currentMilestone || 
-        milestones.find(m => m.status === "In Progress") || 
+    const activeDeliverable = dashboard?.currentMilestone ||
+        milestones.find(m => m.status === "In Progress") ||
         milestones[0];
 
     // Export to CSV Function
@@ -169,8 +299,9 @@ const Reports = () => {
                 "Start Date",
                 "Target Delivery",
                 "Completed Tasks",
+                "Pending Tasks",
                 "Total Tasks",
-                "Remaining Tasks",
+                "Total Hours (hrs)",
                 "Progress (%)",
                 "Status"
             ];
@@ -178,13 +309,14 @@ const Reports = () => {
             const rows = dataToExport.map((m, idx) => {
                 const total = Number(m.totalTasks) || 0;
                 const completed = Number(m.completedTasks) || 0;
-                const remaining = m.remainingTasks !== undefined ? Number(m.remainingTasks) : Math.max(0, total - completed);
-                const progress = m.progress !== undefined 
-                    ? m.progress 
+                const pending = m.pendingTasks !== undefined ? Number(m.pendingTasks) : Math.max(0, total - completed);
+                const hours = Number(m.totalHours) || 0;
+                const progress = m.progress !== undefined
+                    ? m.progress
                     : (m.status === 'Completed' || m.status === 'Done' ? 100 : 0);
                 const startDate = m.startDate ? moment(m.startDate).format("DD/MM/YYYY") : "-";
-                const targetDate = m.completionDate 
-                    ? moment(m.completionDate).format("DD/MM/YYYY") 
+                const targetDate = m.completionDate
+                    ? moment(m.completionDate).format("DD/MM/YYYY")
                     : (m.estimatedCompletion ? moment(m.estimatedCompletion).format("DD/MM/YYYY") : "-");
 
                 return [
@@ -193,8 +325,9 @@ const Reports = () => {
                     startDate,
                     targetDate,
                     completed,
+                    pending,
                     total,
-                    remaining,
+                    hours,
                     `${progress}%`,
                     m.status || 'Not Started'
                 ];
@@ -279,6 +412,10 @@ const Reports = () => {
                                 <i className="bi bi-clock-history"></i>
                                 <span>Generated: {moment().format("DD MMM YYYY, HH:mm")}</span>
                             </div>
+                            <div className="report-chip">
+                                <i className="bi bi-stopwatch text-primary"></i>
+                                <span>Total Hours: {totalProjectHours} hrs</span>
+                            </div>
                         </div>
                     </div>
 
@@ -317,7 +454,7 @@ const Reports = () => {
                                                             setSelectedProjectId(p._id);
                                                             try {
                                                                 localStorage.setItem('client_selected_project_id', p._id);
-                                                            } catch (e) {}
+                                                            } catch (e) { }
                                                             setIsProjectDropdownOpen(false);
                                                         }}
                                                     >
@@ -335,9 +472,9 @@ const Reports = () => {
                             </div>
                         )}
 
-                        <button 
-                            type="button" 
-                            className="btn-report-action" 
+                        <button
+                            type="button"
+                            className="btn-report-action"
                             onClick={handleExportCSV}
                             title="Export milestone data to CSV spreadsheet"
                         >
@@ -345,9 +482,9 @@ const Reports = () => {
                             <span>Export CSV</span>
                         </button>
 
-                        <button 
-                            type="button" 
-                            className="btn-report-action btn-primary-gradient" 
+                        <button
+                            type="button"
+                            className="btn-report-action btn-primary-gradient"
                             onClick={handlePrint}
                             title="Print or save PDF report"
                         >
@@ -429,27 +566,28 @@ const Reports = () => {
                         </span>
                     </div>
 
-                    {/* Card 4: Tasks Closed */}
+
+                    {/* Card 5: Total Project Hours */}
                     <div className="rep-kpi-card">
                         <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Tasks Closed</span>
-                            <div className="rep-kpi-icon rep-icon-sky">
-                                <i className="bi bi-check2-all"></i>
+                            <span className="rep-kpi-label">Project Hours</span>
+                            <div className="rep-kpi-icon rep-icon-amber">
+                                <i className="bi bi-clock-history"></i>
                             </div>
                         </div>
                         <div className="rep-kpi-main">
-                            <span className="rep-kpi-val text-info">
-                                <CountUp end={completedTasks} /> / <CountUp end={totalTasks} />
+                            <span className="rep-kpi-val text-warning">
+                                <CountUp end={totalProjectHours} /> <small style={{ fontSize: '13px', fontWeight: 600 }}>hrs</small>
                             </span>
-                            <span className="rep-kpi-tag tag-sky">
-                                {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
+                            <span className="rep-kpi-tag tag-amber">
+                                {completedProjectHours} hrs done
                             </span>
                         </div>
                         <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-sky" style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}></div>
+                            <div className="rep-kpi-progress-bar bg-bar-amber" style={{ width: `${totalProjectHours > 0 ? (completedProjectHours / totalProjectHours) * 100 : 0}%` }}></div>
                         </div>
                         <span className="rep-kpi-sub">
-                            <CountUp end={remainingTasks} /> remaining tasks in backlog
+                            {pendingProjectHours} hrs pending across all milestones
                         </span>
                     </div>
 
@@ -490,19 +628,19 @@ const Reports = () => {
 
                         {/* Segmented Distribution Bar */}
                         <div className="multi-segment-track">
-                            <div 
-                                className="segment-item segment-completed" 
-                                style={{ width: `${completedPercent}%` }} 
+                            <div
+                                className="segment-item segment-completed"
+                                style={{ width: `${completedPercent}%` }}
                                 title={`Completed: ${completedMilestones} (${Math.round(completedPercent)}%)`}
                             />
-                            <div 
-                                className="segment-item segment-in-progress" 
-                                style={{ width: `${inProgressPercent}%` }} 
+                            <div
+                                className="segment-item segment-in-progress"
+                                style={{ width: `${inProgressPercent}%` }}
                                 title={`In Progress: ${inProgressMilestones} (${Math.round(inProgressPercent)}%)`}
                             />
-                            <div 
-                                className="segment-item segment-not-started" 
-                                style={{ width: `${pendingPercent}%` }} 
+                            <div
+                                className="segment-item segment-not-started"
+                                style={{ width: `${pendingPercent}%` }}
                                 title={`Not Started: ${pendingMilestones} (${Math.round(pendingPercent)}%)`}
                             />
                         </div>
@@ -553,12 +691,18 @@ const Reports = () => {
                                 <div className="velocity-box-title">Completed Work</div>
                                 <div className="velocity-box-value text-success">
                                     {completedTasks} <small className="text-muted" style={{ fontSize: '12px' }}>tasks</small>
+                                    <span className="d-block text-muted mt-1" style={{ fontSize: '11px', fontWeight: 500 }}>
+                                        {completedProjectHours} hrs delivered
+                                    </span>
                                 </div>
                             </div>
                             <div className="velocity-box">
                                 <div className="velocity-box-title">Pending Delivery</div>
                                 <div className="velocity-box-value text-amber">
                                     {remainingTasks} <small className="text-muted" style={{ fontSize: '12px' }}>tasks</small>
+                                    <span className="d-block text-muted mt-1" style={{ fontSize: '11px', fontWeight: 500 }}>
+                                        {pendingProjectHours} hrs queued
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -655,7 +799,9 @@ const Reports = () => {
                                     <th>Milestone Title</th>
                                     <th>Start Date</th>
                                     <th>Estimated Delivery</th>
-                                    <th>Tasks Status</th>
+                                    <th>Completed Tasks</th>
+                                    <th>Pending Tasks</th>
+                                    <th>Hours</th>
                                     <th>Progress</th>
                                     <th>Status</th>
                                 </tr>
@@ -667,7 +813,7 @@ const Reports = () => {
                                         const statusName = m.status || 'Not Started';
 
                                         return (
-                                            <tr key={m._id || idx}>
+                                            <tr key={m._id || idx} onClick={() => setSelectedMilestoneModal(m)} style={{ cursor: 'pointer' }} className="milestone-table-row" title="Click to view milestone tasks & hours">
                                                 <td className="col-idx">{idx + 1}</td>
                                                 <td>
                                                     <div className="milestone-title-wrap">
@@ -675,7 +821,10 @@ const Reports = () => {
                                                             <i className="bi bi-flag-fill"></i>
                                                         </div>
                                                         <div>
-                                                            <div className="milestone-title-text">{m.title || m.name}</div>
+                                                            <div className="milestone-title-text text-primary fw-bold">{m.title || m.name}</div>
+                                                            <small className="text-muted" style={{ fontSize: '10px' }}>
+                                                                <i className="bi bi-eye me-1" />View tasks &amp; hours
+                                                            </small>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -692,10 +841,19 @@ const Reports = () => {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div className="tasks-count-pill">
-                                                        <i className="bi bi-check2-square"></i>
-                                                        <span>{m.completedTasks || 0} of {m.totalTasks || 0} completed</span>
-                                                    </div>
+                                                    <span className="badge bg-success-subtle text-success border border-success-subtle py-1 px-2" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                                        <i className="bi bi-check2-circle me-1"></i> {m.completedTasks || 0}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                                        <i className="bi bi-hourglass-split me-1"></i> {m.pendingTasks !== undefined ? m.pendingTasks : Math.max(0, (m.totalTasks || 0) - (m.completedTasks || 0))}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="badge bg-light text-dark border py-1 px-2" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                                        <i className="bi bi-clock me-1 text-primary"></i> {m.totalHours || 0} hrs
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <div className="progress-cell-wrap">
@@ -721,13 +879,13 @@ const Reports = () => {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={7}>
+                                        <td colSpan={9}>
                                             <div className="table-empty-wrap">
                                                 <i className="bi bi-search table-empty-icon"></i>
                                                 <div className="table-empty-title">No Milestones Found</div>
                                                 <div className="table-empty-sub">
-                                                    {searchQuery || statusFilter !== "all" 
-                                                        ? "No milestones match your current filter or search criteria." 
+                                                    {searchQuery || statusFilter !== "all"
+                                                        ? "No milestones match your current filter or search criteria."
                                                         : "No milestone records are currently available for this project."}
                                                 </div>
                                                 {(searchQuery || statusFilter !== "all") && (
@@ -751,6 +909,13 @@ const Reports = () => {
                         </table>
                     </div>
                 </div>
+
+                {/* Milestone Tasks & Hours Popup Modal */}
+                <MilestoneTasksModal
+                    show={!!selectedMilestoneModal}
+                    onHide={() => setSelectedMilestoneModal(null)}
+                    milestone={selectedMilestoneModal}
+                />
             </main>
         </div>
     );
