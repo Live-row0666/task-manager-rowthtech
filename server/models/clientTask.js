@@ -32,6 +32,28 @@ const clientTaskSchema = new mongoose.Schema(
         timeSpent: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+        report: {
+            title: { type: String },
+            summaryOfWork: { type: String },
+            deliverables: [{ type: String }],
+            timeSpentHours: { type: Number, default: 0 },
+            completionDate: { type: Date, default: Date.now },
+            testingNotes: { type: String },
+            demoUrl: { type: String },
+            attachments: [{
+                name: String,
+                url: String,
+                uploadedAt: { type: Date, default: Date.now },
+            }],
+            status: {
+                type: String,
+                enum: ['Draft', 'Approved'],
+                default: 'Draft',
+            },
+            createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+            approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+            approvedAt: { type: Date },
+        },
     },
     { timestamps: true }
 );

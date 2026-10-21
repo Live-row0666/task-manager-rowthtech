@@ -169,7 +169,11 @@ const ClientProjectTab = () => {
                                     value={clientOpts.filter(c => selClients.map(x=>x.value).includes(c.value))}
                                     onChange={(sel) => setSelClients(sel || [])}
                                     placeholder="Select clients..." styles={SS}
-                                    onInputChange={(v) => v && dispatch(getClients({ search: v, projectType: dept }))} />
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(getClients({ search: v, projectType: dept }));
+                                        }
+                                    }} />
                             </Form.Group>
                         </Col>
                         <Col lg={6}>
@@ -209,7 +213,11 @@ const ClientProjectTab = () => {
                                 <Form.Label className="mb-0 small">Technologies</Form.Label>
                                 <Select isMulti options={techOpts} value={selTech}
                                     onChange={(sel) => setSelTech(sel || [])} placeholder="Select technologies..." styles={SS}
-                                    onInputChange={(v) => dispatch(getAllTechnology({ status: true, search: v }))} />
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(getAllTechnology({ status: true, search: v }));
+                                        }
+                                    }} />
                             </Form.Group>
                         </Col>
                         <Col lg={6}>
@@ -217,7 +225,11 @@ const ClientProjectTab = () => {
                                 <Form.Label className="mb-0 small">Team Members</Form.Label>
                                 <Select isMulti options={teamOpts} value={selTeam}
                                     onChange={(sel) => setSelTeam(sel || [])} placeholder="Select team members..." styles={SS}
-                                    onInputChange={(v) => v && dispatch(getAllUsers({ search: v, limit: 20, userType: dept }))} />
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(getAllUsers({ search: v, limit: 20, userType: dept }));
+                                        }
+                                    }} />
                             </Form.Group>
                         </Col>
                         <Col lg={6}>
@@ -526,7 +538,11 @@ const ClientMilestoneTab = () => {
                                 <Form.Label className="mb-0 small">Client Project <span className="text-danger">*</span></Form.Label>
                                 <Select options={projectOpts} value={selectedProject} onChange={setSelectedProject}
                                     placeholder="Select Client Project" isClearable isSearchable styles={SS}
-                                    onInputChange={(v) => v && dispatch(getClientProjects({ page: 1, limit: 100, search: v, projectType: dept }))} />
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(getClientProjects({ page: 1, limit: 100, search: v, projectType: dept }));
+                                        }
+                                    }} />
                                 {!selectedProject && <span className="text-muted" style={{ fontSize: '10px' }}>Select a client project first</span>}
                             </Form.Group>
                         </Col>
@@ -744,7 +760,11 @@ const ClientTaskTab = () => {
                                         setProjectAssignee(opt?.data?.team || []);
                                         if (opt?.value) dispatch(getClientMilestones({ projectId: opt.value, page: 1, limit: 100 }));
                                     }}
-                                    onInputChange={(v) => v && dispatch(getClientProjects({ page: 1, limit: 100, search: v, projectType: dept }))}
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(getClientProjects({ page: 1, limit: 100, search: v, projectType: dept }));
+                                        }
+                                    }}
                                     placeholder="Select Client Project" isClearable isSearchable styles={SS} />                            </Form.Group>
                         </Col>
                         <Col md={6}>
@@ -782,7 +802,11 @@ const ClientTaskTab = () => {
                                     rules={{ required: 'Reporter is required' }}
                                     render={({ field }) => (
                                         <Select {...field} options={[defaultOption, ...userOpts]}
-                                            onInputChange={(v) => v && dispatch(getAllUsers({ search: v, userType: dept }))}
+                                            onInputChange={(v, actionMeta) => {
+                                                if (actionMeta?.action === "input-change") {
+                                                    dispatch(getAllUsers({ search: v, userType: dept }));
+                                                }
+                                            }}
                                             placeholder="Select Reporter" isClearable isSearchable styles={SS} />
                                     )} />
                                 {errors.reporter && <span className="text-danger small">{errors.reporter.message}</span>}

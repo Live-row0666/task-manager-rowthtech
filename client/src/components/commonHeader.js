@@ -3,52 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { logoutUser } from "../redux/actions";
 
-const defaultNotifications = [
-    {
-        id: "notif-1",
-        type: "milestone",
-        title: "Milestone Delivery Updated",
-        desc: "Phase 'Oct 2025' tasks are currently progressing on schedule.",
-        time: "10m ago",
-        isRead: false,
-        link: "/dashboard/milestones",
-    },
-    {
-        id: "notif-2",
-        type: "task",
-        title: "Tasks Progress Verified",
-        desc: "118 of 227 project deliverables have been marked closed and verified.",
-        time: "1h ago",
-        isRead: false,
-        link: "/dashboard/reports",
-    },
-    {
-        id: "notif-3",
-        type: "doc",
-        title: "Project Document Vault Active",
-        desc: "Architecture specifications and deliverable contracts are indexed.",
-        time: "3h ago",
-        isRead: false,
-        link: "/dashboard/documents",
-    },
-    {
-        id: "notif-4",
-        type: "support",
-        title: "Support Desk Online",
-        desc: "RowthTech dedicated engineering team is assigned to your active workspace.",
-        time: "1d ago",
-        isRead: true,
-        link: "/dashboard/support",
-    },
-];
-
 const CommonHeader = ({ title }) => {
     const dispatch = useDispatch();
     const user = useSelector((state) => state.Auth.user);
 
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [notifFilter, setNotifFilter] = useState("all"); // 'all' | 'unread'
-    const [notifications, setNotifications] = useState(defaultNotifications);
+    const [notifications, setNotifications] = useState([]);
 
     const name = user?.username || user?.name || "LegalTech Client";
     const initials = name

@@ -176,6 +176,16 @@ const Topbar = ({ hideLogo, navCssClasses, openLeftMenuCallBack, topbarDark }: T
         setShowModal(false);
     };
 
+    const isClientTaskBoard = location.pathname.startsWith('/dashboard/client-task-board');
+
+    const handleAddTaskClick = () => {
+        if (isClientTaskBoard) {
+            window.dispatchEvent(new CustomEvent('open-client-add-task'));
+        } else {
+            setShowModal(true);
+        }
+    };
+
     // Initialize department based on role
     const initializeDepartment = () => {
         if (Role === 'Marketing') return 'Marketing';
@@ -331,17 +341,19 @@ const Topbar = ({ hideLogo, navCssClasses, openLeftMenuCallBack, topbarDark }: T
                                     <button
                                         className="btn bg-dark text-white fw-semibold d-flex align-items-center gap-1"
                                         style={{ padding: '4px 12px', fontSize: '11px' }}
-                                        onClick={() => setShowModal(true)}
+                                        onClick={handleAddTaskClick}
                                     >
                                         Add Task
                                     </button>
                                 )}
-                                <Pagesaddtask
-                                    className="d-none"
-                                    showModal={showModal}
-                                    closeModal={closeaddModal}
-                                    setShowModal={setShowModal}
-                                />
+                                {!isClientTaskBoard && (
+                                    <Pagesaddtask
+                                        className="d-none"
+                                        showModal={showModal}
+                                        closeModal={closeaddModal}
+                                        setShowModal={setShowModal}
+                                    />
+                                )}
                             </li>
                             {/* )} */}
 

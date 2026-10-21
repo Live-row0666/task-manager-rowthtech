@@ -89,7 +89,11 @@ const ClientMilestonesPage = () => {
                                 options={projectOpts}
                                 value={selProject}
                                 onChange={handleProjectChange}
-                                onInputChange={v => v && dispatch(getAllProjects({ skip: 1, limit: 100, search: v, status: true, projectStatus: 'ongoing_amc' }))}
+                                onInputChange={(v, actionMeta) => {
+                                    if (actionMeta?.action === "input-change") {
+                                        dispatch(getAllProjects({ skip: 1, limit: 100, search: v, status: true, projectStatus: 'ongoing_amc' }));
+                                    }
+                                }}
                                 placeholder="Select Project..."
                                 isClearable
                                 isSearchable

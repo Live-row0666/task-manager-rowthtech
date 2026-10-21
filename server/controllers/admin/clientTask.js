@@ -151,6 +151,87 @@ class ClientTaskController {
             return res.status(500).json({ status: 500, message: 'Internal server error', error: error.message });
         }
     }
+
+    // PUT /api/v1/admin/client-task/:id/report
+    async saveTaskReport(req, res) {
+        try {
+            const { id } = req.params;
+            const existingTask = await ClientTask.findById(id);
+            if (!existingTask) return res.status(404).json({ status: 404, message: 'Client task not found' });
+
+            const reportData = {
+                ...(existingTask.report || {}),
+                ...req.body,
+            };
+
+            if (!reportData.createdBy) {
+                reportData.createdBy = req.user._id;
+            }
+
+            if (req.body.status === 'Approved') {
+                reportData.status = 'Approved';
+                reportData.approvedBy = req.user._id;
+                reportData.approvedAt = new Date();
+            } else if (!reportData.status) {
+                reportData.status = 'Draft';
+            }
+
+            const updatedTask = await ClientTask.findByIdAndUpdate(
+                id,
+                { $set: { report: reportData } },
+                { new: true }
+            )
+                .populate('project', 'name')
+                .populate('milestone', 'title')
+                .populate('assignee', 'name email')
+                .populate('reporter', 'name email')
+                .populate('report.approvedBy', 'name email')
+                .populate('report.createdBy', 'name email');
+
+            return res.status(200).json({
+                status: 200,
+                message: reportData.status === 'Approved' ? 'Report approved and published successfully' : 'Report saved as draft',
+                data: updatedTask,
+            });
+        } catch (error) {
+            return res.status(500).json({ status: 500, message: 'Internal server error', error: error.message });
+        }
+    }
+
+    // PUT /api/v1/admin/client-task/:id/report/approve
+    async approveTaskReport(req, res) {
+        try {
+            const { id } = req.params;
+            const task = await ClientTask.findById(id);
+            if (!task) return res.status(404).json({ status: 404, message: 'Client task not found' });
+
+            if (!task.report || !task.report.summaryOfWork) {
+                return res.status(400).json({ status: 400, message: 'Cannot approve task without report summary' });
+            }
+
+            task.report.status = 'Approved';
+            task.report.approvedBy = req.user._id;
+            task.report.approvedAt = new Date();
+            await task.save();
+
+            const populated = await ClientTask.findById(id)
+                .populate('project', 'name')
+                .populate('milestone', 'title')
+                .populate('assignee', 'name email')
+                .populate('reporter', 'name email')
+                .populate('report.approvedBy', 'name email')
+                .populate('report.createdBy', 'name email');
+
+            return res.status(200).json({
+                status: 200,
+                message: 'Report approved and published to client',
+                data: populated,
+            });
+        } catch (error) {
+            return res.status(500).json({ status: 500, message: 'Internal server error', error: error.message });
+        }
+    }
 }
 
 module.exports = new ClientTaskController();
+

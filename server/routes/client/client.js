@@ -181,13 +181,55 @@ router.get('/client-task', verifyClient, async (req, res) => {
                 .lean();
         }
 
-        // Normalize task summary to title for client UI
-        tasks = tasks.map(t => ({
-            ...t,
-            title: t.summary || t.title
-        }));
+        // Normalize task summary to title for client UI & protect unapproved reports
+        tasks = tasks.map(t => {
+            const hasApprovedReport = t.report && t.report.status === 'Approved';
+            return {
+                ...t,
+                title: t.summary || t.title,
+                report: hasApprovedReport ? t.report : null,
+                hasApprovedReport: !!hasApprovedReport,
+            };
+        });
 
         return res.status(200).json({ status: 200, data: tasks });
+    } catch (err) {
+        return res.status(500).json({ status: 500, message: err.message });
+    }
+});
+
+// GET /api/v1/client/task/:taskId/report
+router.get('/task/:taskId/report', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const task = await ClientTask.findById(taskId)
+            .populate('project', 'name')
+            .populate('milestone', 'title')
+            .populate('assignee', 'name email designation')
+            .populate('report.approvedBy', 'name email')
+            .lean();
+
+        if (!task || !task.report || task.report.status !== 'Approved') {
+            return res.status(404).json({ status: 404, message: 'No approved completion report available for this task' });
+        }
+
+        return res.status(200).json({
+            status: 200,
+            data: {
+                task: {
+                    _id: task._id,
+                    summary: task.summary,
+                    status: task.status,
+                    project: task.project,
+                    milestone: task.milestone,
+                    assignee: task.assignee,
+                    estimatedTime: task.estimatedTime,
+                    completionTime: task.completionTime,
+                    timeSpent: task.timeSpent,
+                },
+                report: task.report,
+            },
+        });
     } catch (err) {
         return res.status(500).json({ status: 500, message: err.message });
     }

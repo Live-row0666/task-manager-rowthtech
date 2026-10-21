@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { getDashboard } from '../redux/actions';
+import { toast } from 'react-toastify';
 import CommonHeader from '../components/commonHeader';
 import CommonSidebar from '../components/commonSidebar';
 import moment from 'moment';
@@ -51,7 +52,13 @@ const Reports = () => {
         dashboard: state.Auth.dashboard,
     }));
 
-    const [selectedProjectId, setSelectedProjectId] = useState("");
+    const [selectedProjectId, setSelectedProjectId] = useState(() => {
+        try {
+            return localStorage.getItem('client_selected_project_id') || "";
+        } catch (e) {
+            return "";
+        }
+    });
     const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -68,8 +75,20 @@ const Reports = () => {
     }, [selectedProjectId, dispatch]);
 
     useEffect(() => {
-        if (dashboard?.projects?.length > 0 && !selectedProjectId) {
-            setSelectedProjectId(dashboard.projects[0]._id);
+        if (dashboard?.projects?.length > 0) {
+            const savedProject = localStorage.getItem('client_selected_project_id');
+            const projectExists = dashboard.projects.some(p => p._id === savedProject);
+            if (projectExists && savedProject) {
+                if (selectedProjectId !== savedProject) {
+                    setSelectedProjectId(savedProject);
+                }
+            } else if (!selectedProjectId) {
+                const firstId = dashboard.projects[0]._id;
+                setSelectedProjectId(firstId);
+                try {
+                    localStorage.setItem('client_selected_project_id', firstId);
+                } catch (e) {}
+            }
         }
     }, [dashboard?.projects, selectedProjectId]);
 
@@ -125,33 +144,91 @@ const Reports = () => {
 
     // Export to CSV Function
     const handleExportCSV = () => {
-        if (!milestones.length) return;
+        try {
+            const dataToExport = (searchQuery.trim() || statusFilter !== "all") ? filteredMilestones : milestones;
 
-        const headers = ["#", "Milestone Title", "Start Date", "Target Delivery", "Completed Tasks", "Total Tasks", "Progress (%)", "Status"];
-        const rows = milestones.map((m, idx) => [
-            idx + 1,
-            `"${(m.title || m.name || '').replace(/"/g, '""')}"`,
-            m.startDate ? moment(m.startDate).format("DD/MM/YYYY") : "-",
-            m.completionDate ? moment(m.completionDate).format("DD/MM/YYYY") : "-",
-            m.completedTasks || 0,
-            m.totalTasks || 0,
-            `${m.progress || (m.status === 'Completed' ? 100 : 0)}%`,
-            `"${m.status || 'Not Started'}"`
-        ]);
+            if (!milestones || milestones.length === 0) {
+                toast.info("No milestone data available to export for this project.");
+                return;
+            }
 
-        const csvContent = "data:text/csv;charset=utf-8," + [
-            headers.join(","),
-            ...rows.map(e => e.join(","))
-        ].join("\n");
+            if (dataToExport.length === 0) {
+                toast.info("No milestones match the current filter criteria to export.");
+                return;
+            }
 
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        const projectNameClean = (currentProject?.name || "Project").replace(/\s+/g, "_");
-        link.setAttribute("download", `${projectNameClean}_Performance_Report_${moment().format("YYYY-MM-DD")}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const escapeCSVCell = (val) => {
+                if (val === null || val === undefined) return '""';
+                const str = String(val).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
+                return `"${str.replace(/"/g, '""')}"`;
+            };
+
+            const headers = [
+                "#",
+                "Milestone Title",
+                "Start Date",
+                "Target Delivery",
+                "Completed Tasks",
+                "Total Tasks",
+                "Remaining Tasks",
+                "Progress (%)",
+                "Status"
+            ];
+
+            const rows = dataToExport.map((m, idx) => {
+                const total = Number(m.totalTasks) || 0;
+                const completed = Number(m.completedTasks) || 0;
+                const remaining = m.remainingTasks !== undefined ? Number(m.remainingTasks) : Math.max(0, total - completed);
+                const progress = m.progress !== undefined 
+                    ? m.progress 
+                    : (m.status === 'Completed' || m.status === 'Done' ? 100 : 0);
+                const startDate = m.startDate ? moment(m.startDate).format("DD/MM/YYYY") : "-";
+                const targetDate = m.completionDate 
+                    ? moment(m.completionDate).format("DD/MM/YYYY") 
+                    : (m.estimatedCompletion ? moment(m.estimatedCompletion).format("DD/MM/YYYY") : "-");
+
+                return [
+                    idx + 1,
+                    m.title || m.name || `Milestone ${idx + 1}`,
+                    startDate,
+                    targetDate,
+                    completed,
+                    total,
+                    remaining,
+                    `${progress}%`,
+                    m.status || 'Not Started'
+                ];
+            });
+
+            const csvString = [
+                headers.map(escapeCSVCell).join(","),
+                ...rows.map(row => row.map(escapeCSVCell).join(","))
+            ].join("\r\n");
+
+            // Prepend UTF-8 BOM so Excel and spreadsheet viewers properly decode UTF-8 characters
+            const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            const projectNameClean = (currentProject?.name || "Project")
+                .trim()
+                .replace(/[^a-zA-Z0-9_-]/g, "_")
+                .replace(/_+/g, "_");
+            const fileName = `${projectNameClean}_Performance_Report_${moment().format("YYYY-MM-DD")}.csv`;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+            }, 500);
+
+            toast.success("CSV report downloaded successfully!");
+        } catch (error) {
+            console.error("Failed to export CSV:", error);
+            toast.error("Failed to export CSV. Please try again.");
+        }
     };
 
     const handlePrint = () => {
@@ -238,6 +315,9 @@ const Reports = () => {
                                                         className={`project-dropdown-item ${isSelected ? 'selected' : ''}`}
                                                         onClick={() => {
                                                             setSelectedProjectId(p._id);
+                                                            try {
+                                                                localStorage.setItem('client_selected_project_id', p._id);
+                                                            } catch (e) {}
                                                             setIsProjectDropdownOpen(false);
                                                         }}
                                                     >

@@ -16,6 +16,7 @@ import { emojiRegex } from '../../../helpers/emojiRegex';
 import useQuillWordLimit from '../../../helpers/quillWordLimit';
 import { handleUpload } from '../../../constants/handleUpload';
 import DescriptionOffCanvas from '../../../components/DescriptionOffCanvas';
+import TaskReportModal from './TaskReportModal';
 import './ClientTaskDashboard.css';
 import {
     getAllProjects, getClientMilestones, getClientTasks,
@@ -78,10 +79,19 @@ const SS = {
     menu: b => ({ ...b, zIndex: 9999 }),
 };
 
+const safeFilterOption = (candidate, input) => {
+    if (!input) return true;
+    const term = typeof input === 'string' ? input.trim().toLowerCase() : '';
+    if (!term) return true;
+    const label = String(candidate?.label || candidate?.value || '').toLowerCase();
+    return label.includes(term);
+};
+
+
 // ══════════════════════════════════════════════════════════════════════════════
 // LIST VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-const ClientTaskListView = ({ tasks, loading }) => {
+const ClientTaskListView = ({ tasks, loading, onOpenReport }) => {
     const [selDesc, setSelDesc] = useState('');
     const [selTitle, setSelTitle] = useState('');
     const [showOC, setShowOC] = useState(false);
@@ -121,6 +131,7 @@ const ClientTaskListView = ({ tasks, loading }) => {
                         <th style={{ width: '9%', textAlign: 'center' }}>Priority</th>
                         <th style={{ width: '10%', textAlign: 'center' }}>Task Status</th>
                         <th style={{ width: '9%' }}>Estimated Time</th>
+                        <th style={{ width: '14%', textAlign: 'center' }}>Delivery Report</th>
                     </tr>
                 </thead>
             </Table>
@@ -131,6 +142,7 @@ const ClientTaskListView = ({ tasks, loading }) => {
                             <th style={{ width: '16%' }} /><th style={{ width: '13%' }} /><th style={{ width: '11%' }} />
                             <th style={{ width: '9%' }} /><th style={{ width: '9%' }} /><th style={{ width: '9%' }} />
                             <th style={{ width: '10%' }} /><th style={{ width: '9%' }} />
+                            <th style={{ width: '14%' }} />
                         </tr>
                     </thead>
                     <tbody>
@@ -167,6 +179,41 @@ const ClientTaskListView = ({ tasks, loading }) => {
                                     </span>
                                 </td>
                                 <td className="ctd-list-fs">{item?.estimatedTime ? item.estimatedTime + ' hrs' : 'N/A'}</td>
+                                <td className="text-center ctd-list-fs">
+                                    {item?.report?.status === 'Approved' ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-success d-inline-flex align-items-center"
+                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
+                                            onClick={() => onOpenReport && onOpenReport(item)}
+                                            title="Approved and visible to client. Click to view or edit."
+                                        >
+                                            <i className="bi bi-check-circle me-1" />Approved
+                                        </button>
+                                    ) : item?.report?.status === 'Draft' ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-warning d-inline-flex align-items-center"
+                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
+                                            onClick={() => onOpenReport && onOpenReport(item)}
+                                            title="Draft report (hidden from client). Click to edit or publish."
+                                        >
+                                            <i className="bi bi-clock-history me-1" />Draft
+                                        </button>
+                                    ) : item?.status === 'Done' ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-primary d-inline-flex align-items-center"
+                                            style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}
+                                            onClick={() => onOpenReport && onOpenReport(item)}
+                                            title="Create delivery report for client"
+                                        >
+                                            <i className="bi bi-plus-lg me-1" />Add Report
+                                        </button>
+                                    ) : (
+                                        <span className="text-muted" style={{ fontSize: '10px' }}>-</span>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -180,7 +227,7 @@ const ClientTaskListView = ({ tasks, loading }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 // TASK CARD
 // ══════════════════════════════════════════════════════════════════════════════
-const TaskCard = ({ item, onStatusChange }) => {
+const TaskCard = ({ item, onStatusChange, onOpenReport }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const isOverdue = item.dueDate && moment(item.dueDate).isBefore(moment()) && item.status !== 'Done';
 
@@ -203,6 +250,13 @@ const TaskCard = ({ item, onStatusChange }) => {
                                 <i className="bi bi-three-dots-vertical ctd-card-menu-icon" onClick={() => setMenuOpen(s => !s)} />
                                 {menuOpen && (
                                     <div className="ctd-card-menu">
+                                        <div className="ctd-card-menu-title">Actions</div>
+                                        <div
+                                            className="ctd-card-menu-item text-primary"
+                                            onClick={() => { onOpenReport && onOpenReport(item); setMenuOpen(false); }}
+                                        >
+                                            <i className="bi bi-file-earmark-text me-1" /> Delivery Report
+                                        </div>
                                         <div className="ctd-card-menu-title">Move to</div>
                                         {COLS.filter(s => s !== item.status).map(col => (
                                             <div key={col} className="ctd-card-menu-item"
@@ -235,6 +289,47 @@ const TaskCard = ({ item, onStatusChange }) => {
                         </span>
                     )}
                 </div>
+
+                {/* Delivery Report Row */}
+                {(item.report?.summaryOfWork || item.status === 'Done') && (
+                    <div className="ctd-card-report-row mt-2 pt-2 border-top d-flex justify-content-between align-items-center">
+                        <span className="text-secondary d-flex align-items-center gap-1" style={{ fontSize: '11px', fontWeight: 500 }}>
+                            <i className="bi bi-file-earmark-text text-primary" style={{ fontSize: '12px' }} />
+                            Report
+                        </span>
+                        {item.report?.status === 'Approved' ? (
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
+                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
+                                title="Approved & published to client. Click to view or edit."
+                            >
+                                <i className="bi bi-check-circle" /> Approved
+                            </button>
+                        ) : item.report?.status === 'Draft' ? (
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
+                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
+                                title="Draft report (hidden from client). Click to edit or publish."
+                            >
+                                <i className="bi bi-clock-history" /> Draft
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 500, lineHeight: 1.4 }}
+                                onClick={(e) => { e.stopPropagation(); onOpenReport && onOpenReport(item); }}
+                                title="Click to create client delivery report"
+                            >
+                                <i className="bi bi-plus-lg" /> Add Report
+                            </button>
+                        )}
+                    </div>
+                )}
             </CardBody>
         </CardWrap>
     );
@@ -251,7 +346,7 @@ const isOngoingOrAmc = (p) => {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
+const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do', initialProjectId, initialMilestoneId }) => {
     const dispatch = useDispatch();
     const store = useSelector(s => s);
     const quillRef = useRef(null);
@@ -311,8 +406,32 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
         if (show) {
             dispatch(getAllUsers({ userType: dept }));
             dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 }));
+            if (initialProjectId) {
+                const foundProj = (Array.isArray(projectsList) ? projectsList : []).find(
+                    p => String(p._id) === String(initialProjectId)
+                );
+                if (foundProj) {
+                    const opt = { value: String(foundProj._id), label: String(foundProj.name), data: foundProj };
+                    setValue('project', opt);
+                    setProjectSelected(opt.value);
+                    setProjectAssignee((foundProj?.team || []).filter(u => u?._id && u?.name));
+                    dispatch(getClientMilestones({ projectId: opt.value, page: 1, limit: 100 }));
+                }
+            }
         }
-    }, [show]);
+    }, [show, initialProjectId]);
+
+    useEffect(() => {
+        if (show && initialMilestoneId && clientMilestones.length > 0) {
+            const foundMilestone = clientMilestones.find(
+                m => String(m._id) === String(initialMilestoneId)
+            );
+            if (foundMilestone) {
+                setValue('milestone', { value: String(foundMilestone._id), label: String(foundMilestone.title) });
+                setMilestoneSelected(String(foundMilestone._id));
+            }
+        }
+    }, [show, initialMilestoneId, clientMilestones]);
 
     const handleLimitExceed = ({ message }) => toast.error(message);
     useQuillWordLimit({ quillRef, maxWords: MAX_WORDS, maxWordLength: MAX_WORD_LENGTH, onLimitExceed: handleLimitExceed, setValue, fieldName: 'note' });
@@ -409,6 +528,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                 <Select
                                                     value={safeValue(field.value)}
                                                     options={pOpts}
+                                                    filterOption={safeFilterOption}
                                                     placeholder="Select Project"
                                                     isClearable
                                                     isSearchable
@@ -431,7 +551,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                         setValue("milestone", null);
                                                     }}
                                                     onInputChange={(value, actionMeta) => {
-                                                        if (actionMeta.action === "input-change") {
+                                                        if (actionMeta?.action === "input-change") {
                                                             dispatch(
                                                                 getAllProjects({
                                                                     skip: 1,
@@ -458,6 +578,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                     value={safeValue(field.value)}
                                                     onChange={opt => { field.onChange(opt); setMilestoneSelected(opt?.value || null); }}
                                                     options={mOpts} placeholder="Select Milestone"
+                                                    filterOption={safeFilterOption}
                                                     isClearable isSearchable isDisabled={!projectSelected} styles={SS} />
                                             )} />
                                         {errors.milestone && <span className="text-danger small">{errors.milestone.message}</span>}
@@ -482,6 +603,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                 <Select
                                                     value={safeValue(field.value)}
                                                     options={aOpts}
+                                                    filterOption={safeFilterOption}
                                                     placeholder="Select Assignee"
                                                     isClearable
                                                     isSearchable
@@ -489,7 +611,7 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                     noOptionsMessage={() => "No team members found."}
                                                     onChange={(opt) => field.onChange(opt || null)}
                                                     onInputChange={(value, actionMeta) => {
-                                                        if (actionMeta.action === "input-change") {
+                                                        if (actionMeta?.action === "input-change") {
                                                             dispatch(
                                                                 getAllUsers({
                                                                     search: value,
@@ -514,13 +636,14 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
                                                 <Select
                                                     value={safeValue(field.value)}
                                                     options={[defaultOption, ...uOpts]}
+                                                    filterOption={safeFilterOption}
                                                     placeholder="Select Reporter"
                                                     isClearable
                                                     isSearchable
                                                     styles={SS}
                                                     onChange={(opt) => field.onChange(opt || null)}
                                                     onInputChange={(value, actionMeta) => {
-                                                        if (actionMeta.action === "input-change") {
+                                                        if (actionMeta?.action === "input-change") {
                                                             dispatch(
                                                                 getAllUsers({
                                                                     search: value,
@@ -682,7 +805,6 @@ const AddTaskModal = ({ show, onHide, defaultStatus = 'To Do' }) => {
 const ClientTaskDashboard = () => {
     const dispatch = useDispatch();
     const store = useSelector(s => s);
-    const { control } = useForm();
 
     const projectsList = store?.getProject?.data?.data || store?.getProject?.data?.response?.projects || store?.getProject?.data || store?.getClientProjectsReducer?.data?.data || [];
     const clientMilestones = store?.getClientMilestonesReducer?.data?.data || [];
@@ -698,8 +820,18 @@ const ClientTaskDashboard = () => {
     const [columns, setColumns] = useState({});
     const [localTasks, setLocalTasks] = useState([]);
     const [taskView, setTaskView] = useState('Board');
+    const [reportModalTask, setReportModalTask] = useState(null);
 
     useEffect(() => { dispatch(getAllProjects({ status: true, projectStatus: 'ongoing_amc', limit: 500, skip: 1 })); }, [dispatch]);
+
+    useEffect(() => {
+        const handleOpen = () => {
+            setDefaultStatus('To Do');
+            setShowModal(true);
+        };
+        window.addEventListener('open-client-add-task', handleOpen);
+        return () => window.removeEventListener('open-client-add-task', handleOpen);
+    }, []);
 
     useEffect(() => {
         const cols = {};
@@ -811,61 +943,54 @@ const ClientTaskDashboard = () => {
                         </div>
                         <div className="ctd-topbar-right">
                             <div className="ctd-select-wrap">
-
-                                <Controller
-                                    name="project"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Select
-                                            {...field}
-                                            value={
-                                                field.value ||
-                                                (projectSelected
-                                                    ? {
-                                                        value: String(projectSelected),
-                                                        label:
-                                                            (Array.isArray(projectsList) ? projectsList : []).find(
-                                                                p => String(p._id) === String(projectSelected)
-                                                            )?.name || "",
-                                                    }
-                                                    : null)
+                                <Select
+                                    value={
+                                        projectSelected
+                                            ? {
+                                                value: String(projectSelected),
+                                                label:
+                                                    (Array.isArray(projectsList) ? projectsList : []).find(
+                                                        p => String(p._id) === String(projectSelected)
+                                                    )?.name || "",
                                             }
-                                            options={pOpts}
-                                            onChange={(opt) => {
-                                                field.onChange(opt);
-                                                handleProjectChange(opt);
-                                            }}
-                                            onInputChange={(v) =>
-                                                v &&
-                                                dispatch(
-                                                    getAllProjects({
-                                                        skip: 1,
-                                                        limit: 100,
-                                                        search: v,
-                                                        status: true,
-                                                        projectStatus: 'ongoing_amc',
-                                                    })
-                                                )
-                                            }
-                                            placeholder="Select Project"
-                                            isSearchable
-                                            isClearable
-                                            styles={SS}
-                                        />
-                                    )}
+                                            : null
+                                    }
+                                    options={pOpts}
+                                    filterOption={safeFilterOption}
+                                    onChange={handleProjectChange}
+                                    onInputChange={(v, actionMeta) => {
+                                        if (actionMeta?.action === "input-change") {
+                                            dispatch(
+                                                getAllProjects({
+                                                    skip: 1,
+                                                    limit: 100,
+                                                    search: v,
+                                                    status: true,
+                                                    projectStatus: 'ongoing_amc',
+                                                })
+                                            );
+                                        }
+                                    }}
+                                    placeholder="Select Project"
+                                    isSearchable
+                                    isClearable
+                                    styles={SS}
                                 />
                             </div>
                             <div className="ctd-select-wrap">
-                                <Controller name="milestone" control={control} render={({ field }) => (
-                                    <Select
-                                        value={milestoneSelected
-                                            ? { value: String(milestoneSelected), label: String(clientMilestones.find(m => m._id === milestoneSelected)?.title || '') }
-                                            : null}
-                                        options={mOpts}
-                                        onChange={opt => { field.onChange(opt); handleMilestoneChange(opt); }}
-                                        placeholder="Select Milestone" isSearchable isClearable
-                                        isDisabled={!projectSelected} styles={SS} />
-                                )} />
+                                <Select
+                                    value={milestoneSelected
+                                        ? { value: String(milestoneSelected), label: String((clientMilestones || []).find(m => String(m._id) === String(milestoneSelected))?.title || '') }
+                                        : null}
+                                    options={mOpts}
+                                    filterOption={safeFilterOption}
+                                    onChange={handleMilestoneChange}
+                                    placeholder="Select Milestone"
+                                    isSearchable
+                                    isClearable
+                                    isDisabled={!projectSelected}
+                                    styles={SS}
+                                />
                             </div>
                             <div className="ctd-search-wrap">
                                 <input
@@ -893,7 +1018,7 @@ const ClientTaskDashboard = () => {
                         </div>
                     </div>
                 ) : taskView === 'List' ? (
-                    <ClientTaskListView tasks={allFilteredTasks} loading={tasksLoading} />
+                    <ClientTaskListView tasks={allFilteredTasks} loading={tasksLoading} onOpenReport={setReportModalTask} />
                 ) : tasksLoading ? (
                     <div className="ctd-loading">
                         <div className="spinner-border text-dark" />
@@ -922,7 +1047,7 @@ const ClientTaskDashboard = () => {
                                                         </div>
                                                     </div>
                                                 ) : col.items.map(task => (
-                                                    <TaskCard key={task._id} item={task} onStatusChange={handleStatusChange} />
+                                                    <TaskCard key={task._id} item={task} onStatusChange={handleStatusChange} onOpenReport={setReportModalTask} />
                                                 ))}
                                             </div>
                                         </KanbanColumn>
@@ -936,7 +1061,15 @@ const ClientTaskDashboard = () => {
                 <AddTaskModal
                     show={showModal}
                     onHide={() => setShowModal(false)}
-                    defaultStatus={defaultStatus} />
+                    defaultStatus={defaultStatus}
+                    initialProjectId={projectSelected}
+                    initialMilestoneId={milestoneSelected} />
+
+                <TaskReportModal
+                    show={!!reportModalTask}
+                    task={reportModalTask}
+                    onHide={() => setReportModalTask(null)}
+                    onReportSaved={() => fetchTasks()} />
             </div>
         </div>
     );

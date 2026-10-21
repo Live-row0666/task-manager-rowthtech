@@ -8,6 +8,7 @@ import './MilestoneTasks.css';
 import Select from "react-select";
 import CommonSidebar from '../components/commonSidebar';
 import CommonHeader from '../components/commonHeader';
+import ClientTaskReportModal from '../components/ClientTaskReportModal';
 const COLS = ['To Do', 'In Progress', 'Testing', 'On Hold', 'Done'];
 const COLCLR = { 'To Do': '#6c757d', 'In Progress': '#0d6efd', 'Testing': '#6f42c1', 'On Hold': '#fd7e14', 'Done': '#198754' };
 const PRBG = { Critical: 'rgba(243,4,24,0.1)', High: 'rgba(255,165,2,0.1)', Medium: 'rgba(30,144,255,0.1)', Low: 'rgba(46,213,115,0.1)' };
@@ -40,6 +41,7 @@ const MilestoneTasks = () => {
     const [search, setSearch] = useState('');
     const [activeMsId, setActiveMsId] = useState(milestoneId);
     const [activeMsName, setActiveMsName] = useState(mName);
+    const [selectedReportTask, setSelectedReportTask] = useState(null);
 
     useEffect(() => {
         if (activeMsId) dispatch(getClientTasksAction(activeMsId));
@@ -343,7 +345,7 @@ const MilestoneTasks = () => {
 
                                                         {/* Footer */}
 
-                                                        <div className="mst-card-footer">
+                                                        <div className="mst-card-footer d-flex align-items-center justify-content-between">
 
                                                             <div className="mst-avatar">
 
@@ -356,7 +358,21 @@ const MilestoneTasks = () => {
 
                                                             </div>
 
-
+                                                            {task.report && task.report.status === 'Approved' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-success py-0 px-2 d-flex align-items-center gap-1 shadow-sm"
+                                                                    style={{ fontSize: '11px', borderRadius: '4px' }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedReportTask(task);
+                                                                    }}
+                                                                    title="View Delivery Report"
+                                                                >
+                                                                    <i className="bi bi-file-earmark-check-fill text-success" />
+                                                                    <span>Delivery Report</span>
+                                                                </button>
+                                                            )}
 
                                                         </div>
 
@@ -370,6 +386,12 @@ const MilestoneTasks = () => {
                         </div>
                     )}
                 </div>
+
+                <ClientTaskReportModal
+                    show={!!selectedReportTask}
+                    task={selectedReportTask}
+                    onHide={() => setSelectedReportTask(null)}
+                />
             </main>
         </div>
     );
