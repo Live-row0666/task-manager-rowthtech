@@ -37,3 +37,16 @@ export function updateClientMilestoneApi(data) {
     const { milestoneId, body } = data.payload;
     return api.update(`${MILESTONE_BASE}/${milestoneId}`, body);
 }
+
+export function importClientTasksApi(formData) {
+    return api.createWithFileDocument(`${TASK_BASE}/import`, formData);
+}
+
+export function previewImportClientTasksApi(formData) {
+    return api.createWithFileDocument(`${TASK_BASE}/import-preview`, formData);
+}
+
+export function downloadSampleTemplateApi() {
+    return api.getFile(`${TASK_BASE}/sample-template`);
+}
+

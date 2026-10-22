@@ -373,20 +373,16 @@ const Reports = () => {
         if (status === "In Progress") return "rep-badge-pill badge-status-inprogress";
         return "rep-badge-pill badge-status-notstarted";
     };
-
     const getProgressBarClass = (status) => {
         if (status === "Completed") return "bg-bar-emerald";
         if (status === "In Progress") return "bg-bar-amber";
         return "bg-bar-indigo";
     };
-
     return (
         <div className="dashboard-wrapper">
             <CommonSidebar active="reports" />
-
             <main className="dash-main">
                 <CommonHeader title="Project Reports" />
-
                 {/* Hero Header Section */}
                 <div className="reports-hero-bar">
                     <div className="reports-hero-left">
@@ -398,7 +394,6 @@ const Reports = () => {
                         <p className="reports-hero-subtitle">
                             Detailed breakdown of project deliverables, milestone progress velocity, and task execution statistics.
                         </p>
-
                         <div className="reports-meta-chips">
                             <div className="report-chip">
                                 <i className="bi bi-folder2-open"></i>
@@ -418,7 +413,6 @@ const Reports = () => {
                             </div>
                         </div>
                     </div>
-
                     <div className="reports-hero-actions">
                         {/* Project Switcher Dropdown */}
                         {dashboard?.projects?.length > 1 && (
@@ -437,7 +431,6 @@ const Reports = () => {
                                     </div>
                                     <i className={`bi bi-chevron-down project-trigger-chevron ${isProjectDropdownOpen ? 'open' : ''}`}></i>
                                 </button>
-
                                 {isProjectDropdownOpen && (
                                     <div className="project-dropdown-menu">
                                         <div className="project-dropdown-header">
@@ -471,7 +464,6 @@ const Reports = () => {
                                 )}
                             </div>
                         )}
-
                         <button
                             type="button"
                             className="btn-report-action"
@@ -481,7 +473,6 @@ const Reports = () => {
                             <i className="bi bi-file-earmark-spreadsheet text-success"></i>
                             <span>Export CSV</span>
                         </button>
-
                         <button
                             type="button"
                             className="btn-report-action btn-primary-gradient"
@@ -493,228 +484,204 @@ const Reports = () => {
                         </button>
                     </div>
                 </div>
-
-                {/* 5 Executive KPI Summary Cards */}
+                {/* Executive KPI Summary Cards - Compact Design Matching Reference */}
                 <div className="reports-kpi-grid">
-                    {/* Card 1: Project Status */}
-                    <div className="rep-kpi-card">
-                        <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Project Status</span>
-                            <div className="rep-kpi-icon rep-icon-indigo">
-                                <i className="bi bi-briefcase-fill"></i>
-                            </div>
-                        </div>
-                        <div className="rep-kpi-main">
-                            <span className="rep-kpi-val" style={{ fontSize: '20px' }}>
-                                {project.projectStatus || 'Ongoing'}
-                            </span>
-                            <span className="rep-kpi-tag tag-indigo">Active</span>
-                        </div>
-                        <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-indigo" style={{ width: '100%' }}></div>
-                        </div>
-                        <span className="rep-kpi-sub">
-                            {project.startDate ? moment(project.startDate).format("MMM YYYY") : "Kickoff"} - {project.estimatedCompletion ? moment(project.estimatedCompletion).format("MMM YYYY") : "Delivery"}
-                        </span>
-                    </div>
-
-                    {/* Card 2: Overall Completion */}
-                    <div className="rep-kpi-card">
-                        <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Overall Completion</span>
-                            <div className="rep-kpi-icon rep-icon-emerald">
-                                <i className="bi bi-pie-chart-fill"></i>
-                            </div>
-                        </div>
-                        <div className="rep-kpi-main">
-                            <span className="rep-kpi-val text-success">
-                                <CountUp end={overallProgress} />%
-                            </span>
-                            <span className="rep-kpi-tag tag-emerald">
-                                {overallProgress >= 50 ? 'On Track' : 'In Progress'}
-                            </span>
-                        </div>
-                        <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-emerald" style={{ width: `${overallProgress}%` }}></div>
-                        </div>
-                        <span className="rep-kpi-sub">
-                            Aggregated deliverables completion
-                        </span>
-                    </div>
-
-                    {/* Card 3: Milestones Delivered */}
-                    <div className="rep-kpi-card">
-                        <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Milestones Delivered</span>
-                            <div className="rep-kpi-icon rep-icon-purple">
+                    {/* Card 1: Milestones Delivered */}
+                    <div className="rep-kpi-card rep-card-compact">
+                        <div className="rep-card-top">
+                            <div className="rep-card-icon icon-blue">
                                 <i className="bi bi-layers-fill"></i>
                             </div>
-                        </div>
-                        <div className="rep-kpi-main">
-                            <span className="rep-kpi-val text-primary">
-                                <CountUp end={completedMilestones} /> / <CountUp end={totalMilestones} />
-                            </span>
-                            <span className="rep-kpi-tag tag-purple">
-                                <CountUp end={completedPercent} decimals={0} />%
-                            </span>
-                        </div>
-                        <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-purple" style={{ width: `${completedPercent}%` }}></div>
-                        </div>
-                        <span className="rep-kpi-sub">
-                            {inProgressMilestones} active &bull; {pendingMilestones} scheduled
-                        </span>
-                    </div>
-
-
-                    {/* Card 5: Total Project Hours */}
-                    <div className="rep-kpi-card">
-                        <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Project Hours</span>
-                            <div className="rep-kpi-icon rep-icon-amber">
-                                <i className="bi bi-clock-history"></i>
+                            <div className="rep-card-head-txt">
+                                <div className="rep-card-title">Milestones Delivered</div>
+                                <div className="rep-card-sub">Total completed milestones</div>
+                            </div>
+                            <div className="rep-card-arrow">
+                                <i className="bi bi-chevron-right"></i>
                             </div>
                         </div>
-                        <div className="rep-kpi-main">
-                            <span className="rep-kpi-val text-warning">
-                                <CountUp end={totalProjectHours} /> <small style={{ fontSize: '13px', fontWeight: 600 }}>hrs</small>
+
+                        <div className="rep-val-row">
+                            <div className="rep-split-val">
+                                <span className="val-accent text-primary"><CountUp end={completedMilestones} /></span>
+                                <span className="val-slash">/</span>
+                                <span className="val-total"><CountUp end={totalMilestones} /></span>
+                            </div>
+                            <span className="rep-pill-badge pill-purple">
+                                <CountUp end={completedPercent} decimals={0} />% Delivered
                             </span>
-                            <span className="rep-kpi-tag tag-amber">
+                        </div>
+
+                        <div className="rep-slim-bar">
+                            <div className="rep-slim-fill bg-bar-purple" style={{ width: `${completedPercent}%` }}></div>
+                        </div>
+
+                        <div className="rep-bottom-box box-blue-tint">
+                            <div className="box-icon-wrap icon-wrap-green">
+                                <i className="bi bi-check-circle-fill"></i>
+                            </div>
+                            <div className="box-text-wrap">
+                                <div className="box-main-txt">{completedMilestones} of {totalMilestones} Completed</div>
+                                <div className="box-sub-txt">{inProgressMilestones} active &bull; {pendingMilestones} scheduled</div>
+                            </div>
+                            <div className="box-corner-watermark watermark-blue"></div>
+                        </div>
+                    </div>
+
+                    {/* Card 2: Total Project Hours */}
+                    <div className="rep-kpi-card rep-card-compact">
+                        <div className="rep-card-top">
+                            <div className="rep-card-icon icon-amber">
+                                <i className="bi bi-clock-history"></i>
+                            </div>
+                            <div className="rep-card-head-txt">
+                                <div className="rep-card-title">Project Hours</div>
+                                <div className="rep-card-sub">Total hours logged</div>
+                            </div>
+                            <div className="rep-card-arrow">
+                                <i className="bi bi-chevron-right"></i>
+                            </div>
+                        </div>
+
+                        <div className="rep-val-row">
+                            <div className="rep-single-val text-amber">
+                                <CountUp end={totalProjectHours} /> <span className="val-unit">hrs</span>
+                            </div>
+                            <span className="rep-pill-badge pill-amber">
                                 {completedProjectHours} hrs done
                             </span>
                         </div>
-                        <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-amber" style={{ width: `${totalProjectHours > 0 ? (completedProjectHours / totalProjectHours) * 100 : 0}%` }}></div>
+
+                        <div className="rep-slim-bar">
+                            <div className="rep-slim-fill bg-bar-amber" style={{ width: `${totalProjectHours > 0 ? (completedProjectHours / totalProjectHours) * 100 : 0}%` }}></div>
                         </div>
-                        <span className="rep-kpi-sub">
-                            {pendingProjectHours} hrs pending across all milestones
-                        </span>
+
+                        <div className="rep-bottom-box box-amber-tint">
+                            <div className="box-icon-wrap icon-wrap-amber">
+                                <i className="bi bi-hourglass-split"></i>
+                            </div>
+                            <div className="box-text-wrap">
+                                <div className="box-main-txt">{pendingProjectHours} hrs pending</div>
+                                <div className="box-sub-txt">{totalProjectHours > 0 ? Math.round((completedProjectHours / totalProjectHours) * 100) : 0}% hours logged</div>
+                            </div>
+                            <div className="box-corner-watermark watermark-amber"></div>
+                        </div>
                     </div>
 
-                    {/* Card 5: Current Focus Milestone */}
-                    <div className="rep-kpi-card">
-                        <div className="rep-kpi-top">
-                            <span className="rep-kpi-label">Current Focus</span>
-                            <div className="rep-kpi-icon rep-icon-amber">
-                                <i className="bi bi-flag-fill"></i>
+                    {/* Card 3: Current Focus Milestone */}
+                    <div className="rep-kpi-card rep-card-compact">
+                        <div className="rep-card-top">
+                            <div className="rep-card-icon icon-purple">
+                                <i className="bi bi-bullseye"></i>
+                            </div>
+                            <div className="rep-card-head-txt">
+                                <div className="rep-card-title">Current Focus</div>
+                                <div className="rep-card-sub">What you're working on</div>
+                            </div>
+                            <div className="rep-card-arrow">
+                                <i className="bi bi-chevron-right"></i>
                             </div>
                         </div>
-                        <div className="rep-kpi-main">
-                            <span className="rep-kpi-val text-dark" style={{ fontSize: '18px' }} title={activeDeliverable?.title || activeDeliverable?.name}>
+
+                        <div className="rep-val-row">
+                            <div className="rep-single-val text-dark" style={{ fontSize: '18px' }} title={activeDeliverable?.title || activeDeliverable?.name}>
                                 {activeDeliverable?.title || activeDeliverable?.name || "None in flight"}
+                            </div>
+                            <span className="rep-pill-badge pill-purple">
+                                {activeDeliverable?.status || "In Progress"}
                             </span>
-                            <span className="rep-kpi-tag tag-amber">Target</span>
-                        </div>
-                        <div className="rep-kpi-progress">
-                            <div className="rep-kpi-progress-bar bg-bar-amber" style={{ width: `${activeDeliverable?.progress || 0}%` }}></div>
-                        </div>
-                        <span className="rep-kpi-sub">
-                            Due: {activeDeliverable?.completionDate ? moment(activeDeliverable.completionDate).format("DD MMM YYYY") : "Pending"}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Analytics Insights Row */}
-                <div className="reports-analytics-row">
-                    {/* Panel 1: Milestone Delivery Health */}
-                    <div className="analytics-panel">
-                        <div className="panel-header">
-                            <h4 className="panel-title">
-                                <i className="bi bi-pie-chart"></i>
-                                Milestone Status Distribution
-                            </h4>
-                            <span className="panel-badge">{totalMilestones} Total Phases</span>
                         </div>
 
-                        {/* Segmented Distribution Bar */}
-                        <div className="multi-segment-track">
-                            <div
-                                className="segment-item segment-completed"
-                                style={{ width: `${completedPercent}%` }}
-                                title={`Completed: ${completedMilestones} (${Math.round(completedPercent)}%)`}
-                            />
-                            <div
-                                className="segment-item segment-in-progress"
-                                style={{ width: `${inProgressPercent}%` }}
-                                title={`In Progress: ${inProgressMilestones} (${Math.round(inProgressPercent)}%)`}
-                            />
-                            <div
-                                className="segment-item segment-not-started"
-                                style={{ width: `${pendingPercent}%` }}
-                                title={`Not Started: ${pendingMilestones} (${Math.round(pendingPercent)}%)`}
-                            />
+                        <div className="rep-slim-bar">
+                            <div className="rep-slim-fill bg-bar-purple" style={{ width: `${activeDeliverable?.progress || 0}%` }}></div>
                         </div>
 
-                        {/* Legend */}
-                        <div className="legend-grid">
-                            <div className="legend-item">
-                                <div className="legend-dot-label">
-                                    <span className="legend-dot dot-green"></span>
-                                    <span>Completed</span>
-                                </div>
-                                <span className="legend-val">{completedMilestones}</span>
-                                <span className="legend-sub">{completedPercent.toFixed(0)}% of project</span>
+                        <div className="rep-bottom-box box-purple-tint">
+                            <div className="box-icon-wrap icon-wrap-purple">
+                                <i className="bi bi-calendar2-event-fill"></i>
                             </div>
-
-                            <div className="legend-item">
-                                <div className="legend-dot-label">
-                                    <span className="legend-dot dot-amber"></span>
-                                    <span>In Progress</span>
-                                </div>
-                                <span className="legend-val">{inProgressMilestones}</span>
-                                <span className="legend-sub">{inProgressPercent.toFixed(0)}% active</span>
+                            <div className="box-text-wrap">
+                                <div className="box-main-txt">Due: {activeDeliverable?.completionDate ? moment(activeDeliverable.completionDate).format("DD MMM YYYY") : "Pending"}</div>
+                                <div className="box-sub-txt">{activeDeliverable?.completedTasks !== undefined ? `${activeDeliverable.completedTasks}/${activeDeliverable.totalTasks || 0} tasks delivered` : "0/0 tasks delivered"}</div>
                             </div>
-
-                            <div className="legend-item">
-                                <div className="legend-dot-label">
-                                    <span className="legend-dot dot-gray"></span>
-                                    <span>Not Started</span>
-                                </div>
-                                <span className="legend-val">{pendingMilestones}</span>
-                                <span className="legend-sub">{pendingPercent.toFixed(0)}% queued</span>
-                            </div>
+                            <div className="box-corner-watermark watermark-purple"></div>
                         </div>
                     </div>
 
-                    {/* Panel 2: Task Execution & Delivery Velocity */}
-                    <div className="analytics-panel">
-                        <div className="panel-header">
-                            <h4 className="panel-title">
-                                <i className="bi bi-speedometer2"></i>
-                                Task Velocity & Timeline
-                            </h4>
-                            <span className="panel-badge">{totalTasks} Total Tasks</span>
-                        </div>
-
-                        <div className="task-velocity-grid">
-                            <div className="velocity-box">
-                                <div className="velocity-box-title">Completed Work</div>
-                                <div className="velocity-box-value text-success">
-                                    {completedTasks} <small className="text-muted" style={{ fontSize: '12px' }}>tasks</small>
-                                    <span className="d-block text-muted mt-1" style={{ fontSize: '11px', fontWeight: 500 }}>
-                                        {completedProjectHours} hrs delivered
-                                    </span>
-                                </div>
+                    {/* Card 4: Status & Velocity */}
+                    <div className="rep-kpi-card rep-card-compact rep-card-v4">
+                        <div className="rep-card-top">
+                            <div className="rep-card-icon icon-green">
+                                <i className="bi bi-graph-up-arrow"></i>
                             </div>
-                            <div className="velocity-box">
-                                <div className="velocity-box-title">Pending Delivery</div>
-                                <div className="velocity-box-value text-amber">
-                                    {remainingTasks} <small className="text-muted" style={{ fontSize: '12px' }}>tasks</small>
-                                    <span className="d-block text-muted mt-1" style={{ fontSize: '11px', fontWeight: 500 }}>
-                                        {pendingProjectHours} hrs queued
-                                    </span>
-                                </div>
+                            <div className="rep-card-head-txt">
+                                <div className="rep-card-title">Status & Velocity</div>
+                                <div className="rep-card-sub">Team progress & performance</div>
+                            </div>
+                            <div className="rep-card-arrow">
+                                <i className="bi bi-chevron-right"></i>
                             </div>
                         </div>
 
-                        <div className="timeline-info-strip">
-                            <div className="timeline-info-item">
-                                <i className="bi bi-calendar2-check"></i>
-                                <span>Kickoff: {project.startDate ? moment(project.startDate).format("DD MMM YYYY") : "N/A"}</span>
+                        <div className="v4-body">
+                            {/* Milestone Status */}
+                            <div className="v4-sub-section">
+                                <div className="v4-head-row">
+                                    <span className="v4-label">
+                                        <i className="bi bi-person-fill text-primary me-1"></i> Milestone Status
+                                    </span>
+                                    <span className="v4-phases-tag">{totalMilestones} Phases</span>
+                                </div>
+                                <div className="v4-track">
+                                    <div
+                                        className="v4-seg seg-done"
+                                        style={{ width: `${completedPercent}%` }}
+                                        title={`Completed: ${completedMilestones}`}
+                                    />
+                                    <div
+                                        className="v4-seg seg-active"
+                                        style={{ width: `${inProgressPercent}%` }}
+                                        title={`In Progress: ${inProgressMilestones}`}
+                                    />
+                                    <div
+                                        className="v4-seg seg-queued"
+                                        style={{ width: `${pendingPercent}%` }}
+                                        title={`Not Started: ${pendingMilestones}`}
+                                    />
+                                </div>
+                                <div className="v4-pills-row">
+                                    <span className="v4-pill pill-done" title="Completed">
+                                        <span className="v4-dot dot-green"></span> {completedMilestones} Done
+                                    </span>
+                                    <span className="v4-pill pill-active" title="In Progress">
+                                        <span className="v4-dot dot-amber"></span> {inProgressMilestones} Active
+                                    </span>
+                                    <span className="v4-pill pill-queued" title="Not Started">
+                                        <span className="v4-dot dot-blue"></span> {pendingMilestones} Queued
+                                    </span>
+                                </div>
                             </div>
-                            <div className="timeline-info-item">
-                                <i className="bi bi-flag"></i>
-                                <span>Target Delivery: {project.estimatedCompletion ? moment(project.estimatedCompletion).format("DD MMM YYYY") : "N/A"}</span>
+
+                            {/* Task Velocity */}
+                            <div className="v4-sub-section">
+                                <div className="v4-head-row">
+                                    <span className="v4-label">
+                                        <i className="bi bi-lightning-charge-fill text-success me-1"></i> Task Velocity
+                                    </span>
+                                    <span className="v4-rate-tag">
+                                        {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}% Rate
+                                    </span>
+                                </div>
+                                <div className="v4-track">
+                                    <div
+                                        className="v4-seg seg-done"
+                                        style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}
+                                    />
+                                </div>
+                                <div className="v4-meta-row">
+                                    <span>{completedTasks} of {totalTasks} tasks delivered</span>
+                                    <span className="v4-hrs-txt">{completedProjectHours} hrs done</span>
+                                </div>
                             </div>
                         </div>
                     </div>
