@@ -7,6 +7,7 @@ const { sendEmail } = require('../../config/nodemailer');
 const Attendance = require('../../models/attendance');
 const { forgotPasswordTemplate, passwordResetSuccessTemplate } = require('../../templates/emailTemplates');
 const crypto = require('crypto');
+const { recordClientLogin } = require('../../utils/clientLoginAudit');
 
 class ClinetAuthController {
 
@@ -25,7 +26,7 @@ class ClinetAuthController {
                 loginEmail: email,
                 status: "active",
             })
-                .select("password name email role")
+                .select("password name email loginEmail role projects")
                 .populate("role", "name");
 
             if (!user || !EncryptionService.compare(password, user.password)) {
@@ -70,6 +71,10 @@ class ClinetAuthController {
                 role: user.role.name,
 
             });
+
+            // Audit failures must not turn valid credentials into a failed login.
+            try { await recordClientLogin(req, user); }
+            catch (error) { console.error('Client login audit failed:', error.message); }
 
             return res.status(200).json({
                 status: 200,

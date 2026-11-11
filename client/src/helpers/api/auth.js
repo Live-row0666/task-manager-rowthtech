@@ -5,7 +5,9 @@ const api = new APICore();
 const baseurl = 'api/v1/client/auth';
 const dashboardBaseUrl = 'api/v1/client';
 function login(params: any): any {
-    return api.create(`${baseurl}/login`, params);
+    let timezone = '';
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { }
+    return api.create(`${baseurl}/login`, { ...params, loginContext: { timezone } });
 }
 
 function logout(): any {

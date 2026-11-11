@@ -12,6 +12,7 @@ import {
     getGlobalSearch,
 } from '../redux/actions';
 import ProfileDropdown from '../components/ProfileDropdown';
+import ClientLoginHistory from '../components/ClientLoginHistory';
 import Pagesaddtask from './AllPagesRightbar';
 // images
 import profilePic from '../assets/images/users/avatar-1.jpg';
@@ -255,6 +256,7 @@ const Topbar = ({ hideLogo, navCssClasses, openLeftMenuCallBack, topbarDark }: T
                         </div>
 
                         <ul className="list-unstyled d-flex align-items-center float-end mb-0 topbarr">
+                            {['Project Manager', 'admin', 'sub-admin'].includes(Role) && <li><ClientLoginHistory /></li>}
                             {Role !== 'Support' || Role !== 'Seo Manager' && (
                                 <li className="position-relative me-2">
                                     <input

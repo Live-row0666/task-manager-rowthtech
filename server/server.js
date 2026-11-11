@@ -20,6 +20,10 @@ const userRoutes = require('./routes/user/user');
 const clientRoutes = require('./routes/client/client');
 
 const app = express();
+// Trust only explicitly configured reverse-proxy IPs/CIDRs, never arbitrary forwarded headers.
+if (process.env.TRUSTED_PROXY_CIDRS) {
+  app.set('trust proxy', process.env.TRUSTED_PROXY_CIDRS.split(',').map(value => value.trim()).filter(Boolean));
+}
 const server = http.createServer(app);
 
 // Socket.io initialization with CORS

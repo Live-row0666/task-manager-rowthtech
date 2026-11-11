@@ -72,5 +72,6 @@ router.use('/documents', clientDocumentsRoutes);
 router.use('/client-support', clientSupportRoutes);
 router.use('/client-dependency', clientDependencyRoutes);
 router.use('/client-chat', clientChatRoutes);
+router.use('/client-login-history', require('./clientLoginHistory'));
 router.use('/client-cr', clientCRRoutes);
 module.exports = router;

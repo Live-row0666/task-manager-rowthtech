@@ -1,0 +1,171 @@
+.client-login-history-modal .modal-header .client-login-history-close {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.client-login-history-modal .modal-header .client-login-history-close:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.client-login-history-modal .modal-header .client-login-history-close:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.client-login-history-modal .modal-dialog {
+    width: calc(100% - 32px);
+    max-width: 1280px;
+    margin-inline: auto;
+}
+
+.client-login-history-modal .modal-content {
+    border: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+.client-login-history-modal .modal-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 16px;
+}
+
+.client-login-history-modal .client-login-history-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1e293b;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.client-login-history-title > i {
+    color: #6366f1;
+    font-size: 22px;
+}
+
+.client-login-history-modal .modal-body {
+    padding: 20px 22px;
+}
+
+.client-login-history-note {
+    margin: 0 0 16px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.client-login-history-table-wrap {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.client-login-history-table {
+    min-width: 1120px;
+    table-layout: fixed;
+    color: #334155;
+    font-size: 12px;
+}
+
+.client-login-history-table > :not(caption) > * > * {
+    padding: 14px 16px !important;
+    text-align: left;
+    vertical-align: top;
+    border-bottom-color: #e2e8f0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.client-login-history-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.client-login-history-table th:nth-child(1) { width: 16%; }
+.client-login-history-table th:nth-child(2) { width: 22%; }
+.client-login-history-table th:nth-child(3) { width: 12%; }
+.client-login-history-table th:nth-child(4) { width: 18%; }
+.client-login-history-table th:nth-child(5) { width: 14%; }
+.client-login-history-table th:nth-child(6) { width: 18%; }
+
+.client-login-history-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.client-login-history-table strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.client-login-history-table .small {
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+.client-login-history-projects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.client-login-history-project {
+    padding: 3px 7px;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+}
+
+.client-login-history-ip {
+    font-family: monospace;
+    color: #334155;
+}
+
+.client-login-history-table .client-login-history-portal {
+    font-size: 11px;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.client-login-history-modal .modal-footer {
+    padding: 14px 22px;
+    border-top: 1px solid #e2e8f0;
+    gap: 12px;
+    background: #f8fafc;
+}
+
+.client-login-history-modal .modal-footer .btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-transform: none;
+    font-size: 12px;
+}
+
+@media (max-width: 576px) {
+    .client-login-history-modal .modal-header,
+    .client-login-history-modal .modal-body,
+    .client-login-history-modal .modal-footer {
+        padding: 14px;
+    }
+}
