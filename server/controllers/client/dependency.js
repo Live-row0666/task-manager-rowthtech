@@ -34,6 +34,11 @@ class ClientDependencyController {
                 .sort({ createdAt: -1 })
                 .lean();
 
+            const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+            // Keep newest first within each priority, as returned by the query.
+            dependencies.sort((a, b) =>
+                (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2));
+
             return res.status(200).json({
                 status: 200,
                 success: true,

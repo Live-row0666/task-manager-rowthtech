@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { logoutUser } from "../redux/actions";
+import DependencyAlerts from "./DependencyAlerts";
 
 const CommonHeader = ({ title }) => {
     const dispatch = useDispatch();
@@ -106,6 +107,7 @@ const CommonHeader = ({ title }) => {
                 </div>
 
                 <div className="header-actions">
+                    <DependencyAlerts userId={user?._id || user?.id} />
                     {/* Notification Bell Trigger */}
                     <button
                         className={`notification-btn ${isNotifOpen ? "active" : ""}`}

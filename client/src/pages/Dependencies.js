@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Modal } from 'react-bootstrap';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import config from '../config';
 import CommonHeader from '../components/commonHeader';
@@ -14,6 +15,8 @@ const api = new APICore();
 
 const Dependencies = () => {
     const dispatch = useDispatch();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const { dashboard, user } = useSelector((s) => ({
         dashboard: s.Auth?.dashboard,
@@ -34,6 +37,7 @@ const Dependencies = () => {
     // Filters
     const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
     const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+    const [selectedPriorityFilter, setSelectedPriorityFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Fulfill Modal State
@@ -92,6 +96,9 @@ const Dependencies = () => {
             if (selectedStatusFilter && selectedStatusFilter !== 'all') {
                 params.status = selectedStatusFilter;
             }
+            if (selectedPriorityFilter !== 'all') {
+                params.priority = selectedPriorityFilter;
+            }
             if (searchTerm.trim()) {
                 params.search = searchTerm.trim();
             }
@@ -113,7 +120,7 @@ const Dependencies = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedProjectFilter, selectedStatusFilter, searchTerm]);
+    }, [selectedProjectFilter, selectedStatusFilter, selectedPriorityFilter, searchTerm]);
 
     useEffect(() => {
         fetchDependencies();
@@ -164,13 +171,16 @@ const Dependencies = () => {
                 socket.disconnect();
             }
         };
-    }, [user?._id]);
+    }, [user?._id, fetchDependencies]);
 
     // Open Fulfill / View Modal
-    const handleOpenFulfillModal = async (dep, viewOnly = false) => {
+    const handleOpenFulfillModal = useCallback(async (dependency, viewOnly = false) => {
         try {
+            const res = await api.get(`/api/v1/client/dependency/${dependency._id}`);
+            const dep = res?.data?.data || res?.data;
+            if (!dep?._id) throw new Error('Dependency not found');
             setActiveDep(dep);
-            setIsViewOnly(viewOnly);
+            setIsViewOnly(viewOnly || ['submitted', 'in_review', 'approved', 'completed'].includes(dep.status));
 
             // Populate existing values
             const initialVals = {};
@@ -189,16 +199,21 @@ const Dependencies = () => {
             setRevealedSecrets({});
             setShowModal(true);
 
-            // Mark unread as viewed
-            const res = await api.get(`/api/v1/client/dependency/${dep._id}`);
-            if (res && res.data) {
-                const freshData = res.data.data || res.data;
-                setActiveDep(freshData);
-            }
         } catch (err) {
             console.error('Error opening dependency modal:', err);
+            setToastMessage({ msg: 'Unable to open this dependency. Please try again.', type: 'error' });
         }
-    };
+    }, []);
+
+    // Alert links open the selected requirement even when table filters hide it.
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const dependencyId = params.get('dependency');
+        if (!dependencyId) return;
+        params.delete('dependency');
+        navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
+        handleOpenFulfillModal({ _id: dependencyId });
+    }, [location.search, location.pathname, location.hash, navigate, handleOpenFulfillModal]);
 
     // Handle field text change
     const handleFieldChange = (fieldId, val) => {
@@ -444,7 +459,20 @@ const Dependencies = () => {
                                 <option value="rejected">Revision Requested</option>
                             </select>
 
-                            {(searchTerm || selectedProjectFilter !== 'all' || selectedStatusFilter !== 'all') && (
+                            <select
+                                className="dep-filter-select"
+                                aria-label="Filter by priority"
+                                value={selectedPriorityFilter}
+                                onChange={(e) => setSelectedPriorityFilter(e.target.value)}
+                            >
+                                <option value="all">All Priorities</option>
+                                <option value="urgent">Urgent</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+
+                            {(searchTerm || selectedProjectFilter !== 'all' || selectedStatusFilter !== 'all' || selectedPriorityFilter !== 'all') && (
                                 <button
                                     type="button"
                                     className="btn-dep-reset"
@@ -452,6 +480,7 @@ const Dependencies = () => {
                                         setSearchTerm('');
                                         setSelectedProjectFilter('all');
                                         setSelectedStatusFilter('all');
+                                        setSelectedPriorityFilter('all');
                                     }}
                                 >
                                     <i className="bi bi-x-circle"></i> Clear

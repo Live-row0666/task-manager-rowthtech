@@ -140,6 +140,7 @@ const ClientDependency = () => {
 
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingDependency, setEditingDependency] = useState(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [activeDependency, setActiveDependency] = useState(null);
@@ -426,6 +427,7 @@ const ClientDependency = () => {
 
     // Reset Create Modal Form
     const handleOpenCreateModal = () => {
+        setEditingDependency(null);
         setFormProject('');
         setFormClient('');
         setFormTitle('');
@@ -444,6 +446,19 @@ const ClientDependency = () => {
                 isRequired: true
             }
         ]);
+        setShowCreateModal(true);
+    };
+
+    const handleOpenEditModal = (dep) => {
+        setEditingDependency(dep);
+        setFormProject(dep.project?._id || dep.project || '');
+        setFormClient(dep.client?._id || dep.client || '');
+        setFormTitle(dep.title || '');
+        setFormDescription(dep.description || '');
+        setFormPriority(dep.priority || 'medium');
+        setFormExpectedDays(dep.expectedDays ?? 3);
+        setFormAdminNotes(dep.adminNotes || '');
+        setFormDynamicFields((dep.dynamicFields || []).map((field) => ({ ...field })));
         setShowCreateModal(true);
     };
 
@@ -539,18 +554,20 @@ const ClientDependency = () => {
                 dynamicFields: formDynamicFields
             };
 
-            const res = await api.create('/api/v1/admin/client-dependency', payload);
+            const res = editingDependency
+                ? await api.update(`/api/v1/admin/client-dependency/${editingDependency._id}`, payload)
+                : await api.create('/api/v1/admin/client-dependency', payload);
             if (res && res.status) {
-                triggerToast('Dependency requirement sent to client successfully!');
+                triggerToast(editingDependency ? 'Dependency updated successfully!' : 'Dependency requirement sent to client successfully!');
                 setShowCreateModal(false);
                 fetchDependencies();
                 fetchStats();
             } else {
-                triggerToast(res?.message || 'Failed to create dependency.', 'error');
+                triggerToast(res?.data?.message || 'Failed to save dependency.', 'error');
             }
         } catch (err) {
             console.error('Error creating dependency:', err);
-            triggerToast(err?.message || 'Server error creating dependency.', 'error');
+            triggerToast(err?.message || (typeof err === 'string' ? err : 'Server error saving dependency.'), 'error');
         } finally {
             setSaving(false);
         }
@@ -1114,6 +1131,14 @@ const ClientDependency = () => {
                                         <td className="text-end">
                                             <div className="dep-actions-row">
                                                 <button
+                                                    className="btn-action-view"
+                                                    onClick={() => handleOpenEditModal(dep)}
+                                                    title="Edit dependency requirement"
+                                                >
+                                                    <i className="uil uil-edit"></i>
+                                                    <span>Edit</span>
+                                                </button>
+                                                <button
                                                     className="btn-action-fill"
                                                     onClick={() => handleOpenFillModal(dep)}
                                                     title="Fill requirement values"
@@ -1163,24 +1188,25 @@ const ClientDependency = () => {
                                 <i className="uil uil-plus-circle"></i>
                             </div>
                             <div>
-                                <h5 className="dep-modal-title">Create Dynamic Dependency Requirement</h5>
+                                <h5 className="dep-modal-title">{editingDependency ? 'Edit Dependency Requirement' : 'Create Dynamic Dependency Requirement'}</h5>
                                 <p className="dep-modal-subtitle">
                                     Request dynamic credentials, API tokens, documents or specifications from client
                                 </p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            className="dep-modal-close-btn"
-                            onClick={() => setShowCreateModal(false)}
-                            title="Close modal"
-                        >
-                            &times;
-                        </button>
                     </div>
 
                     <div className="dep-modal-body">
                         <div className="dep-modal-grid">
+                            {editingDependency ? (
+                                <div className="dep-form-group">
+                                    <label>Project / Client</label>
+                                    <div className="dep-form-control">
+                                        {editingDependency.project?.name || 'Project'} — {editingDependency.client?.name || 'Client'}
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
                             {/* Project Selection (Ongoing & AMC Only) */}
                         <div className="dep-form-group">
                             <label className="d-flex justify-content-between align-items-center mb-1">
@@ -1255,6 +1281,9 @@ const ClientDependency = () => {
                                 )}
                             </div>
                         )}
+
+                                </>
+                            )}
 
                         {/* Title & Priority & Turnaround */}
                         <div className="dep-form-group">
@@ -1490,12 +1519,12 @@ const ClientDependency = () => {
                         {saving ? (
                             <>
                                 <span className="spinner-border spinner-border-sm me-1"></span>
-                                Dispatching to Client...
+                                {editingDependency ? 'Saving Changes...' : 'Dispatching to Client...'}
                             </>
                         ) : (
                             <>
                                 <i className="uil uil-send"></i>
-                                Send Dependency to Client
+                                {editingDependency ? 'Save Changes' : 'Send Dependency to Client'}
                             </>
                         )}
                     </button>
@@ -1814,14 +1843,6 @@ const ClientDependency = () => {
                                 <h5 className="dep-modal-title mb-0">Fill Dependency: {fillDep.title}</h5>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            className="dep-modal-close-btn"
-                            onClick={() => setShowFillModal(false)}
-                            title="Close modal"
-                        >
-                            &times;
-                        </button>
                     </div>
 
                     <div className="dep-modal-body">
